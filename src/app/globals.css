@@ -1,26 +1,145 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0b0f14;
+  --foreground: #ffffff;
+  --card: #151a22;
+  --muted: #8b939e;
+  --border: #2a3038;
+  --brand-lime: #c6ff2e;
+  --brand-cyan: #0be5ff;
+  --brand-blue: #1e5bff;
+  --brand-red: #ff4d60;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-brand-bg: #0b0f14;
+  --color-brand-surface: #151a22;
+  --color-brand-neutral: #2a3038;
+  --color-brand-lime: #c6ff2e;
+  --color-brand-cyan: #0be5ff;
+  --color-brand-blue: #1e5bff;
+  --color-brand-red: #ff4d60;
+  --color-brand-muted: #8b939e;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+.brand-dot-pattern {
+  background-image: radial-gradient(circle, #2a3038 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+.brand-display {
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  /* Italic caps extend past the glyph box — avoid clipping the last letter. */
+  padding-inline-end: 0.08em;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.countdown-display {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.15rem;
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--foreground);
+}
+
+.countdown-column {
+  display: inline-flex;
+  min-width: 2.75rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.countdown-label {
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: color-mix(in srgb, var(--muted) 85%, transparent);
+  text-transform: lowercase;
+}
+
+.countdown-hint {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.countdown-unit {
+  display: inline-block;
+  height: 1.15em;
+  overflow: hidden;
+  line-height: 1.15;
+}
+
+.countdown-unit-track {
+  display: flex;
+  flex-direction: column;
+  transform: translateY(0);
+  will-change: transform;
+}
+
+.countdown-unit-track-rolling {
+  transform: translateY(-50%);
+  transition: transform 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.countdown-unit-value {
+  display: block;
+  height: 1.15em;
+  line-height: 1.15em;
+}
+
+.countdown-separator {
+  align-self: flex-start;
+  line-height: 1.15;
+  margin-inline: 0.05rem;
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  font-weight: 400;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .countdown-unit-track {
+    transition: none;
+  }
+
+  .countdown-unit-track-rolling {
+    transform: none;
+  }
+}
+
+.live-pulse-dot {
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
 }

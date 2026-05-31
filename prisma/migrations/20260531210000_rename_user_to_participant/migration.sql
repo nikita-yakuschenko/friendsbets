@@ -1,0 +1,2 @@
+-- Rename USER role to PARTICIPANT (Участник)
+ALTER TYPE "UserRole" RENAME VALUE 'USER' TO 'PARTICIPANT';

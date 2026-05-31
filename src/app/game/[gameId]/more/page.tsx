@@ -1,0 +1,52 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ContentContainer } from "@/components/layout/content-container";
+import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
+import { canManageGame, resolveGameIdFromRoute } from "@/lib/game-access";
+import { getSession } from "@/lib/auth";
+import { isAdmin } from "@/lib/roles";
+
+export default async function GameMorePage({
+  params,
+}: {
+  params: Promise<{ gameId: string }>;
+}) {
+  const session = await getSession();
+  if (!session) return notFound();
+
+  const { gameId: gameSlug } = await params;
+  const internalId = await resolveGameIdFromRoute(gameSlug);
+  if (!internalId) return notFound();
+
+  const canManage = await canManageGame(session, internalId);
+  const isPlatformAdmin = isAdmin(session.role);
+
+  return (
+    <ContentContainer>
+      <PageHeader title="Ещё" description="Дополнительные разделы игры." />
+
+      <div className="space-y-3">
+        <Link href="/">
+          <Button variant="secondary" className="w-full justify-start">
+            Мои игры
+          </Button>
+        </Link>
+        {canManage && (
+          <Link href={`/admin/missing?game=${encodeURIComponent(gameSlug)}`}>
+            <Button variant="secondary" className="w-full justify-start">
+              Кто не поставил
+            </Button>
+          </Link>
+        )}
+        {isPlatformAdmin && (
+          <Link href="/admin">
+            <Button variant="secondary" className="w-full justify-start">
+              Админка платформы
+            </Button>
+          </Link>
+        )}
+      </div>
+    </ContentContainer>
+  );
+}
