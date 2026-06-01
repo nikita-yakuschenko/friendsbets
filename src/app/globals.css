@@ -41,6 +41,10 @@ body {
   font-family: var(--font-sans);
 }
 
+.min-h-leaderboard {
+  min-height: 11rem;
+}
+
 .brand-dot-pattern {
   background-image: radial-gradient(circle, #2a3038 1px, transparent 1px);
   background-size: 14px 14px;

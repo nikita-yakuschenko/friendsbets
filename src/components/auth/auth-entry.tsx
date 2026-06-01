@@ -79,7 +79,12 @@ export function AuthEntry() {
             isRegister ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
           )}
         >
-          <div className="overflow-hidden">
+          <div
+            className={cn(
+              "min-h-0",
+              isRegister ? "overflow-visible" : "overflow-hidden",
+            )}
+          >
             <div className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="name" variant="brand">

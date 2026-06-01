@@ -92,7 +92,7 @@ export default async function GamePage({
           )}
         </StatCard>
 
-        <Card className="flex h-full min-h-44 flex-col overflow-hidden p-0">
+        <Card className="min-h-leaderboard flex h-full flex-col overflow-hidden p-0">
           <MiniLeaderboard
             fill
             rows={topLeaderboard}

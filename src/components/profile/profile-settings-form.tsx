@@ -3,6 +3,7 @@
 import { IconX } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import {
+  startTransition,
   useActionState,
   useEffect,
   useMemo,
@@ -121,7 +122,9 @@ export function ProfileSettingsForm({ user }: { user: ProfileUser }) {
       formData.delete("avatar");
     }
 
-    formAction(formData);
+    startTransition(() => {
+      formAction(formData);
+    });
   }
 
   const showAvatarImage =

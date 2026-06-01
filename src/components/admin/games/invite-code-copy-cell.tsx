@@ -41,7 +41,7 @@ export function InviteCodeCopyCell({
     : { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const };
 
   return (
-    <div className="inline-flex h-11 min-w-38 items-center">
+    <div className="inline-flex h-11 items-center min-w-38">
       <AnimatePresence mode="wait" initial={false}>
         {copied ? (
           <motion.span
@@ -66,7 +66,7 @@ export function InviteCodeCopyCell({
             onClick={handleCopy}
             aria-label={`Скопировать ссылку приглашения, код ${inviteCode}`}
             className={cn(
-              "-mx-1 flex h-11 min-w-38 items-center gap-2 rounded-lg px-2 text-left",
+              "-mx-1 flex h-11 items-center gap-2 min-w-38 rounded-lg px-2 text-left",
               "transition-colors hover:text-brand-lime active:text-brand-lime",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime/60",
             )}

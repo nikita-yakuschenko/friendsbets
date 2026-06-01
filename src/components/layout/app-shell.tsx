@@ -4,7 +4,6 @@ import { UserAvatar } from "@/components/user/user-avatar";
 import { logoutAction } from "@/server/actions/auth";
 import { BrandLogo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
-import { UserRoleBadge } from "@/components/user/user-role-badge";
 import { DesktopSidebar } from "@/components/layout/desktop-sidebar";
 import { ShellDesktopPageTitle } from "@/components/layout/shell-desktop-page-title";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
@@ -75,29 +74,32 @@ export async function AppShell({
               <div className="flex shrink-0 items-center gap-3">
                 {user ? (
                   <>
-                    <div className="hidden items-center gap-2 sm:flex">
+                    <div className="hidden items-center gap-2 overflow-visible sm:flex">
                       <Link
                         href="/profile"
-                        className="flex items-center gap-2 rounded-lg py-1 pr-1 transition-colors hover:text-white"
+                        className="flex items-center gap-2 overflow-visible rounded-lg py-1 pr-1 transition-colors hover:text-white"
                       >
-                        <UserAvatar
-                          name={user.name}
-                          avatarUrl={user.avatarUrl}
-                          size="sm"
-                        />
+                        <span className="relative inline-flex shrink-0">
+                          <UserAvatar
+                            name={user.name}
+                            avatarUrl={user.avatarUrl}
+                            size="sm"
+                          />
+                          {userIsPlatformAdmin ? (
+                            <>
+                              <IconCrown
+                                className="pointer-events-none absolute top-0 left-1/2 z-10 size-3.5 -translate-x-1/2 translate-y-[-88%] text-brand-lime"
+                                stroke={1.75}
+                                aria-hidden
+                              />
+                              <span className="sr-only">Администратор</span>
+                            </>
+                          ) : null}
+                        </span>
                         <span className="text-sm text-brand-muted hover:text-white">
                           {user.name}
                         </span>
                       </Link>
-                      {userIsPlatformAdmin ? (
-                        <IconCrown
-                          className="h-4 w-4 shrink-0 text-brand-lime"
-                          stroke={1.75}
-                          aria-label="Администратор"
-                        />
-                      ) : (
-                        <UserRoleBadge role={user.role} />
-                      )}
                     </div>
                     <form action={logoutAction}>
                       <Button
