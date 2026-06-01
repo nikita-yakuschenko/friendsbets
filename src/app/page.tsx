@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import Link from "next/link";
 import { gamePath } from "@/lib/game-path";
 import { Button } from "@/components/ui/button";
+import { NoGamesPrompt } from "@/components/game/no-games-prompt";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function HomePage() {
@@ -56,24 +57,7 @@ export default async function HomePage() {
         )}
 
         {memberships.length === 0 ? (
-          <Card>
-            <CardContent className="space-y-5 py-8 text-center">
-              <p className="text-brand-muted">
-                Вы пока не в турнире. Создайте турнир прогнозов или подключитесь по
-                invite-коду от друга.
-              </p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-                <Link href="/create">
-                  <Button className="w-full sm:w-auto">Создать турнир</Button>
-                </Link>
-                <Link href="/join">
-                  <Button variant="secondary" className="w-full sm:w-auto">
-                    Подключиться по invite
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+          <NoGamesPrompt />
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {memberships.map(({ game }) => (

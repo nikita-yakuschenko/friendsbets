@@ -32,6 +32,7 @@ export function TeamLabel({
       aria-hidden="true"
       className={cn("h-[18px] w-6 shrink-0 rounded-sm object-cover", flagClassName)}
       loading="lazy"
+      decoding="async"
     />
   ) : null;
 

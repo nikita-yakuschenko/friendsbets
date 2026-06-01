@@ -40,6 +40,7 @@ function TeamFlag({
       aria-hidden="true"
       className={cn("h-3 w-4 shrink-0 rounded-sm object-cover", className)}
       loading="lazy"
+      decoding="async"
     />
   );
 }

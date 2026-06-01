@@ -8,6 +8,9 @@ import {
   IconTrophy,
   IconBroadcast,
   IconShield,
+  IconUser,
+  IconUserPlus,
+  IconCirclePlus,
 } from "@tabler/icons-react";
 import { BrandLogo } from "@/components/brand/logo";
 import { LiveNavLabel } from "@/components/layout/live-nav-label";
@@ -34,16 +37,22 @@ function navLinkClass(active: boolean) {
 
 export function DesktopSidebar({
   gameInviteCode,
+  hasGames,
   isPlatformAdmin,
   canManageGame,
 }: {
   gameInviteCode?: string;
+  hasGames: boolean;
   isPlatformAdmin: boolean;
   canManageGame: boolean;
 }) {
   const pathname = usePathname();
   const inviteFromPath = pathname.match(/^\/game\/([^/]+)/)?.[1];
-  const activeInviteCode = gameInviteCode ?? inviteFromPath;
+  const activeInviteCode = hasGames ? (gameInviteCode ?? inviteFromPath) : undefined;
+  const showAdminLink =
+    hasGames &&
+    (isPlatformAdmin || canManageGame) &&
+    (Boolean(activeInviteCode) || pathname.startsWith("/admin"));
 
   return (
     <aside className="hidden md:sticky md:top-0 md:flex md:h-screen md:max-h-screen md:w-64 md:shrink-0 md:flex-col md:overflow-hidden md:border-r md:border-brand-neutral md:bg-brand-surface/50">
@@ -57,44 +66,73 @@ export function DesktopSidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-hidden px-3 py-4">
-        {activeInviteCode &&
-          gameLinks.map((link) => {
-            const href =
-              link.href === "base"
-                ? gamePath(activeInviteCode)
-                : gamePath(activeInviteCode, link.href);
-            const active = pathname === href;
-            const Icon = link.icon;
-            return (
-              <Link key={href} href={href} className={navLinkClass(active)}>
-                <Icon className="h-4 w-4 shrink-0" stroke={1.75} />
-                {"isLive" in link && link.isLive ? (
-                  <LiveNavLabel showIcon={false} />
-                ) : (
-                  link.label
-                )}
-              </Link>
-            );
-          })}
+        <Link href="/" className={navLinkClass(pathname === "/")}>
+          <IconHome className="h-4 w-4 shrink-0" stroke={1.75} />
+          Мои турниры
+        </Link>
+        <Link href="/profile" className={navLinkClass(pathname === "/profile")}>
+          <IconUser className="h-4 w-4 shrink-0" stroke={1.75} />
+          Профиль
+        </Link>
 
-        {(isPlatformAdmin || canManageGame) && (
+        {!hasGames ? (
           <>
-            {activeInviteCode && (
+            <div className="my-2 h-px bg-brand-neutral/60" aria-hidden="true" />
+            <Link href="/create" className={navLinkClass(pathname === "/create")}>
+              <IconCirclePlus className="h-4 w-4 shrink-0" stroke={1.75} />
+              Создать турнир
+            </Link>
+            <Link href="/join" className={navLinkClass(pathname === "/join")}>
+              <IconUserPlus className="h-4 w-4 shrink-0" stroke={1.75} />
+              Подключиться
+            </Link>
+          </>
+        ) : null}
+
+        {hasGames && activeInviteCode ? (
+          <>
+            <div className="my-2 h-px bg-brand-neutral/60" aria-hidden="true" />
+            {gameLinks.map((link) => {
+              const href =
+                link.href === "base"
+                  ? gamePath(activeInviteCode)
+                  : gamePath(activeInviteCode, link.href);
+              const active = pathname === href;
+              const Icon = link.icon;
+              return (
+                <Link key={href} href={href} className={navLinkClass(active)}>
+                  <Icon className="h-4 w-4 shrink-0" stroke={1.75} />
+                  {"isLive" in link && link.isLive ? (
+                    <LiveNavLabel showIcon={false} />
+                  ) : (
+                    link.label
+                  )}
+                </Link>
+              );
+            })}
+          </>
+        ) : null}
+
+        {showAdminLink ? (
+          <>
+            {activeInviteCode ? (
               <div className="my-2 h-px bg-brand-neutral/60" aria-hidden="true" />
-            )}
+            ) : null}
             <Link href="/admin" className={navLinkClass(pathname.startsWith("/admin"))}>
               <IconShield className="h-4 w-4 shrink-0" stroke={1.75} />
               Админка
             </Link>
           </>
-        )}
+        ) : null}
       </nav>
 
-      <div className="shrink-0 border-t border-brand-neutral/60 p-3">
-        <Link href="/create" className="block">
-          <Button className="w-full">Создать турнир</Button>
-        </Link>
-      </div>
+      {hasGames && pathname !== "/" ? (
+        <div className="shrink-0 border-t border-brand-neutral/60 p-3">
+          <Link href="/create" className="block">
+            <Button className="w-full">Создать турнир</Button>
+          </Link>
+        </div>
+      ) : null}
     </aside>
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { IconCrown } from "@tabler/icons-react";
+import { UserAvatar } from "@/components/user/user-avatar";
 import { logoutAction } from "@/server/actions/auth";
 import { BrandLogo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
@@ -8,11 +9,12 @@ import { DesktopSidebar } from "@/components/layout/desktop-sidebar";
 import { ShellDesktopPageTitle } from "@/components/layout/shell-desktop-page-title";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { shellHeaderHeightClass } from "@/components/layout/shell-header";
+import { getUserGamesState } from "@/lib/game-access";
 import { cn } from "@/lib/utils";
 import { isAdmin } from "@/lib/roles";
 import type { SessionUser } from "@/lib/auth";
 
-export function AppShell({
+export async function AppShell({
   children,
   user,
   gameInviteCode,
@@ -27,6 +29,19 @@ export function AppShell({
 }) {
   const userIsPlatformAdmin = isPlatformAdmin ?? (user ? isAdmin(user.role) : false);
 
+  let hasGames = false;
+  let activeInviteCode = gameInviteCode;
+
+  if (user) {
+    const state = await getUserGamesState(user.id);
+    hasGames = state.hasGames;
+    if (!activeInviteCode && state.firstInviteCode) {
+      activeInviteCode = state.firstInviteCode;
+    }
+  }
+
+  const showMobileNav = Boolean(user && hasGames && activeInviteCode);
+
   return (
     <div className="relative min-h-screen bg-brand-bg text-white">
       <div
@@ -35,14 +50,15 @@ export function AppShell({
       />
 
       <div className="relative flex min-h-screen min-w-0">
-        {user && (
+        {user ? (
           <DesktopSidebar
-            gameInviteCode={gameInviteCode}
+            gameInviteCode={activeInviteCode}
+            hasGames={hasGames}
             isPlatformAdmin={userIsPlatformAdmin}
             canManageGame={canManageGame}
           />
-        )}
-        <div className="flex min-h-screen flex-1 flex-col min-w-0">
+        ) : null}
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <header
             className={cn(
               shellHeaderHeightClass,
@@ -60,7 +76,19 @@ export function AppShell({
                 {user ? (
                   <>
                     <div className="hidden items-center gap-2 sm:flex">
-                      <span className="text-sm text-brand-muted">{user.name}</span>
+                      <Link
+                        href="/profile"
+                        className="flex items-center gap-2 rounded-lg py-1 pr-1 transition-colors hover:text-white"
+                      >
+                        <UserAvatar
+                          name={user.name}
+                          avatarUrl={user.avatarUrl}
+                          size="sm"
+                        />
+                        <span className="text-sm text-brand-muted hover:text-white">
+                          {user.name}
+                        </span>
+                      </Link>
                       {userIsPlatformAdmin ? (
                         <IconCrown
                           className="h-4 w-4 shrink-0 text-brand-lime"
@@ -83,27 +111,32 @@ export function AppShell({
                     </form>
                   </>
                 ) : (
-                  <>
-                    <Link href="/">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-auto min-h-0 px-2 py-1 text-sm font-medium text-brand-muted hover:text-white"
-                      >
-                        Войти
-                      </Button>
-                    </Link>
-                  </>
+                  <Link href="/">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto min-h-0 px-2 py-1 text-sm font-medium text-brand-muted hover:text-white"
+                    >
+                      Войти
+                    </Button>
+                  </Link>
                 )}
               </div>
             </div>
           </header>
-          <main className={cn("min-w-0 flex-1 overflow-x-hidden", gameInviteCode && "pb-24 md:pb-6")}>
+          <main
+            className={cn(
+              "min-w-0 flex-1 overflow-x-hidden",
+              showMobileNav && "pb-24 md:pb-6",
+            )}
+          >
             {children}
           </main>
         </div>
       </div>
-      {gameInviteCode && user && <MobileBottomNav gameInviteCode={gameInviteCode} />}
+      {showMobileNav && activeInviteCode ? (
+        <MobileBottomNav gameInviteCode={activeInviteCode} />
+      ) : null}
     </div>
   );
 }

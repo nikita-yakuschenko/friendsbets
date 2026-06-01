@@ -11,6 +11,7 @@ export type SessionUser = {
   id: string;
   email: string;
   name: string;
+  avatarUrl: string | null;
   role: UserRole;
 };
 
@@ -68,7 +69,7 @@ export async function getSession(): Promise<SessionUser | null> {
 
   return prisma.user.findUnique({
     where: { id: verified.userId },
-    select: { id: true, email: true, name: true, role: true },
+    select: { id: true, email: true, name: true, avatarUrl: true, role: true },
   });
 }
 

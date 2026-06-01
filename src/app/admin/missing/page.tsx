@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { MissingPredictionCard } from "@/components/admin/missing-prediction-card";
+import { NoGamesPrompt } from "@/components/game/no-games-prompt";
 import { AppShell } from "@/components/layout/app-shell";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
@@ -24,7 +25,19 @@ export default async function AdminMissingPage({
   if (!session) redirect("/");
 
   const games = await getMissingPredictionsGames(session.id, session.role);
-  if (games.length === 0) notFound();
+  if (games.length === 0) {
+    return (
+      <AppShell user={session}>
+        <ContentContainer>
+          <PageHeader
+            title="Кто не поставил"
+            description="Участники без прогноза на ближайшие матчи."
+          />
+          <NoGamesPrompt />
+        </ContentContainer>
+      </AppShell>
+    );
+  }
 
   const { game: gameParam } = await searchParams;
   const normalizedParam = gameParam ? normalizeInviteCodeInput(gameParam) : "";

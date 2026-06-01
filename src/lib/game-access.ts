@@ -75,6 +75,14 @@ export async function assertGameParticipantBySlug(
   return assertGameParticipant(user, game.id);
 }
 
+export async function getUserGamesState(userId: string) {
+  const memberships = await getUserGames(userId);
+  return {
+    hasGames: memberships.length > 0,
+    firstInviteCode: memberships[0]?.game.inviteCode,
+  };
+}
+
 export async function getUserGames(userId: string) {
   return prisma.gameParticipant.findMany({
     where: { userId },

@@ -3,9 +3,12 @@ import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { getSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/roles";
+import { NoGamesPrompt } from "@/components/game/no-games-prompt";
+import { ContentContainer } from "@/components/layout/content-container";
 import {
   assertGameParticipant,
   canManageGame,
+  getUserGamesState,
   redirectToCanonicalGameRoute,
   resolveGameIdFromRoute,
 } from "@/lib/game-access";
@@ -21,6 +24,17 @@ export default async function GameLayout({
 }) {
   const session = await getSession();
   if (!session) redirect("/");
+
+  const { hasGames } = await getUserGamesState(session.id);
+  if (!hasGames) {
+    return (
+      <AppShell user={session}>
+        <ContentContainer>
+          <NoGamesPrompt />
+        </ContentContainer>
+      </AppShell>
+    );
+  }
 
   const { gameId: routeParam } = await params;
   const internalId = await resolveGameIdFromRoute(routeParam);

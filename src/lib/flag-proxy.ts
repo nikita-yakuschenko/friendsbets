@@ -18,6 +18,7 @@ export function getFlagCdnUrl(code: string, scale: 1 | 2 = 1): string {
   return `https://flagcdn.com/${size}/${code}.png`;
 }
 
+/** Прокси через наш API — flagcdn с клиента часто недоступен, сервер качает и отдаёт с Cache-Control. */
 export function getFlagProxyPath(
   countryCode: string | null | undefined,
   scale: 1 | 2 = 1,
@@ -34,4 +35,17 @@ export function getFlagProxySrcSet(
   const hiRes = getFlagProxyPath(countryCode, 2);
   if (!hiRes) return null;
   return `${hiRes} 2x`;
+}
+
+export function getFlagImageUrl(
+  countryCode: string | null | undefined,
+  scale: 1 | 2 = 1,
+): string | null {
+  return getFlagProxyPath(countryCode, scale);
+}
+
+export function getFlagImageSrcSet(
+  countryCode: string | null | undefined,
+): string | null {
+  return getFlagProxySrcSet(countryCode);
 }

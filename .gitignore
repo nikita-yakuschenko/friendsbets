@@ -20,6 +20,10 @@
 # production
 /build
 
+# uploaded avatars
+/public/avatars/*
+!/public/avatars/.gitkeep
+
 # misc
 .DS_Store
 *.pem

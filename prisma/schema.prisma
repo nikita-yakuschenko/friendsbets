@@ -44,6 +44,7 @@ model User {
   email        String   @unique
   passwordHash String
   name         String
+  avatarUrl    String?
   role         UserRole @default(PARTICIPANT)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

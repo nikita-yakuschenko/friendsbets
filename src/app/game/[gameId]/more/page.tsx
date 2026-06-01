@@ -34,6 +34,11 @@ export default async function GameMorePage({
       <PageHeader title="Ещё" description="Дополнительные разделы игры." />
 
       <div className="space-y-3">
+        <Link href="/profile">
+          <Button variant="secondary" className="w-full justify-start">
+            Профиль
+          </Button>
+        </Link>
         <Link href="/">
           <Button variant="secondary" className="w-full justify-start">
             Мои турниры
