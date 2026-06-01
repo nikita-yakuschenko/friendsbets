@@ -1,17 +1,19 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 import { AuthEntry } from "@/components/auth/auth-entry";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { getSession } from "@/lib/auth";
+import { GameParticipantRole } from "@/generated/prisma/client";
 import { getUserGames } from "@/lib/game-access";
 import { AppShell } from "@/components/layout/app-shell";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
 import Link from "next/link";
-import { gamePath } from "@/lib/game-path";
+import { buildRegisterInviteUrl } from "@/lib/game-invite";
 import { Button } from "@/components/ui/button";
 import { NoGamesPrompt } from "@/components/game/no-games-prompt";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MyTournamentsDataTable } from "@/components/my-tournaments/my-tournaments-data-table";
+import type { MyTournamentRow } from "@/components/my-tournaments/types";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default async function HomePage() {
   const session = await getSession();
@@ -31,9 +33,16 @@ export default async function HomePage() {
 
   const memberships = await getUserGames(session.id);
 
-  if (memberships.length === 1) {
-    redirect(gamePath(memberships[0].game.inviteCode));
-  }
+  const tournamentRows: MyTournamentRow[] = memberships.map(({ game, role }) => ({
+    id: game.id,
+    title: game.title,
+    inviteCode: game.inviteCode,
+    inviteLinkUrl: buildRegisterInviteUrl(game.inviteCode),
+    createdAt: game.createdAt.toISOString(),
+    scoringRuleTitle: game.scoringRule.title,
+    participantsCount: game._count.participants,
+    canLeave: role !== GameParticipantRole.ORGANIZER,
+  }));
 
   return (
     <AppShell user={session} gameInviteCode={memberships[0]?.game.inviteCode}>
@@ -59,21 +68,11 @@ export default async function HomePage() {
         {memberships.length === 0 ? (
           <NoGamesPrompt />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {memberships.map(({ game }) => (
-              <Link key={game.id} href={gamePath(game.inviteCode)}>
-                <Card className="transition hover:border-brand-lime/40">
-                  <CardHeader>
-                    <CardTitle>{game.title}</CardTitle>
-                    <p className="text-sm text-brand-muted">{game.tournament.title}</p>
-                  </CardHeader>
-                  <CardContent className="text-sm text-brand-muted">
-                    Участников: {game._count.participants}
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <MyTournamentsDataTable data={tournamentRows} />
+            </CardContent>
+          </Card>
         )}
       </ContentContainer>
     </AppShell>

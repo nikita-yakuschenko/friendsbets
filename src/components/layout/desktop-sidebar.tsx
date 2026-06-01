@@ -126,10 +126,12 @@ export function DesktopSidebar({
         ) : null}
       </nav>
 
-      {hasGames && pathname !== "/" ? (
+      {hasGames &&
+      pathname !== "/" &&
+      pathname !== "/add-tournament" ? (
         <div className="shrink-0 border-t border-brand-neutral/60 p-3">
-          <Link href="/create" className="block">
-            <Button className="w-full">Создать турнир</Button>
+          <Link href="/add-tournament" className="block">
+            <Button className="w-full">Добавить турнир</Button>
           </Link>
         </div>
       ) : null}
