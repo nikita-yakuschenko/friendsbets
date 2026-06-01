@@ -1,12 +1,11 @@
-import {
-  GameParticipantRole,
-  PrismaClient,
-  TournamentStatus,
-  UserRole,
-} from "../src/generated/prisma/client";
-import { CHAMPIONAT_WORLD_CUP_2026 } from "../src/lib/football-api/championat/constants";
+import { PrismaClient, UserRole } from "../src/generated/prisma/client";
+import { ensureSystemTournamentTemplates } from "../src/lib/tournament-templates";
 
-export const MOCK_MATCH_IDS = [
+const LEGACY_DEMO_GAME_SLUG = "demo2026";
+const LEGACY_DEMO_INVITE_CODES = ["demo2026", "DEMO2026"] as const;
+const LEGACY_SEED_TOURNAMENT_ID = "seed-tournament-2026";
+
+const LEGACY_MOCK_MATCH_IDS = [
   "match-1",
   "match-2",
   "match-3",
@@ -15,7 +14,7 @@ export const MOCK_MATCH_IDS = [
   "match-finished-empty",
 ] as const;
 
-export const MOCK_TEAM_IDS = [
+const LEGACY_MOCK_TEAM_IDS = [
   "team-ger",
   "team-esp",
   "team-fra",
@@ -24,28 +23,38 @@ export const MOCK_TEAM_IDS = [
   "team-arg",
 ] as const;
 
-export const DEMO_USER_EMAILS = [
+const LEGACY_DEMO_USER_EMAILS = [
   "nikita@friendsbets.local",
   "alex@friendsbets.local",
   "maria@friendsbets.local",
   "dima@friendsbets.local",
 ] as const;
 
-export const SEED_TOURNAMENT_ID = "seed-tournament-2026";
-export const SEED_GAME_INVITE_CODE = "demo2026";
-export const SEED_GAME_SLUG = "demo2026";
+/** Удаляет демо-игру, старый seed-турнир и моковые записи из ранних версий проекта. */
+export async function removeLegacyDemoData(prisma: PrismaClient): Promise<void> {
+  await prisma.game.deleteMany({
+    where: {
+      OR: [
+        { slug: LEGACY_DEMO_GAME_SLUG },
+        { inviteCode: { in: [...LEGACY_DEMO_INVITE_CODES] } },
+      ],
+    },
+  });
 
-export async function cleanupMockData(prisma: PrismaClient): Promise<void> {
+  await prisma.tournament.deleteMany({
+    where: { id: LEGACY_SEED_TOURNAMENT_ID },
+  });
+
   await prisma.match.deleteMany({
-    where: { id: { in: [...MOCK_MATCH_IDS] } },
+    where: { id: { in: [...LEGACY_MOCK_MATCH_IDS] } },
   });
 
   await prisma.team.deleteMany({
-    where: { id: { in: [...MOCK_TEAM_IDS] } },
+    where: { id: { in: [...LEGACY_MOCK_TEAM_IDS] } },
   });
 
   await prisma.user.deleteMany({
-    where: { email: { in: [...DEMO_USER_EMAILS] } },
+    where: { email: { in: [...LEGACY_DEMO_USER_EMAILS] } },
   });
 
   const usedTeamIds = await prisma.match.findMany({
@@ -76,7 +85,7 @@ export async function bootstrapEssentialData(
   adminEmail: string,
   adminPasswordHash: string,
 ) {
-  const scoringRules = await Promise.all([
+  await Promise.all([
     prisma.scoringRule.upsert({
       where: { code: "FOOTBALL_CLASSIC" },
       update: {},
@@ -115,10 +124,7 @@ export async function bootstrapEssentialData(
     }),
   ]);
 
-  const manyPointsRule = scoringRules.find((rule) => rule.code === "MANY_POINTS");
-  if (!manyPointsRule) {
-    throw new Error("MANY_POINTS scoring rule not found.");
-  }
+  await ensureSystemTournamentTemplates();
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
@@ -131,51 +137,5 @@ export async function bootstrapEssentialData(
     },
   });
 
-  const tournament = await prisma.tournament.upsert({
-    where: { id: SEED_TOURNAMENT_ID },
-    update: {
-      externalId: "championat:tournament:6858",
-      title: CHAMPIONAT_WORLD_CUP_2026.officialTitle,
-      description: CHAMPIONAT_WORLD_CUP_2026.officialTitle,
-      status: TournamentStatus.ACTIVE,
-    },
-    create: {
-      id: SEED_TOURNAMENT_ID,
-      externalId: "championat:tournament:6858",
-      title: CHAMPIONAT_WORLD_CUP_2026.officialTitle,
-      description: CHAMPIONAT_WORLD_CUP_2026.officialTitle,
-      status: TournamentStatus.ACTIVE,
-    },
-  });
-
-  const game = await prisma.game.upsert({
-    where: { inviteCode: SEED_GAME_INVITE_CODE },
-    update: {
-      slug: SEED_GAME_SLUG,
-      scoringRuleId: manyPointsRule.id,
-      tournamentId: tournament.id,
-    },
-    create: {
-      tournamentId: tournament.id,
-      title: "Друзья — ЧМ 2026",
-      slug: SEED_GAME_SLUG,
-      inviteCode: SEED_GAME_INVITE_CODE,
-      prizeFundText: "Призовой фонд: ужин у победителя",
-      scoringRuleId: manyPointsRule.id,
-      createdById: admin.id,
-    },
-  });
-
-  await prisma.gameParticipant.upsert({
-    where: { gameId_userId: { gameId: game.id, userId: admin.id } },
-    update: { role: GameParticipantRole.ORGANIZER },
-    create: {
-      gameId: game.id,
-      userId: admin.id,
-      displayName: "Admin",
-      role: GameParticipantRole.ORGANIZER,
-    },
-  });
-
-  return { admin, tournament, game, manyPointsRule };
+  return { admin };
 }

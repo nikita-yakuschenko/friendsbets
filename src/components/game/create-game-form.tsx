@@ -3,18 +3,16 @@
 import { useActionState, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getScoringRuleHint } from "@/lib/scoring/catalog";
+import { generateRandomInviteCode } from "@/lib/invite-code";
+import type { CreateGameMode } from "@/lib/tournament-templates";
+import { ScoringRuleDescription } from "@/components/scoring/scoring-rule-description";
+import { cn } from "@/lib/utils";
+import { CreateTournamentSubmit } from "@/components/game/create-tournament-submit";
 import { createGameAction } from "@/server/actions/create-game";
 import type { ActionResult } from "@/server/actions/auth";
-
-type TournamentOption = {
-  id: string;
-  title: string;
-  description: string | null;
-  _count: { matches: number };
-};
 
 type ScoringOption = {
   id: string;
@@ -22,26 +20,55 @@ type ScoringOption = {
   code: string;
 };
 
+type TournamentTemplateOption = {
+  id: string;
+  title: string;
+  description: string;
+  isSystem: boolean;
+  matchCount: number | null;
+};
+
+const CHAMPIONAT_URL_EXAMPLE =
+  "https://www.championat.com/football/_worldcup/tournament/6858/calendar/";
+
 export function CreateGameForm({
-  tournaments,
   scoringRules,
+  tournamentTemplates,
+  defaultTemplateId,
 }: {
-  tournaments: TournamentOption[];
   scoringRules: ScoringOption[];
+  tournamentTemplates: TournamentTemplateOption[];
+  defaultTemplateId: string;
 }) {
-  const [state, formAction, pending] = useActionState<
+  const [state, formAction] = useActionState<
     ActionResult | undefined,
     FormData
   >(createGameAction, undefined);
 
+  const [createMode, setCreateMode] = useState<CreateGameMode>("template");
+  const [templateId, setTemplateId] = useState(defaultTemplateId);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [scoringRuleId, setScoringRuleId] = useState(scoringRules[0]?.id ?? "");
-  const selectedRule = scoringRules.find((rule) => rule.id === scoringRuleId);
+  const [inviteCode, setInviteCode] = useState(() => generateRandomInviteCode());
 
-  if (tournaments.length === 0) {
+  const selectedRule = scoringRules.find((rule) => rule.id === scoringRuleId);
+  const selectedTemplate = tournamentTemplates.find((t) => t.id === templateId);
+
+  if (scoringRules.length === 0) {
     return (
       <Alert className="border-brand-neutral bg-brand-bg text-brand-muted">
         <AlertDescription>
-          Пока нет доступных спортивных событий с матчами. Обратитесь к администратору.
+          Правила начисления очков не настроены. Обратитесь к администратору.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (tournamentTemplates.length === 0) {
+    return (
+      <Alert className="border-brand-neutral bg-brand-bg text-brand-muted">
+        <AlertDescription>
+          Нет шаблонов турниров. Запустите seed или создайте шаблон в профессиональном режиме.
         </AlertDescription>
       </Alert>
     );
@@ -55,77 +82,188 @@ export function CreateGameForm({
         </Alert>
       )}
 
+      <input type="hidden" name="createMode" value={createMode} />
+
       <div className="space-y-2">
-        <Label htmlFor="title">Название вашего турнира</Label>
+        <Label htmlFor="title">Название турнира</Label>
         <Input
           id="title"
           name="title"
-          placeholder="Например: Прогнозы с друзьями"
+          placeholder="Прогнозы с друзьями"
+          required
+          maxLength={120}
         />
-        <p className="text-xs text-brand-muted">
-          Необязательно. Если пусто — название соберётся из события.
-        </p>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="tournamentId">Спортивное событие</Label>
-        <select
-          id="tournamentId"
-          name="tournamentId"
-          required
-          defaultValue={tournaments[0]?.id}
-          className="flex h-11 w-full rounded-xl border border-brand-neutral bg-brand-bg px-4 text-base text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime"
-        >
-          {tournaments.map((tournament) => (
-            <option key={tournament.id} value={tournament.id}>
-              {tournament.title} · {tournament._count.matches} матч.
-            </option>
-          ))}
-        </select>
-        {tournaments[0]?.description && (
-          <p className="text-xs text-brand-muted">{tournaments[0].description}</p>
+      <div className="space-y-3">
+        <Label>Режим создания</Label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setCreateMode("template")}
+            className={cn(
+              "flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors",
+              createMode === "template"
+                ? "border-brand-lime bg-brand-lime/10 text-white"
+                : "border-brand-neutral text-brand-muted hover:border-brand-neutral/80",
+            )}
+          >
+            По шаблону
+          </button>
+          <button
+            type="button"
+            onClick={() => setCreateMode("professional")}
+            className={cn(
+              "flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors",
+              createMode === "professional"
+                ? "border-brand-lime bg-brand-lime/10 text-white"
+                : "border-brand-neutral text-brand-muted hover:border-brand-neutral/80",
+            )}
+          >
+            Профессиональный
+          </button>
+        </div>
+
+        {createMode === "template" ? (
+          <div className="space-y-2">
+            <p className="text-xs text-brand-muted">Выберите шаблон</p>
+            <FormSelect
+              id="tournamentTemplateId"
+              name="tournamentTemplateId"
+              required
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+            >
+              {tournamentTemplates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.title}
+                  {template.isSystem ? "" : " · свой"}
+                </option>
+              ))}
+            </FormSelect>
+            {(selectedTemplate?.description || selectedTemplate?.matchCount != null) && (
+              <p className="text-xs text-brand-muted">
+                {selectedTemplate.description}
+                {selectedTemplate.description && selectedTemplate.matchCount != null
+                  ? " · "
+                  : ""}
+                {selectedTemplate.matchCount != null
+                  ? `${selectedTemplate.matchCount} матч. в базе`
+                  : ""}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-xs text-brand-muted">
+              Укажите ссылку на турнир Championat вручную. Можно сохранить её как шаблон для
+              следующих турниров.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="championatUrl">Ссылка на турнир Championat</Label>
+              <Input
+                id="championatUrl"
+                name="championatUrl"
+                type="url"
+                placeholder={CHAMPIONAT_URL_EXAMPLE}
+                required
+              />
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-brand-neutral/80 bg-brand-bg/50 p-4">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  name="saveAsTemplate"
+                  value="on"
+                  checked={saveAsTemplate}
+                  onChange={(e) => setSaveAsTemplate(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-brand-neutral accent-brand-lime"
+                />
+                <span className="text-sm text-white">
+                  Сохранить турнир как шаблон
+                  <span className="mt-0.5 block text-xs font-normal text-brand-muted">
+                    Появится в режиме «По шаблону» у всех пользователей
+                  </span>
+                </span>
+              </label>
+
+              {saveAsTemplate && (
+                <div className="space-y-3 border-t border-brand-neutral/60 pt-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="templateSaveTitle">Название шаблона</Label>
+                    <Input
+                      id="templateSaveTitle"
+                      name="templateSaveTitle"
+                      placeholder="Кубок России 2025"
+                      required
+                      maxLength={120}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="templateSaveDescription">
+                      Описание{" "}
+                      <span className="font-normal text-brand-muted">(необязательно)</span>
+                    </Label>
+                    <Input
+                      id="templateSaveDescription"
+                      name="templateSaveDescription"
+                      placeholder="Кратко для подсказки в списке"
+                      maxLength={200}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="scoringRuleId">Начисление очков</Label>
-        <select
+        <FormSelect
           id="scoringRuleId"
           name="scoringRuleId"
           required
           value={scoringRuleId}
           onChange={(e) => setScoringRuleId(e.target.value)}
-          className="flex h-11 w-full rounded-xl border border-brand-neutral bg-brand-bg px-4 text-base text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime"
         >
           {scoringRules.map((rule) => (
             <option key={rule.id} value={rule.id}>
               {rule.title}
             </option>
           ))}
-        </select>
-        {selectedRule && (
-          <p className="text-xs text-brand-muted">
-            {getScoringRuleHint(selectedRule.code)}
-          </p>
-        )}
+        </FormSelect>
+        {selectedRule ? <ScoringRuleDescription code={selectedRule.code} /> : null}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="entryFeeText">Размер взноса</Label>
-        <Input
-          id="entryFeeText"
-          name="entryFeeText"
-          placeholder="500 ₽"
-          required
-        />
+        <Label htmlFor="inviteCode">Invite-код для друзей</Label>
+        <div className="flex gap-2">
+          <Input
+            id="inviteCode"
+            name="inviteCode"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+            placeholder="ABC123"
+            className="font-mono uppercase tracking-widest"
+            maxLength={32}
+            autoComplete="off"
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setInviteCode(generateRandomInviteCode())}
+          >
+            Сгенерировать
+          </Button>
+        </div>
         <p className="text-xs text-brand-muted">
-          Укажите сумму или условие участия — участники увидят это в игре.
+          По умолчанию — 6 случайных символов (A–Z, 0–9). Можно задать свой: только латиница и цифры.
         </p>
       </div>
 
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Создаём..." : "Создать турнир и получить ссылку"}
-      </Button>
+      <CreateTournamentSubmit />
     </form>
   );
 }

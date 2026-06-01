@@ -1,10 +1,12 @@
 import * as cheerio from "cheerio";
 import { MatchStatus } from "@/generated/prisma/client";
 import type { ExternalMatch, ExternalTeamRef } from "@/lib/football-api/types";
+import { formatBracketSlotLabel } from "@/lib/football-api/championat/bracket-slot-labels";
 import {
   championatMatchExternalId,
   championatSlotExternalId,
   championatTeamExternalId,
+  parseChampionatTeamId,
 } from "@/lib/football-api/championat/constants";
 import { resolveTeamCountryCode } from "@/lib/football-api/championat/team-country-codes";
 
@@ -78,9 +80,10 @@ function buildTeamRef(
   const countryCode =
     countryCodeFromLogo ?? resolveTeamCountryCode(side.name);
 
-  if (side.teamId) {
+  const teamId = parseChampionatTeamId(side.teamId);
+  if (teamId) {
     return {
-      externalId: championatTeamExternalId(side.teamId),
+      externalId: championatTeamExternalId(teamId),
       name: side.name,
       shortName: toShortName(side.name),
       countryCode,
@@ -89,9 +92,10 @@ function buildTeamRef(
   }
 
   const slot = side.name.trim();
+  const displayName = formatBracketSlotLabel(slot);
   return {
     externalId: championatSlotExternalId(slot),
-    name: slot,
+    name: displayName,
     shortName: toShortName(slot),
     isPlaceholder: true,
   };
@@ -106,7 +110,7 @@ function parseTeamSide(
 
   if (link.length > 0) {
     const href = link.attr("href") ?? "";
-    const teamId = href.match(/\/teams\/(\d+)\//)?.[1];
+    const teamId = parseChampionatTeamId(href.match(/\/teams\/(\d+)\//)?.[1]);
     const name = normalizeWhitespace(link.find(".table-item__name").text());
     return { teamId, name };
   }
@@ -121,7 +125,7 @@ function parseTeamsFromRow(
   dataTeam: string | undefined,
 ): { home: ParsedSide; away: ParsedSide; countryCodes: string[] } {
   const countryCodes: string[] = [];
-  const teamLinks = row.find(".stat-results__title-teams a.table-item");
+  const teamLinks = row.find(".stat-results__title-teams .table-item");
 
   if (teamLinks.length >= 2) {
     const sides: ParsedSide[] = [];
@@ -140,14 +144,16 @@ function parseTeamsFromRow(
   }
 
   if (dataTeam?.includes("/")) {
-    const [homeId, awayId] = dataTeam.split("/");
+    const [homeIdRaw, awayIdRaw] = dataTeam.split("/");
+    const homeId = parseChampionatTeamId(homeIdRaw);
+    const awayId = parseChampionatTeamId(awayIdRaw);
     const titleText = normalizeWhitespace(
       row.find(".stat-results__title-teams").text(),
     );
     const parts = titleText.split(/\s*[–−—-]\s*/);
     return {
-      home: { teamId: homeId, name: parts[0] ?? homeId ?? "?" },
-      away: { teamId: awayId, name: parts[1] ?? awayId ?? "?" },
+      home: { teamId: homeId, name: parts[0] ?? "?" },
+      away: { teamId: awayId, name: parts[1] ?? "?" },
       countryCodes,
     };
   }

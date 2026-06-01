@@ -12,6 +12,9 @@ import { cn, formatDateTimeMoscow } from "@/lib/utils";
 import { savePredictionAction } from "@/server/actions/predictions";
 import type { ActionResult } from "@/server/actions/auth";
 
+/** Одна ширина для «Сделать прогноз», «Изменить прогноз» и «Сохранить». */
+const matchActionButtonClassName = "w-[14.5rem] max-w-full shrink-0";
+
 type MatchCardProps = {
   gameId: string;
   match: {
@@ -29,6 +32,7 @@ type MatchCardProps = {
     homeScore: number;
     awayScore: number;
   } | null;
+  canPredict: boolean;
   locked: boolean;
   points: number;
 };
@@ -46,8 +50,8 @@ function MatchMeta({
 
   return (
     <div className="flex min-w-0 flex-col items-center gap-1 text-center text-sm text-brand-muted">
-      <p className="max-w-full break-words">{formatDateTimeMoscow(new Date(startsAt))}</p>
-      {venue ? <p className="max-w-full break-words px-1">{venue}</p> : null}
+      <p className="max-w-full wrap-break-word">{formatDateTimeMoscow(new Date(startsAt))}</p>
+      {venue ? <p className="max-w-full wrap-break-word px-1">{venue}</p> : null}
     </div>
   );
 }
@@ -187,6 +191,7 @@ function FinishedMatchSummary({
 export function MatchPredictionCard({
   gameId,
   match,
+  canPredict,
   prediction,
   locked,
   points,
@@ -245,23 +250,28 @@ export function MatchPredictionCard({
   }, [state]);
 
   const isFinished = match.status === "FINISHED";
-  const editable = !locked && !isFinished;
+  const editable = canPredict && !locked && !isFinished;
+  const awaitingTeams = !canPredict && !locked && !isFinished;
 
   const statusBadge = isFinished
     ? "secondary"
-    : locked
-      ? "warning"
-      : prediction
-        ? "default"
-        : "destructive";
+    : awaitingTeams
+      ? "secondary"
+      : locked
+        ? "warning"
+        : prediction
+          ? "default"
+          : "destructive";
 
   const statusText = isFinished
     ? "Матч завершен"
-    : locked
-      ? "Матч начался"
-      : prediction
-        ? "Прогноз принят"
-        : "Прогноз не сделан";
+    : awaitingTeams
+      ? "Команды неизвестны"
+      : locked
+        ? "Матч начался"
+        : prediction
+          ? "Прогноз принят"
+          : "Прогноз не сделан";
 
   return (
     <Card className="w-full min-w-0 max-w-full overflow-hidden p-0">
@@ -292,9 +302,15 @@ export function MatchPredictionCard({
                 venueName={match.venueName}
                 venueCity={match.venueCity}
               />
-              <Button type="submit" className="w-full" disabled={pending}>
-                Сохранить
-              </Button>
+              <div className="flex justify-center">
+                <Button
+                  type="submit"
+                  className={matchActionButtonClassName}
+                  disabled={pending}
+                >
+                  Сохранить
+                </Button>
+              </div>
             </form>
           ) : (
             <div className="space-y-3">
@@ -304,16 +320,18 @@ export function MatchPredictionCard({
                 venueName={match.venueName}
                 venueCity={match.venueCity}
               />
-              <Button
-                type="button"
-                className="w-full"
-                onClick={() => {
-                  clearFieldErrors();
-                  setIsEditing(true);
-                }}
-              >
-                {prediction ? "Изменить прогноз" : "Сделать прогноз"}
-              </Button>
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  className={matchActionButtonClassName}
+                  onClick={() => {
+                    clearFieldErrors();
+                    setIsEditing(true);
+                  }}
+                >
+                  {prediction ? "Изменить прогноз" : "Сделать прогноз"}
+                </Button>
+              </div>
             </div>
           )
         ) : (
@@ -324,7 +342,13 @@ export function MatchPredictionCard({
               venueName={match.venueName}
               venueCity={match.venueCity}
             />
-            {!prediction && locked && !isFinished && (
+            {awaitingTeams && (
+              <p className="text-center text-sm text-brand-muted">
+                Команды пока неизвестны. Побереги интуицию — прогнозы откроются чуть
+                позже!
+              </p>
+            )}
+            {!prediction && locked && !isFinished && !awaitingTeams && (
               <p className="text-center text-sm text-brand-muted">Прогноз не сделан</p>
             )}
             {isFinished && <FinishedMatchSummary match={match} points={points} />}

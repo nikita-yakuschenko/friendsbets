@@ -15,7 +15,7 @@ export function RecalculateScoresButton({ gameId }: { gameId: string }) {
   }
 
   return (
-    <Button type="button" variant="secondary" onClick={handleClick}>
+    <Button type="button" variant="secondary" size="sm" onClick={handleClick}>
       Пересчитать очки
     </Button>
   );

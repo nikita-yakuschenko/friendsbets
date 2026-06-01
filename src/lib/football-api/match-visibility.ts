@@ -10,7 +10,9 @@ type MatchLike = {
 export function isPlaceholderTeamExternalId(
   externalId: string | null | undefined,
 ): boolean {
-  return Boolean(externalId?.startsWith("championat:slot:"));
+  if (!externalId) return true;
+  if (externalId === "championat:0") return true;
+  return externalId.startsWith("championat:slot:");
 }
 
 export function isMatchPredictable(match: MatchLike): boolean {

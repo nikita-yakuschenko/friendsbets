@@ -32,16 +32,26 @@ export default async function PredictionsPage({
           </CardContent>
         </Card>
       ) : (
-        <div className="min-w-0 space-y-4">
-          {data.items.map((item) => (
-            <MatchPredictionCard
-              key={item.match.id}
-              gameId={data.game.id}
-              match={item.match}
-              prediction={item.prediction}
-              locked={item.locked}
-              points={item.points}
-            />
+        <div className="min-w-0 space-y-8">
+          {data.stageGroups.map((group) => (
+            <section key={group.id} className="min-w-0 space-y-4">
+              <h2 className="text-sm font-medium uppercase tracking-wide text-brand-muted">
+                {group.stage}
+              </h2>
+              <div className="min-w-0 space-y-4">
+                {group.items.map((item) => (
+                  <MatchPredictionCard
+                    key={item.match.id}
+                    gameId={data.game.id}
+                    match={item.match}
+                    canPredict={item.canPredict}
+                    prediction={item.prediction}
+                    locked={item.locked}
+                    points={item.points}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}

@@ -47,18 +47,39 @@ const LEADERBOARD_COLUMNS_BY_RULE: Record<string, LeaderboardColumn[]> = {
   ],
 };
 
-export const SCORING_RULE_HINTS: Record<string, string> = {
-  FOOTBALL_CLASSIC: "3 очка за точный счёт, 1 — за исход",
-  MANY_POINTS:
-    "До 6 очков: точный счёт, исход с разницей, исход с голами команды, исход, голы одной команды",
-  DIFFERENCE_DECIDES: "3 — точный счёт, 2 — исход и разница, 1 — исход",
-  DRY_NUMBERS:
-    "4 — точный счёт, 3 — исход и голы команды, 2 — исход, 1 — голы одной команды",
+const TIER_DETAILS: Record<Exclude<ScoreTier, "none">, string> = {
+  exact: "Совпали голы хозяев и гостей — угадан точный счёт матча.",
+  outcome_and_diff:
+    "Угадан исход (победа / ничья / поражение) и та же разница мячей, что в матче.",
+  outcome_and_team_goals:
+    "Угадан исход и число голов хотя бы у одной из команд (хозяева или гости).",
+  outcome: "Угадан только исход матча — кто выиграл или была ли ничья.",
+  team_goals:
+    "Исход не угадан, но совпало число голов у одной из команд.",
 };
 
-export function getScoringRuleHint(code: string): string {
-  return SCORING_RULE_HINTS[code] ?? "Стандартные правила начисления очков";
-}
+export const SCORING_RULE_SUMMARIES: Record<string, string> = {
+  FOOTBALL_CLASSIC:
+    "Простая классика: главное — точный счёт, за верный исход тоже дают очки.",
+  MANY_POINTS:
+    "Щедрая шкала до 6 очков: чем ближе прогноз к реальности, тем больше награда.",
+  DIFFERENCE_DECIDES:
+    "Разница мячей решает: после точного счёта важнее угадать исход вместе с разницей.",
+  DRY_NUMBERS:
+    "Сбалансированная схема: точный счёт ценится выше, но очки можно набрать и частичными попаданиями.",
+};
+
+export type ScoringRuleDescriptionItem = {
+  points: number;
+  shortLabel: string;
+  label: string;
+  detail: string;
+};
+
+export type ScoringRuleDescription = {
+  summary: string;
+  items: ScoringRuleDescriptionItem[];
+};
 
 export function getLeaderboardColumns(code: string): LeaderboardColumn[] {
   return (
@@ -102,6 +123,34 @@ export function getScoringRuleLegendItems(code: string): ScoringRuleLegendItem[]
     shortLabel: col.shortLabel,
     label: col.label,
   }));
+}
+
+export function getScoringRuleDescription(code: string): ScoringRuleDescription {
+  const summary =
+    SCORING_RULE_SUMMARIES[code] ??
+    "За каждый матч начисляется один лучший подходящий вариант из списка ниже.";
+
+  const columns = getLeaderboardColumns(code);
+  const points =
+    TIER_POINTS_BY_RULE[code] ?? TIER_POINTS_BY_RULE.FOOTBALL_CLASSIC;
+
+  const items = columns
+    .filter((col): col is LeaderboardColumn & { tier: Exclude<ScoreTier, "none"> } =>
+      col.tier !== "none",
+    )
+    .map((col) => ({
+      points: points[col.tier] ?? 0,
+      shortLabel: col.shortLabel,
+      label: col.label,
+      detail: TIER_DETAILS[col.tier],
+    }))
+    .sort((a, b) => b.points - a.points);
+
+  return { summary, items };
+}
+
+export function getScoringRuleHint(code: string): string {
+  return getScoringRuleDescription(code).summary;
 }
 
 /** @deprecated Use getScoringRuleLegendItems */

@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/roles";
+import { normalizeInviteCodeInput } from "@/lib/invite-code";
 import {
   getAdminMissingPredictions,
   getMissingPredictionsGames,
@@ -26,16 +27,22 @@ export default async function AdminMissingPage({
   if (games.length === 0) notFound();
 
   const { game: gameParam } = await searchParams;
+  const normalizedParam = gameParam ? normalizeInviteCodeInput(gameParam) : "";
   const selectedGame =
-    games.find((g) => g.slug === gameParam || g.id === gameParam) ?? games[0];
+    games.find(
+      (g) =>
+        g.inviteCode === normalizedParam ||
+        g.slug === gameParam ||
+        g.id === gameParam,
+    ) ?? games[0];
 
-  const items = await getAdminMissingPredictions(selectedGame.slug);
+  const items = await getAdminMissingPredictions(selectedGame.inviteCode);
   const isPlatformAdmin = isAdmin(session.role);
 
   return (
     <AppShell
       user={session}
-      gameSlug={selectedGame.slug}
+      gameInviteCode={selectedGame.inviteCode}
       isPlatformAdmin={isPlatformAdmin}
       canManageGame
     >
@@ -44,7 +51,7 @@ export default async function AdminMissingPage({
           title="Кто не поставил"
           description="Участники без прогноза на ближайшие матчи."
           action={
-            <Link href="/admin">
+            <Link href="/admin?tab=games">
               <Button variant="secondary">← Админка</Button>
             </Link>
           }
@@ -57,7 +64,7 @@ export default async function AdminMissingPage({
               return (
                 <Link
                   key={game.id}
-                  href={`/admin/missing?game=${encodeURIComponent(game.slug)}`}
+                  href={`/admin/missing?game=${encodeURIComponent(game.inviteCode)}`}
                 >
                   <Button
                     variant={active ? "default" : "secondary"}

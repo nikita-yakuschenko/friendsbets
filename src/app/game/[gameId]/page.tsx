@@ -58,7 +58,7 @@ export default async function GamePage({
             match={nextMatch}
             hasPrediction={nextMatchHasPrediction}
             prediction={nextMatchPrediction}
-            predictionsHref={gamePath(game.slug, "predictions")}
+            predictionsHref={gamePath(game.inviteCode, "predictions")}
           />
         ) : (
           <NextMatchEmpty />
@@ -92,12 +92,12 @@ export default async function GamePage({
           )}
         </StatCard>
 
-        <Card className="flex h-full min-h-[11rem] flex-col overflow-hidden p-0">
+        <Card className="flex h-full min-h-44 flex-col overflow-hidden p-0">
           <MiniLeaderboard
             fill
             rows={topLeaderboard}
             currentUserId={session.id}
-            detailsHref={gamePath(game.slug, "leaderboard")}
+            detailsHref={gamePath(game.inviteCode, "leaderboard")}
           />
         </Card>
       </div>
@@ -112,15 +112,15 @@ export default async function GamePage({
             </Badge>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <Link href={gamePath(game.slug, "predictions")}>
+            <Link href={gamePath(game.inviteCode, "predictions")}>
               <Button className="w-full">Сделать прогноз</Button>
             </Link>
-            <Link href={gamePath(game.slug, "leaderboard")}>
+            <Link href={gamePath(game.inviteCode, "leaderboard")}>
               <Button variant="secondary" className="w-full">
                 Таблица
               </Button>
             </Link>
-            <Link href={gamePath(game.slug, "live")}>
+            <Link href={gamePath(game.inviteCode, "live")}>
               <Button variant="secondary" className="w-full">
                 Лайв
               </Button>

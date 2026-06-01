@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 :root {
   --background: #0b0f14;
@@ -10,6 +11,9 @@
   --brand-cyan: #0be5ff;
   --brand-blue: #1e5bff;
   --brand-red: #ff4d60;
+  --popover: #151a22;
+  --popover-foreground: #ffffff;
+  --muted-foreground: #8b939e;
 }
 
 @theme inline {
@@ -23,7 +27,12 @@
   --color-brand-blue: #1e5bff;
   --color-brand-red: #ff4d60;
   --color-brand-muted: #8b939e;
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted-foreground: var(--muted-foreground);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-ibm-plex: var(--font-ibm-plex-sans), "IBM Plex Sans", ui-sans-serif,
+    sans-serif;
 }
 
 body {
@@ -42,7 +51,6 @@ body {
   font-weight: 800;
   letter-spacing: -0.02em;
   text-transform: uppercase;
-  /* Italic caps extend past the glyph box — avoid clipping the last letter. */
   padding-inline-end: 0.08em;
 }
 
@@ -142,4 +150,20 @@ input[type="number"]::-webkit-outer-spin-button {
     opacity: 0.35;
     transform: scale(0.92);
   }
+}
+
+@keyframes football-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-8deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(12deg);
+  }
+}
+
+.football-bounce {
+  display: inline-block;
+  line-height: 1;
+  animation: football-bounce 0.55s ease-in-out infinite;
 }

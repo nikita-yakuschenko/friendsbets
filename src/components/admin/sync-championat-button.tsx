@@ -26,7 +26,7 @@ export function SyncChampionatButton() {
   }
 
   return (
-    <Button type="button" variant="secondary" disabled={loading} onClick={handleClick}>
+    <Button type="button" variant="secondary" size="sm" disabled={loading} onClick={handleClick}>
       {loading ? "Синхронизация…" : "Синхронизировать с Championat"}
     </Button>
   );

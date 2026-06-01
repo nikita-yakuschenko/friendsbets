@@ -43,7 +43,7 @@ export type ReminderRunResult = {
 type GameWithParticipants = {
   id: string;
   title: string;
-  slug: string;
+  inviteCode: string;
   createdById: string;
   createdBy: { id: string; email: string; name: string };
   participants: Array<{
@@ -70,12 +70,12 @@ function appOrigin(origin?: string): string {
   );
 }
 
-function predictionsUrl(slug: string, origin?: string): string {
-  return `${appOrigin(origin)}${gamePath(slug, "predictions")}`;
+function predictionsUrl(inviteCode: string, origin?: string): string {
+  return `${appOrigin(origin)}${gamePath(inviteCode, "predictions")}`;
 }
 
-function missingUrl(slug: string, origin?: string): string {
-  return `${appOrigin(origin)}/admin/missing?game=${encodeURIComponent(slug)}`;
+function missingUrl(inviteCode: string, origin?: string): string {
+  return `${appOrigin(origin)}/admin/missing?game=${encodeURIComponent(inviteCode)}`;
 }
 
 function getAdminRecipients(game: GameWithParticipants) {
@@ -104,13 +104,13 @@ async function sendReminderEmail(params: {
   to: string;
   userName: string;
   gameTitle: string;
-  gameSlug: string;
+  gameInviteCode: string;
   homeTeam: string;
   awayTeam: string;
   startsAt: Date;
   timeLabel: string;
 }) {
-  const link = predictionsUrl(params.gameSlug);
+  const link = predictionsUrl(params.gameInviteCode);
   const subject = `FriendsBets: прогноз через ${params.timeLabel} — ${params.homeTeam} — ${params.awayTeam}`;
   const text = [
     `Привет, ${params.userName}!`,
@@ -137,7 +137,7 @@ async function sendAdminMissingListEmail(params: {
   to: string;
   adminName: string;
   gameTitle: string;
-  gameSlug: string;
+  gameInviteCode: string;
   homeTeam: string;
   awayTeam: string;
   startsAt: Date;
@@ -145,7 +145,7 @@ async function sendAdminMissingListEmail(params: {
   missingNames: string[];
 }) {
   const list = params.missingNames.map((name) => `- ${name}`).join("\n");
-  const link = missingUrl(params.gameSlug);
+  const link = missingUrl(params.gameInviteCode);
   const subject = `FriendsBets: кто не поставил (через ${params.timeLabel}) — ${params.homeTeam} — ${params.awayTeam}`;
   const text = [
     `Привет, ${params.adminName}!`,
@@ -197,7 +197,7 @@ export async function sendDuePredictionReminders(
               select: {
                 id: true,
                 title: true,
-                slug: true,
+                inviteCode: true,
                 createdById: true,
                 createdBy: {
                   select: { id: true, email: true, name: true },
@@ -251,7 +251,7 @@ export async function sendDuePredictionReminders(
               to: participant.user.email,
               userName: participant.displayName,
               gameTitle: game.title,
-              gameSlug: game.slug,
+              gameInviteCode: game.inviteCode,
               homeTeam: match.homeTeam.name,
               awayTeam: match.awayTeam.name,
               startsAt: match.startsAt,
@@ -303,7 +303,7 @@ export async function sendDuePredictionReminders(
               to: admin.email,
               adminName: admin.name,
               gameTitle: game.title,
-              gameSlug: game.slug,
+              gameInviteCode: game.inviteCode,
               homeTeam: match.homeTeam.name,
               awayTeam: match.awayTeam.name,
               startsAt: match.startsAt,

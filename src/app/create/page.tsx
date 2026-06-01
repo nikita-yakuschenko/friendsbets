@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CreateGameForm } from "@/components/game/create-game-form";
 import { AppShell } from "@/components/layout/app-shell";
@@ -10,16 +11,24 @@ export default async function CreateGamePage() {
   const session = await getSession();
   if (!session) redirect("/");
 
-  const { tournaments, scoringRules } = await getCreateGameFormData();
+  const { scoringRules, tournamentTemplates, defaultTemplateId } =
+    await getCreateGameFormData();
 
   return (
     <AppShell user={session}>
       <ContentContainer className="max-w-xl">
-        <PageHeader
-          title="Создать турнир"
-          description="Привяжите игру к спортивному событию, выберите правила очков и размер взноса — мы сгенерируем invite-ссылку для друзей."
+        <PageHeader title="Создать турнир" />
+        <CreateGameForm
+          scoringRules={scoringRules}
+          tournamentTemplates={tournamentTemplates}
+          defaultTemplateId={defaultTemplateId}
         />
-        <CreateGameForm tournaments={tournaments} scoringRules={scoringRules} />
+        <p className="mt-6 text-center text-sm text-brand-muted">
+          Уже есть invite-код?{" "}
+          <Link href="/join" className="font-semibold text-brand-cyan hover:underline">
+            Подключиться к турниру
+          </Link>
+        </p>
       </ContentContainer>
     </AppShell>
   );

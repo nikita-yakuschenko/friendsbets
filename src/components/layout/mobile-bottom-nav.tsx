@@ -2,20 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Trophy, Target, Radio, MoreHorizontal } from "lucide-react";
+import {
+  IconHome,
+  IconTrophy,
+  IconTarget,
+  IconBroadcast,
+  IconDots,
+} from "@tabler/icons-react";
 import { LiveNavLabel } from "@/components/layout/live-nav-label";
 import { gamePath } from "@/lib/game-path";
 import { cn } from "@/lib/utils";
 
-export function MobileBottomNav({ gameSlug }: { gameSlug: string }) {
+export function MobileBottomNav({ gameInviteCode }: { gameInviteCode: string }) {
   const pathname = usePathname();
 
   const items = [
-    { href: gamePath(gameSlug), label: "Игра", icon: Home },
-    { href: gamePath(gameSlug, "predictions"), label: "Прогнозы", icon: Target },
-    { href: gamePath(gameSlug, "leaderboard"), label: "Таблица", icon: Trophy },
-    { href: gamePath(gameSlug, "live"), label: "Лайв", icon: Radio, isLive: true },
-    { href: gamePath(gameSlug, "more"), label: "Ещё", icon: MoreHorizontal },
+    { href: gamePath(gameInviteCode), label: "Турнир", icon: IconHome },
+    { href: gamePath(gameInviteCode, "predictions"), label: "Прогнозы", icon: IconTarget },
+    { href: gamePath(gameInviteCode, "leaderboard"), label: "Таблица", icon: IconTrophy },
+    { href: gamePath(gameInviteCode, "live"), label: "Лайв", icon: IconBroadcast, isLive: true },
+    { href: gamePath(gameInviteCode, "more"), label: "Ещё", icon: IconDots },
   ];
 
   return (
@@ -33,7 +39,7 @@ export function MobileBottomNav({ gameSlug }: { gameSlug: string }) {
                 active ? "text-brand-lime" : "text-brand-muted",
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-5 w-5" stroke={1.75} />
               {"isLive" in item && item.isLive ? (
                 <LiveNavLabel compact showIcon={false} />
               ) : (

@@ -3,14 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { MatchStatus, GameParticipantRole, UserRole } from "@/generated/prisma/client";
 import { requireAuth } from "@/lib/auth";
-import { isGameOrganizer, revalidateGamePaths, resolveGameIdFromRoute } from "@/lib/game-access";
+import {
+  canManageGame,
+  isGameOrganizer,
+  revalidateGamePaths,
+  resolveGameIdFromRoute,
+} from "@/lib/game-access";
 import { isAdmin } from "@/lib/roles";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import type { ActionResult } from "@/server/actions/auth";
 import { recalculateMatchScoresAction } from "@/server/actions/games";
+import { getChampionatSyncConfig } from "@/lib/football-api/client";
 import { syncMatches } from "@/lib/football-api/sync";
+import { listTournamentTemplatesForUi } from "@/lib/tournament-templates";
 
 export async function updateMatchResultAction(
   _prev: ActionResult | undefined,
@@ -98,25 +105,56 @@ export async function syncChampionatMatchesAction(): Promise<
   }
 }
 
+export async function deleteGameAction(gameId: string): Promise<ActionResult> {
+  const session = await requireAuth();
+
+  if (!gameId) {
+    return { error: "Игра не указана." };
+  }
+
+  const allowed = await canManageGame(session, gameId);
+  if (!allowed) {
+    return { error: "Нет доступа." };
+  }
+
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    select: { id: true, inviteCode: true },
+  });
+
+  if (!game) {
+    return { error: "Турнир не найден." };
+  }
+
+  await revalidateGamePaths(gameId);
+  await prisma.game.delete({ where: { id: gameId } });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/missing");
+  revalidatePath("/");
+
+  return { success: true };
+}
+
 export async function getAdminDashboardData(userId: string, role: UserRole) {
   const manageableGames = await getMissingPredictionsGames(userId, role);
   if (manageableGames.length === 0) {
     throw new Error("FORBIDDEN");
   }
 
-  const gameFilter = isAdmin(role)
-    ? {}
-    : { id: { in: manageableGames.map((game) => game.id) } };
-
   const games = await prisma.game.findMany({
-    where: gameFilter,
-    include: { tournament: true, scoringRule: true },
+    where: { id: { in: manageableGames.map((game) => game.id) } },
+    include: {
+      tournament: true,
+      scoringRule: true,
+      _count: { select: { participants: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
   const tournamentIds = [...new Set(games.map((game) => game.tournamentId))];
 
-  const [tournaments, matches] = await Promise.all([
+  const [tournaments, matches, templates] = await Promise.all([
     prisma.tournament.findMany({
       where: isAdmin(role) ? {} : { id: { in: tournamentIds } },
       orderBy: { createdAt: "desc" },
@@ -126,9 +164,34 @@ export async function getAdminDashboardData(userId: string, role: UserRole) {
       include: { homeTeam: true, awayTeam: true, tournament: true },
       orderBy: { startsAt: "asc" },
     }),
+    listTournamentTemplatesForUi(),
   ]);
 
-  return { tournaments, games, matches };
+  return { tournaments, games, matches, templates };
+}
+
+export async function getAdminIntegrationInfo() {
+  await requireAuth();
+
+  const championat = getChampionatSyncConfig();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+  return {
+    appUrl,
+    championat: {
+      tournamentId: championat.championatTournamentId,
+      sportSlug: championat.sportSlug,
+      calendarUrl: championat.calendarUrl,
+      tournamentExternalId: championat.tournamentExternalId,
+      dbTournamentId: championat.dbTournamentId ?? null,
+    },
+    cron: {
+      syncMatchesPath: "/api/cron/sync-matches",
+      predictionRemindersPath: "/api/cron/prediction-reminders",
+      hasSecret: Boolean(process.env.CRON_SECRET),
+    },
+    flagsApiPath: "/api/flags/[code]",
+  };
 }
 
 export async function recalculateAllScoresAction(
@@ -215,7 +278,7 @@ export async function getMissingPredictionsGames(userId: string, role: UserRole)
   if (isAdmin(role)) {
     return prisma.game.findMany({
       orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, slug: true },
+      select: { id: true, title: true, slug: true, inviteCode: true },
     });
   }
 
@@ -226,6 +289,6 @@ export async function getMissingPredictionsGames(userId: string, role: UserRole)
       },
     },
     orderBy: { createdAt: "desc" },
-    select: { id: true, title: true, slug: true },
+    select: { id: true, title: true, slug: true, inviteCode: true },
   });
 }

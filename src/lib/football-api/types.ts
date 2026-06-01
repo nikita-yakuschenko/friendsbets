@@ -28,3 +28,8 @@ export type SyncMatchesResult = {
   venuesUpdated: number;
   total: number;
 };
+
+export type ChampionatSyncOptions = {
+  /** По одному HTTP-запросу на матч — долго. На создании турнира лучше false. */
+  enrichVenues?: boolean;
+};

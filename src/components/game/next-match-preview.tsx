@@ -56,7 +56,7 @@ function FloatingPredictionNotice({
   predictionsHref?: string;
 }) {
   const pillClass = cn(
-    "inline-flex min-w-[240px] max-w-full flex-col items-center gap-0.5 rounded-2xl border-[0.5px] bg-brand-bg px-5 py-1.5 text-[11px] leading-tight font-normal shadow-[0_4px_16px_rgba(0,0,0,0.3)] transition-colors sm:min-w-[280px]",
+    "inline-flex w-full max-w-sm flex-col items-center gap-0.5 rounded-2xl border-[0.5px] bg-brand-bg px-5 py-1.5 text-[11px] leading-tight font-normal shadow-[0_4px_16px_rgba(0,0,0,0.3)] transition-colors sm:max-w-md",
     hasPrediction
       ? "border-brand-lime/80 text-brand-muted"
       : "border-brand-red/80 text-brand-muted hover:bg-brand-red/5",
@@ -66,17 +66,17 @@ function FloatingPredictionNotice({
     hasPrediction && prediction ? (
       <>
         <span>Ваш прогноз</span>
-        <span className="inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 tabular-nums text-white">
-          <span className="inline-flex items-center gap-0.5">
-            <span>{match.homeTeam.name}</span>
+        <span className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1 tabular-nums text-white">
+          <span className="inline-flex items-center justify-end gap-0.5 text-right">
+            <span className="truncate">{match.homeTeam.name}</span>
             <TeamFlag countryCode={match.homeTeam.countryCode} />
           </span>
-          <span>
+          <span className="shrink-0 px-0.5">
             {prediction.homeScore}:{prediction.awayScore}
           </span>
-          <span className="inline-flex items-center gap-0.5">
+          <span className="inline-flex items-center justify-start gap-0.5 text-left">
             <TeamFlag countryCode={match.awayTeam.countryCode} />
-            <span>{match.awayTeam.name}</span>
+            <span className="truncate">{match.awayTeam.name}</span>
           </span>
         </span>
       </>
@@ -115,7 +115,7 @@ export function NextMatchPreview({
 
       <Card className="relative overflow-hidden p-0">
         <CardContent className="relative px-4 py-3">
-          <div className="relative z-10 mb-3 flex justify-center">
+          <div className="relative z-10 mx-auto mb-3 flex w-full max-w-md justify-center">
             <FloatingPredictionNotice
               hasPrediction={hasPrediction}
               prediction={prediction}
@@ -124,23 +124,31 @@ export function NextMatchPreview({
             />
           </div>
 
-          <div className="relative z-0 flex flex-col items-center gap-1.5 text-center">
-            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-lg font-semibold leading-snug">
-              <TeamLabel
-                name={match.homeTeam.name}
-                countryCode={match.homeTeam.countryCode}
-                flagPosition="after"
-              />
-              <span className="text-brand-muted">—</span>
-              <TeamLabel
-                name={match.awayTeam.name}
-                countryCode={match.awayTeam.countryCode}
-                flagPosition="before"
-              />
+          <div className="relative z-0 mx-auto flex w-full max-w-md flex-col items-center gap-1.5 text-center">
+            <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 text-lg font-semibold leading-snug sm:gap-x-3">
+              <div className="flex justify-end">
+                <TeamLabel
+                  name={match.homeTeam.name}
+                  countryCode={match.homeTeam.countryCode}
+                  flagPosition="after"
+                />
+              </div>
+              <span className="shrink-0 px-0.5 text-brand-muted">—</span>
+              <div className="flex justify-start">
+                <TeamLabel
+                  name={match.awayTeam.name}
+                  countryCode={match.awayTeam.countryCode}
+                  flagPosition="before"
+                />
+              </div>
             </div>
 
-            <p className="text-sm text-brand-muted">{formatDateTimeMoscow(match.startsAt)}</p>
-            {venue ? <p className="text-sm text-brand-muted">{venue}</p> : null}
+            <p className="max-w-full text-sm text-brand-muted">
+              {formatDateTimeMoscow(match.startsAt)}
+            </p>
+            {venue ? (
+              <p className="max-w-full text-sm text-brand-muted">{venue}</p>
+            ) : null}
             {showCountdown ? <MatchStartCountdown startsAt={match.startsAt} /> : null}
           </div>
         </CardContent>

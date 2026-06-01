@@ -110,8 +110,6 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
     orderBy: { startsAt: "asc" },
   });
 
-  const predictableMatches = matches.filter(isMatchPredictable);
-
   const predictions = await prisma.prediction.findMany({
     where: { gameId, userId },
     include: { scores: true },
@@ -119,17 +117,45 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
 
   const predictionMap = new Map(predictions.map((p) => [p.matchId, p]));
 
+  const items = matches.map((match) => ({
+    match,
+    canPredict: isMatchPredictable(match),
+    prediction: predictionMap.get(match.id) ?? null,
+    locked: isMatchLocked(match.startsAt),
+    points:
+      predictionMap.get(match.id)?.scores.reduce(
+        (sum, score) => sum + score.points,
+        0,
+      ) ?? 0,
+  }));
+
+  const byStage = new Map<string, typeof items>();
+  for (const item of items) {
+    const stage = item.match.stage?.trim() || "Матч";
+    const bucket = byStage.get(stage);
+    if (bucket) bucket.push(item);
+    else byStage.set(stage, [item]);
+  }
+
+  const stageGroups = [...byStage.entries()]
+    .map(([stage, groupItems]) => {
+      groupItems.sort(
+        (a, b) =>
+          new Date(a.match.startsAt).getTime() - new Date(b.match.startsAt).getTime(),
+      );
+      return {
+        id: groupItems[0]!.match.id,
+        stage,
+        items: groupItems,
+        sortAt: new Date(groupItems[0]!.match.startsAt).getTime(),
+      };
+    })
+    .sort((a, b) => a.sortAt - b.sortAt)
+    .map(({ id, stage, items: groupItems }) => ({ id, stage, items: groupItems }));
+
   return {
     game,
-    items: predictableMatches.map((match) => ({
-      match,
-      prediction: predictionMap.get(match.id) ?? null,
-      locked: isMatchLocked(match.startsAt),
-      points:
-        predictionMap.get(match.id)?.scores.reduce(
-          (sum, score) => sum + score.points,
-          0,
-        ) ?? 0,
-    })),
+    items,
+    stageGroups,
   };
 }

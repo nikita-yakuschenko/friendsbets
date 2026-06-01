@@ -71,7 +71,7 @@ export async function fetchChampionatMatchDetails(
       "User-Agent": FETCH_USER_AGENT,
       Accept: "text/html,application/xhtml+xml",
     },
-    next: { revalidate: 0 },
+    cache: "no-store",
   });
 
   if (!response.ok) {

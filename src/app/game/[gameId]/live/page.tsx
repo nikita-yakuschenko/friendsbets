@@ -43,7 +43,7 @@ export default async function LivePage({
             match={nextMatch}
             hasPrediction={nextMatchHasPrediction}
             prediction={nextMatchPrediction}
-            predictionsHref={gamePath(game.slug, "predictions")}
+            predictionsHref={gamePath(game.inviteCode, "predictions")}
             showCountdown
           />
         ) : (

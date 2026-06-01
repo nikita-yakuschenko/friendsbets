@@ -1,4 +1,4 @@
-import { Radio } from "lucide-react";
+import { IconBroadcast } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
 export function LiveNavLabel({
@@ -23,7 +23,7 @@ export function LiveNavLabel({
   return (
     <span className={cn("inline-flex items-center gap-1.5", className)}>
       {showIcon ? (
-        <Radio className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <IconBroadcast className="h-4 w-4 shrink-0" stroke={1.75} aria-hidden="true" />
       ) : null}
       <span className="inline-flex items-center gap-1">
         {dot}

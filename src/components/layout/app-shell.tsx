@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Crown } from "lucide-react";
+import { IconCrown } from "@tabler/icons-react";
 import { logoutAction } from "@/server/actions/auth";
 import { BrandLogo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,13 @@ import type { SessionUser } from "@/lib/auth";
 export function AppShell({
   children,
   user,
-  gameSlug,
+  gameInviteCode,
   isPlatformAdmin,
   canManageGame = false,
 }: {
   children: React.ReactNode;
   user: SessionUser | null;
-  gameSlug?: string;
+  gameInviteCode?: string;
   isPlatformAdmin?: boolean;
   canManageGame?: boolean;
 }) {
@@ -37,7 +37,7 @@ export function AppShell({
       <div className="relative flex min-h-screen min-w-0">
         {user && (
           <DesktopSidebar
-            gameSlug={gameSlug}
+            gameInviteCode={gameInviteCode}
             isPlatformAdmin={userIsPlatformAdmin}
             canManageGame={canManageGame}
           />
@@ -62,8 +62,9 @@ export function AppShell({
                     <div className="hidden items-center gap-2 sm:flex">
                       <span className="text-sm text-brand-muted">{user.name}</span>
                       {userIsPlatformAdmin ? (
-                        <Crown
+                        <IconCrown
                           className="h-4 w-4 shrink-0 text-brand-lime"
+                          stroke={1.75}
                           aria-label="Администратор"
                         />
                       ) : (
@@ -97,12 +98,12 @@ export function AppShell({
               </div>
             </div>
           </header>
-          <main className={cn("min-w-0 flex-1 overflow-x-hidden", gameSlug && "pb-24 md:pb-6")}>
+          <main className={cn("min-w-0 flex-1 overflow-x-hidden", gameInviteCode && "pb-24 md:pb-6")}>
             {children}
           </main>
         </div>
       </div>
-      {gameSlug && user && <MobileBottomNav gameSlug={gameSlug} />}
+      {gameInviteCode && user && <MobileBottomNav gameInviteCode={gameInviteCode} />}
     </div>
   );
 }

@@ -61,14 +61,16 @@ export function RegisterForm({
       </div>
       <div className="space-y-2">
         <Label htmlFor="inviteCode" variant="brand">
-          Invite-код игры
+          Invite-код турнира{" "}
+          <span className="font-normal text-brand-muted">(необязательно)</span>
         </Label>
         <Input
           id="inviteCode"
           name="inviteCode"
           variant="brand"
-          required
-          placeholder="invite-код игры"
+          placeholder="ABC123 — если пригласили"
+          className="font-mono uppercase tracking-widest"
+          autoComplete="off"
         />
       </div>
       <input

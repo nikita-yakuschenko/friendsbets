@@ -58,7 +58,7 @@ npm run db:seed
 npm run sync:championat
 ```
 
-`db:seed` создаёт правила начисления, админа, турнир ЧМ-2026 и игру. Матчи подтягиваются отдельно из Championat.
+`db:seed` создаёт правила начисления, системный шаблон ЧМ-2026 и админа. Турнир создаёте на `/create`; матчи подтягиваются при создании или через `sync:championat`.
 
 ### 6. Запуск dev-сервера
 
@@ -68,41 +68,38 @@ npm run dev
 
 Откройте [http://localhost:3000](http://localhost:3000).
 
-## Тестовые данные
-
-После seed доступны:
+## После seed
 
 | Что | Значение |
 |-----|----------|
-| Invite-код игры | `demo2026` |
 | Admin email | `admin@friendsbets.local` (или из `ADMIN_EMAIL`) |
 | Admin password | `admin123456` (или из `ADMIN_PASSWORD`) |
 
-Матчи — только из Championat (`npm run sync:championat`). Удалить старые моковые записи: `npm run cleanup:mock`.
+Демо-игра и моковые матчи больше не создаются. Повторный `db:seed` удаляет старые демо-записи (`demo2026`, `seed-tournament-2026` и т.п.).
 
 ## Основные страницы
 
 - `/` — главная / список игр
-- `/create` — создать свой турнир прогнозов (авторизованный пользователь)
+- `/create` — создать турнир прогнозов (авторизованный пользователь)
 - `/create/success?slug=...` — invite-ссылка после создания
 - `/login`, `/register` — авторизация
-- `/game/[gameId]` — главная игры
-- `/game/[gameId]/predictions` — прогнозы
-- `/game/[gameId]/leaderboard` — таблица
-- `/game/[gameId]/live` — матчи в прямом эфире
+- `/game/[inviteCode]` — главная турнира (в URL — invite-код, латиница и цифры)
+- `/game/[inviteCode]/predictions` — прогнозы
+- `/game/[inviteCode]/leaderboard` — таблица
+- `/game/[inviteCode]/live` — матчи в прямом эфире
 - `/admin/missing` — кто не поставил (админ платформы или организатор турнира)
 - `/admin` — админка (ADMIN)
 
-## Создание своего турнира
+## Создание турнира
 
-Любой авторизованный пользователь может создать игру на `/create`:
+На `/create` — два режима:
 
-1. **Спортивное событие** — выбор из активных чемпионатов с матчами в каталоге
-2. **Начисление очков** — одно из правил scoring (`Классика`, `Много очков`, …)
-3. **Размер взноса** — произвольный текст, например `500 ₽`
-4. **Invite-ссылка** — генерируется автоматически на странице успеха
+1. **По шаблону** — готовый турнир (например ЧМ-2026) без ссылки на Championat
+2. **Профессиональный** — своя ссылка Championat, опционально сохранить как шаблон
 
-Создатель сразу становится участником игры. Ссылка для друзей ведёт на `/?register=1&invite=КОД`.
+Также: название турнира, схема очков, invite-код (6 символов A–Z/0–9 или свой).
+
+Создатель становится организатором. Ссылка для друзей: `/?register=1&invite=КОД` или `/join` для уже зарегистрированных.
 
 Для корректных абсолютных ссылок укажите `NEXT_PUBLIC_APP_URL` в `.env`.
 
@@ -181,10 +178,10 @@ npm run reminders:send
 ```env
 CHAMPIONAT_TOURNAMENT_ID=6858
 CHAMPIONAT_SPORT_SLUG=_worldcup
-# CHAMPIONAT_SYNC_TOURNAMENT_ID=seed-tournament-2026
+# CHAMPIONAT_SYNC_TOURNAMENT_ID=<cuid-турнира-в-бд>
 ```
 
-Если `CHAMPIONAT_SYNC_TOURNAMENT_ID` не задан, синк привязывается к турниру с `externalId=championat:tournament:6858` или к первому ACTIVE-турниру.
+Если не задан, cron-синк ищет турнир по `externalId=championat:tournament:6858` или первый ACTIVE.
 
 ### Ручной запуск
 
@@ -198,7 +195,7 @@ npm run sync:championat
 curl -H "Authorization: Bearer $env:CRON_SECRET" http://localhost:3000/api/cron/sync-matches
 ```
 
-Матчи плей-офф с неопределёнными командами (`2A – 2B`, `SF1 – SF2`) не показываются в прогнозах, пока Championat не подставит реальные сборные.
+Матчи плей-офф с неопределёнными парами (`2A – 2B`) видны в прогнозах как «Команды неизвестны»; ставить прогноз можно, когда обе сборные станут известны.
 
 **Флаги:** ISO-код страны задаётся по русскому названию сборной (`team-country-codes.ts`). В календаре Championat нет flag SVG — только эмблемы команд.
 
@@ -214,8 +211,7 @@ curl -H "Authorization: Bearer $env:CRON_SECRET" http://localhost:3000/api/cron/
 | `npm run db:migrate` | Prisma migrate dev |
 | `npm run db:seed` | Seed database |
 | `npm run reminders:send` | Отправить due email-напоминания |
-| `npm run sync:championat` | Синхронизировать матчи с Championat |
-| `npm run cleanup:mock` | Удалить моковые матчи/пользователей из БД |
+| `npm run sync:championat` | Синхронизировать матчи с Championat (env / первый ACTIVE) |
 | `npm run db:push` | Prisma db push |
 
 ## Роли пользователей

@@ -3,11 +3,10 @@ import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import {
-  bootstrapEssentialData,
-  cleanupMockData,
-  SEED_GAME_SLUG,
-} from "./seed-data";
+import { parseChampionatTournamentUrl } from "../src/lib/championat-url";
+import { SYSTEM_TEMPLATE_WC_2026 } from "../src/lib/tournament-template-presets";
+import { ensureChampionatTournament } from "../src/lib/tournament-setup";
+import { bootstrapEssentialData, removeLegacyDemoData } from "./seed-data";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -20,14 +19,19 @@ async function main() {
   const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123456";
   const adminHash = await bcrypt.hash(adminPassword, 12);
 
-  await cleanupMockData(prisma);
+  await removeLegacyDemoData(prisma);
   await bootstrapEssentialData(prisma, adminEmail, adminHash);
+
+  const parsed = parseChampionatTournamentUrl(SYSTEM_TEMPLATE_WC_2026.championatUrl);
+  if (parsed) {
+    console.log("Загрузка данных системного шаблона ЧМ-2026 с Championat…");
+    const { matchCount } = await ensureChampionatTournament(parsed);
+    console.log(`Шаблон ЧМ-2026: ${matchCount} матчей в базе.`);
+  }
 
   console.log("Seed completed.");
   console.log(`Admin: ${adminEmail} / ${adminPassword}`);
-  console.log(`Game invite code: ${SEED_GAME_SLUG}`);
-  console.log(`Game URL: /game/${SEED_GAME_SLUG}`);
-  console.log("Matches: npm run sync:championat");
+  console.log("Создайте турнир: /create → по шаблону (без повторной загрузки).");
 }
 
 main()

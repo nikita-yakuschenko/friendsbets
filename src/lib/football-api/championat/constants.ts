@@ -20,6 +20,15 @@ export function championatTeamExternalId(teamId: number | string): string {
   return `championat:${teamId}`;
 }
 
+/** Championat uses 0 in data-team when the slot is not a real team yet. */
+export function parseChampionatTeamId(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const id = raw.trim();
+  if (!id || id === "0") return undefined;
+  if (!/^\d+$/.test(id)) return undefined;
+  return id;
+}
+
 export function championatSlotExternalId(slot: string): string {
   return `championat:slot:${slot.trim()}`;
 }

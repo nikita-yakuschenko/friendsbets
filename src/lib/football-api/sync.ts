@@ -1,9 +1,11 @@
 import { MatchStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import type { ParsedChampionatTournamentUrl } from "@/lib/championat-url";
 import {
   fetchTournamentMatches,
   getChampionatSyncConfig,
 } from "@/lib/football-api/client";
+import { fetchChampionatCalendar } from "@/lib/football-api/championat/parser";
 import {
   extractChampionatMatchId,
   fetchChampionatMatchDetails,
@@ -11,6 +13,7 @@ import {
 import { resolveTeamCountryCode } from "@/lib/football-api/championat/team-country-codes";
 import { normalizeVenueCity } from "@/lib/venue";
 import type {
+  ChampionatSyncOptions,
   ExternalMatch,
   ExternalTeamRef,
   SyncMatchesResult,
@@ -163,8 +166,11 @@ async function upsertExternalMatch(
   return "updated";
 }
 
-async function enrichMatchVenues(tournamentId: string): Promise<number> {
-  const config = getChampionatSyncConfig();
+async function enrichMatchVenues(
+  tournamentId: string,
+  source?: ParsedChampionatTournamentUrl,
+): Promise<number> {
+  const config = source ?? getChampionatSyncConfig();
   const matches = await prisma.match.findMany({
     where: {
       tournamentId,
@@ -229,20 +235,27 @@ async function normalizeStoredVenueCities(tournamentId: string): Promise<void> {
   }
 }
 
-export async function syncMatches(
-  tournamentId?: string,
+export async function enrichChampionatVenuesOnly(
+  dbTournamentId: string,
+  source: ParsedChampionatTournamentUrl,
+): Promise<number> {
+  const venuesUpdated = await enrichMatchVenues(dbTournamentId, source);
+  await normalizeStoredVenueCities(dbTournamentId);
+  return venuesUpdated;
+}
+
+export async function syncChampionatTournament(
+  dbTournamentId: string,
+  source: ParsedChampionatTournamentUrl,
+  options: ChampionatSyncOptions = {},
 ): Promise<SyncMatchesResult> {
-  const dbTournamentId = tournamentId ?? (await resolveDbTournamentId());
+  const enrichVenues = options.enrichVenues ?? true;
 
-  await prisma.tournament.update({
-    where: { id: dbTournamentId },
-    data: {
-      title: CHAMPIONAT_WORLD_CUP_2026.officialTitle,
-      description: CHAMPIONAT_WORLD_CUP_2026.officialTitle,
-    },
-  });
-
-  const externalMatches = await fetchTournamentMatches();
+  console.info(
+    `[championat-sync] calendar fetch tournament=${dbTournamentId} enrichVenues=${enrichVenues}`,
+  );
+  const externalMatches = await fetchChampionatCalendar(source.calendarUrl);
+  console.info(`[championat-sync] calendar parsed matches=${externalMatches.length}`);
 
   let created = 0;
   let updated = 0;
@@ -269,8 +282,13 @@ export async function syncMatches(
     if (result === "updated") updated += 1;
   }
 
-  const venuesUpdated = await enrichMatchVenues(dbTournamentId);
-  await normalizeStoredVenueCities(dbTournamentId);
+  let venuesUpdated = 0;
+  if (enrichVenues) {
+    console.info("[championat-sync] enriching venues…");
+    venuesUpdated = await enrichMatchVenues(dbTournamentId, source);
+    await normalizeStoredVenueCities(dbTournamentId);
+    console.info(`[championat-sync] venues updated=${venuesUpdated}`);
+  }
 
   return {
     created,
@@ -280,6 +298,30 @@ export async function syncMatches(
     venuesUpdated,
     total: externalMatches.length,
   };
+}
+
+export async function syncMatches(
+  tournamentId?: string,
+): Promise<SyncMatchesResult> {
+  const dbTournamentId = tournamentId ?? (await resolveDbTournamentId());
+  const config = getChampionatSyncConfig();
+
+  await prisma.tournament.update({
+    where: { id: dbTournamentId },
+    data: {
+      title: CHAMPIONAT_WORLD_CUP_2026.officialTitle,
+      description: CHAMPIONAT_WORLD_CUP_2026.officialTitle,
+    },
+  });
+
+  const source: ParsedChampionatTournamentUrl = {
+    championatTournamentId: config.championatTournamentId,
+    sportSlug: config.sportSlug,
+    calendarUrl: config.calendarUrl,
+    tournamentExternalId: config.tournamentExternalId,
+  };
+
+  return syncChampionatTournament(dbTournamentId, source);
 }
 
 export async function updateMatchResultFromExternalSource(

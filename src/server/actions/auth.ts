@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { GameParticipantRole, UserRole } from "@/generated/prisma/client";
 import { clearSession, requireAuth, setSession } from "@/lib/auth";
+import { findGameByInviteCode } from "@/lib/game-invite";
+import {
+  normalizeInviteCodeInput,
+  validateInviteCodeFormat,
+} from "@/lib/invite-code";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -58,24 +63,31 @@ export async function registerAction(
     .trim()
     .toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const inviteCode = String(formData.get("inviteCode") ?? "").trim();
+  const inviteCodeRaw = String(formData.get("inviteCode") ?? "").trim();
 
   const rate = checkRateLimit(`register:${email}`, 5, 60 * 60 * 1000);
   if (!rate.allowed) {
     return { error: "Слишком много попыток регистрации. Попробуйте позже." };
   }
 
-  if (!name || !email || !password || !inviteCode) {
-    return { error: "Заполните все поля." };
+  if (!name || !email || !password) {
+    return { error: "Заполните имя, email и пароль." };
   }
 
   if (password.length < 6) {
     return { error: "Пароль должен быть не короче 6 символов." };
   }
 
-  const game = await prisma.game.findUnique({ where: { inviteCode } });
-  if (!game) {
-    return { error: "Неверный invite-код игры." };
+  let game: Awaited<ReturnType<typeof findGameByInviteCode>> = null;
+
+  if (inviteCodeRaw) {
+    const formatError = validateInviteCodeFormat(inviteCodeRaw);
+    if (formatError) return { error: formatError };
+
+    game = await findGameByInviteCode(normalizeInviteCodeInput(inviteCodeRaw));
+    if (!game) {
+      return { error: "Неверный invite-код турнира." };
+    }
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -91,18 +103,23 @@ export async function registerAction(
       email,
       passwordHash,
       role: UserRole.PARTICIPANT,
-      gameParticipants: {
-        create: {
-          gameId: game.id,
-          displayName: name,
-          role: GameParticipantRole.PARTICIPANT,
-        },
-      },
+      ...(game
+        ? {
+            gameParticipants: {
+              create: {
+                gameId: game.id,
+                displayName: name,
+                role: GameParticipantRole.PARTICIPANT,
+              },
+            },
+          }
+        : {}),
     },
   });
 
   await setSession(user.id);
-  redirect(`/game/${game.slug}`);
+  const { gamePath } = await import("@/lib/game-path");
+  redirect(game ? gamePath(game.inviteCode) : "/");
 }
 
 export async function logoutAction() {

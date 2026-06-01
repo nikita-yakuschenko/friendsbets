@@ -1,6 +1,6 @@
 /** Desktop shell header title by route. `null` = title stays in page body (game home). */
 export function resolveDesktopHeaderTitle(pathname: string): string | null {
-  if (pathname === "/") return "Мои игры";
+  if (pathname === "/") return "Мои турниры";
   if (pathname === "/create") return "Создать турнир";
   if (pathname.startsWith("/create/success")) return "Турнир создан";
   if (pathname.startsWith("/admin/missing")) return "Кто не поставил";

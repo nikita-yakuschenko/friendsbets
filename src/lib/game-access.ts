@@ -1,21 +1,40 @@
 import { GameParticipantRole } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { findGameByInviteCode } from "@/lib/game-invite";
+import { gamePath, gameRouteSegmentFromPathname } from "@/lib/game-path";
+import { normalizeInviteCodeInput } from "@/lib/invite-code";
 import { isAdmin } from "@/lib/roles";
-import { gamePath } from "@/lib/game-path";
 import type { SessionUser } from "@/lib/auth";
 import { requireAuth } from "@/lib/auth";
 
 export { gamePath };
 
+export function normalizeGameRouteParam(routeParam: string): string {
+  try {
+    return decodeURIComponent(routeParam).trim();
+  } catch {
+    return routeParam.trim();
+  }
+}
+
+export function isCanonicalGameRoute(routeParam: string, inviteCode: string): boolean {
+  return normalizeInviteCodeInput(normalizeGameRouteParam(routeParam)) === inviteCode;
+}
+
 export async function resolveGameIdFromRoute(routeParam: string): Promise<string | null> {
+  const raw = normalizeGameRouteParam(routeParam);
+
+  const byInvite = await findGameByInviteCode(raw);
+  if (byInvite) return byInvite.id;
+
   const bySlug = await prisma.game.findUnique({
-    where: { slug: routeParam },
+    where: { slug: raw },
     select: { id: true },
   });
   if (bySlug) return bySlug.id;
 
   const byId = await prisma.game.findUnique({
-    where: { id: routeParam },
+    where: { id: raw },
     select: { id: true },
   });
   return byId?.id ?? null;
@@ -94,17 +113,35 @@ export async function requireGameOrganizerOrPlatformAdmin(gameId: string) {
   throw new Error("FORBIDDEN");
 }
 
+export async function redirectToCanonicalGameRoute(
+  routeParam: string,
+  inviteCode: string,
+  pathname: string,
+): Promise<void> {
+  if (isCanonicalGameRoute(routeParam, inviteCode)) return;
+
+  const { redirect } = await import("next/navigation");
+  const segment = gameRouteSegmentFromPathname(pathname);
+  redirect(segment ? gamePath(inviteCode, segment) : gamePath(inviteCode));
+}
+
 export async function revalidateGamePaths(gameId: string) {
   const { revalidatePath } = await import("next/cache");
   const game = await prisma.game.findUnique({
     where: { id: gameId },
-    select: { slug: true },
+    select: { inviteCode: true },
   });
   if (!game) return;
 
-  const base = gamePath(game.slug);
-  revalidatePath(base);
-  revalidatePath(gamePath(game.slug, "predictions"));
-  revalidatePath(gamePath(game.slug, "leaderboard"));
-  revalidatePath(gamePath(game.slug, "live"));
+  const paths = [
+    gamePath(game.inviteCode),
+    gamePath(game.inviteCode, "predictions"),
+    gamePath(game.inviteCode, "leaderboard"),
+    gamePath(game.inviteCode, "live"),
+    gamePath(game.inviteCode, "more"),
+  ];
+
+  for (const path of paths) {
+    revalidatePath(path);
+  }
 }

@@ -14,25 +14,26 @@ import { getCreatedGameInvite } from "@/server/actions/create-game";
 export default async function CreateSuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ slug?: string }>;
+  searchParams: Promise<{ invite?: string; slug?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/");
 
-  const { slug } = await searchParams;
-  if (!slug) redirect("/create");
+  const { invite, slug } = await searchParams;
+  const inviteParam = invite ?? slug;
+  if (!inviteParam) redirect("/create");
 
-  const invite = await getCreatedGameInvite(slug);
-  if (!invite) notFound();
+  const inviteData = await getCreatedGameInvite(inviteParam);
+  if (!inviteData) notFound();
 
-  const { game, inviteCode, registerUrl, gameUrl } = invite;
+  const { game, inviteCode, registerUrl, gameUrl } = inviteData;
 
   return (
-    <AppShell user={session} gameSlug={game.slug} canManageGame>
+    <AppShell user={session} gameInviteCode={game.inviteCode} canManageGame>
       <ContentContainer className="max-w-xl">
         <PageHeader
           title="Турнир создан"
-          description="Отправьте пригласительную ссылку друзьям — после регистрации они попадут в вашу игру."
+          description="Отправьте пригласительную ссылку друзьям — после регистрации они попадут в ваш турнир."
         />
 
         <Card className="mb-4">
@@ -61,13 +62,13 @@ export default async function CreateSuccessPage({
             <CopyInviteLink url={registerUrl} />
           </div>
           <div>
-            <p className="mb-2 text-sm font-medium text-white">Ссылка на игру</p>
+            <p className="mb-2 text-sm font-medium text-white">Ссылка на турнир</p>
             <CopyInviteLink url={gameUrl} label="Копировать" />
           </div>
         </div>
 
         <div className="mt-6 grid gap-2 sm:grid-cols-2">
-          <Link href={gamePath(game.slug)}>
+          <Link href={gamePath(game.inviteCode)}>
             <Button className="w-full">Перейти в турнир</Button>
           </Link>
           <Link href="/create">

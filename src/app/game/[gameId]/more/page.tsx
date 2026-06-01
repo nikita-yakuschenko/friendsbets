@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { canManageGame, resolveGameIdFromRoute } from "@/lib/game-access";
 import { getSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/roles";
+import { prisma } from "@/lib/db";
 
 export default async function GameMorePage({
   params,
@@ -15,9 +16,15 @@ export default async function GameMorePage({
   const session = await getSession();
   if (!session) return notFound();
 
-  const { gameId: gameSlug } = await params;
-  const internalId = await resolveGameIdFromRoute(gameSlug);
+  const { gameId: routeParam } = await params;
+  const internalId = await resolveGameIdFromRoute(routeParam);
   if (!internalId) return notFound();
+
+  const game = await prisma.game.findUnique({
+    where: { id: internalId },
+    select: { inviteCode: true },
+  });
+  if (!game) return notFound();
 
   const canManage = await canManageGame(session, internalId);
   const isPlatformAdmin = isAdmin(session.role);
@@ -29,11 +36,11 @@ export default async function GameMorePage({
       <div className="space-y-3">
         <Link href="/">
           <Button variant="secondary" className="w-full justify-start">
-            Мои игры
+            Мои турниры
           </Button>
         </Link>
         {canManage && (
-          <Link href={`/admin/missing?game=${encodeURIComponent(gameSlug)}`}>
+          <Link href={`/admin/missing?game=${encodeURIComponent(game.inviteCode)}`}>
             <Button variant="secondary" className="w-full justify-start">
               Кто не поставил
             </Button>

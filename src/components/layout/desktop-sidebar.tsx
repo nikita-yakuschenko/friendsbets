@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home,
-  Target,
-  Trophy,
-  Radio,
-  Shield,
-} from "lucide-react";
+  IconHome,
+  IconTarget,
+  IconTrophy,
+  IconBroadcast,
+  IconShield,
+} from "@tabler/icons-react";
 import { BrandLogo } from "@/components/brand/logo";
 import { LiveNavLabel } from "@/components/layout/live-nav-label";
 import { Button } from "@/components/ui/button";
@@ -17,10 +17,10 @@ import { shellHeaderHeightClass } from "@/components/layout/shell-header";
 import { cn } from "@/lib/utils";
 
 const gameLinks = [
-  { href: "base", label: "Игра", icon: Home },
-  { href: "predictions", label: "Прогнозы", icon: Target },
-  { href: "leaderboard", label: "Таблица", icon: Trophy },
-  { href: "live", label: "Лайв", icon: Radio, isLive: true },
+  { href: "base", label: "Турнир", icon: IconHome },
+  { href: "predictions", label: "Прогнозы", icon: IconTarget },
+  { href: "leaderboard", label: "Таблица", icon: IconTrophy },
+  { href: "live", label: "Лайв", icon: IconBroadcast, isLive: true },
 ];
 
 function navLinkClass(active: boolean) {
@@ -33,17 +33,17 @@ function navLinkClass(active: boolean) {
 }
 
 export function DesktopSidebar({
-  gameSlug,
+  gameInviteCode,
   isPlatformAdmin,
   canManageGame,
 }: {
-  gameSlug?: string;
+  gameInviteCode?: string;
   isPlatformAdmin: boolean;
   canManageGame: boolean;
 }) {
   const pathname = usePathname();
-  const slugFromPath = pathname.match(/^\/game\/([^/]+)/)?.[1];
-  const activeSlug = gameSlug ?? slugFromPath;
+  const inviteFromPath = pathname.match(/^\/game\/([^/]+)/)?.[1];
+  const activeInviteCode = gameInviteCode ?? inviteFromPath;
 
   return (
     <aside className="hidden md:sticky md:top-0 md:flex md:h-screen md:max-h-screen md:w-64 md:shrink-0 md:flex-col md:overflow-hidden md:border-r md:border-brand-neutral md:bg-brand-surface/50">
@@ -57,33 +57,33 @@ export function DesktopSidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-hidden px-3 py-4">
-        {activeSlug &&
+        {activeInviteCode &&
           gameLinks.map((link) => {
-              const href =
-                link.href === "base"
-                  ? gamePath(activeSlug)
-                  : gamePath(activeSlug, link.href);
-              const active = pathname === href;
-              const Icon = link.icon;
-              return (
-                <Link key={href} href={href} className={navLinkClass(active)}>
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {"isLive" in link && link.isLive ? (
-                    <LiveNavLabel showIcon={false} />
-                  ) : (
-                    link.label
-                  )}
-                </Link>
-              );
-            })}
+            const href =
+              link.href === "base"
+                ? gamePath(activeInviteCode)
+                : gamePath(activeInviteCode, link.href);
+            const active = pathname === href;
+            const Icon = link.icon;
+            return (
+              <Link key={href} href={href} className={navLinkClass(active)}>
+                <Icon className="h-4 w-4 shrink-0" stroke={1.75} />
+                {"isLive" in link && link.isLive ? (
+                  <LiveNavLabel showIcon={false} />
+                ) : (
+                  link.label
+                )}
+              </Link>
+            );
+          })}
 
         {(isPlatformAdmin || canManageGame) && (
           <>
-            {activeSlug && (
+            {activeInviteCode && (
               <div className="my-2 h-px bg-brand-neutral/60" aria-hidden="true" />
             )}
             <Link href="/admin" className={navLinkClass(pathname.startsWith("/admin"))}>
-              <Shield className="h-4 w-4 shrink-0" />
+              <IconShield className="h-4 w-4 shrink-0" stroke={1.75} />
               Админка
             </Link>
           </>

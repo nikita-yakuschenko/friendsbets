@@ -97,18 +97,23 @@ export function AuthEntry() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="inviteCode" variant="brand">
-                  Invite-код игры
+                  Invite-код турнира{" "}
+                  <span className="font-normal text-brand-muted">(необязательно)</span>
                 </Label>
                 <Input
                   id="inviteCode"
                   name="inviteCode"
                   variant="brand"
-                  placeholder="invite-код игры"
+                  placeholder="ABC123 — если пригласили в турнир"
                   defaultValue={inviteFromUrl}
-                  required={isRegister}
                   disabled={!isRegister}
                   tabIndex={isRegister ? 0 : -1}
+                  className="font-mono uppercase tracking-widest"
+                  autoComplete="off"
                 />
+                <p className="text-xs text-brand-muted">
+                  Без кода можно зарегистрироваться, создать турнир или подключиться позже.
+                </p>
               </div>
             </div>
           </div>
