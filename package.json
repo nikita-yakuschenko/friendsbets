@@ -12,6 +12,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
+    "db:essentials": "tsx scripts/ensure-platform-essentials.ts",
     "reminders:send": "tsx scripts/send-prediction-reminders.ts",
     "sync:championat": "tsx scripts/sync-championat-matches.ts",
     "postinstall": "prisma generate"

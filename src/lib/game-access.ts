@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { findGameByInviteCode } from "@/lib/game-invite";
 import { gamePath, gameRouteSegmentFromPathname } from "@/lib/game-path";
 import { normalizeInviteCodeInput } from "@/lib/invite-code";
-import { isAdmin } from "@/lib/roles";
+import { isSuperadmin } from "@/lib/roles";
 import type { SessionUser } from "@/lib/auth";
 import { requireAuth } from "@/lib/auth";
 
@@ -44,22 +44,33 @@ export async function getGameBySlug(slug: string) {
   return prisma.game.findUnique({ where: { slug } });
 }
 
+export async function isGameParticipant(
+  userId: string,
+  gameId: string,
+): Promise<boolean> {
+  const row = await prisma.gameParticipant.findUnique({
+    where: { gameId_userId: { gameId, userId } },
+    select: { id: true },
+  });
+  return row !== null;
+}
+
+/** Участие в турнире обязательно для прогнозов и разделов игры. Суперадмин — без исключений. */
 export async function assertGameParticipant(
   user: SessionUser,
   gameId: string,
 ) {
-  if (isAdmin(user.role)) {
-    const game = await prisma.game.findUnique({ where: { id: gameId } });
-    if (!game) throw new Error("GAME_NOT_FOUND");
-    return game;
-  }
-
   const participant = await prisma.gameParticipant.findUnique({
     where: { gameId_userId: { gameId, userId: user.id } },
     include: { game: true },
   });
 
   if (!participant) {
+    const exists = await prisma.game.findUnique({
+      where: { id: gameId },
+      select: { id: true },
+    });
+    if (!exists) throw new Error("GAME_NOT_FOUND");
     throw new Error("FORBIDDEN");
   }
 
@@ -111,7 +122,7 @@ export async function canManageGame(
   user: SessionUser,
   gameId: string,
 ): Promise<boolean> {
-  if (isAdmin(user.role)) return true;
+  if (isSuperadmin(user.role)) return true;
   return isGameOrganizer(user.id, gameId);
 }
 

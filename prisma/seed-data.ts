@@ -1,5 +1,5 @@
 import { PrismaClient, UserRole } from "../src/generated/prisma/client";
-import { ensureSystemTournamentTemplates } from "../src/lib/tournament-templates";
+import { ensurePlatformEssentials } from "../src/lib/platform-essentials";
 
 const LEGACY_DEMO_GAME_SLUG = "demo2026";
 const LEGACY_DEMO_INVITE_CODES = ["demo2026", "DEMO2026"] as const;
@@ -85,50 +85,14 @@ export async function bootstrapEssentialData(
   adminEmail: string,
   adminPasswordHash: string,
 ) {
-  await Promise.all([
-    prisma.scoringRule.upsert({
-      where: { code: "FOOTBALL_CLASSIC" },
-      update: {},
-      create: {
-        title: "Классика",
-        code: "FOOTBALL_CLASSIC",
-        configJson: {},
-      },
-    }),
-    prisma.scoringRule.upsert({
-      where: { code: "MANY_POINTS" },
-      update: {},
-      create: {
-        title: "Много очков",
-        code: "MANY_POINTS",
-        configJson: {},
-      },
-    }),
-    prisma.scoringRule.upsert({
-      where: { code: "DIFFERENCE_DECIDES" },
-      update: {},
-      create: {
-        title: "Решает разница",
-        code: "DIFFERENCE_DECIDES",
-        configJson: {},
-      },
-    }),
-    prisma.scoringRule.upsert({
-      where: { code: "DRY_NUMBERS" },
-      update: {},
-      create: {
-        title: "Сухие цифры",
-        code: "DRY_NUMBERS",
-        configJson: {},
-      },
-    }),
-  ]);
-
-  await ensureSystemTournamentTemplates();
+  await ensurePlatformEssentials(prisma);
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: {
+      passwordHash: adminPasswordHash,
+      role: UserRole.ADMIN,
+    },
     create: {
       email: adminEmail,
       name: "Admin",

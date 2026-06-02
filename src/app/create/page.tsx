@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { getSession } from "@/lib/auth";
+import { isSuperadmin } from "@/lib/roles";
 import { getCreateGameFormData } from "@/server/actions/create-game";
 
 export default async function CreateGamePage() {
@@ -22,11 +23,12 @@ export default async function CreateGamePage() {
           scoringRules={scoringRules}
           tournamentTemplates={tournamentTemplates}
           defaultTemplateId={defaultTemplateId}
+          isPlatformSuperadmin={isSuperadmin(session.role)}
         />
         <p className="mt-6 text-center text-sm text-brand-muted">
           Уже есть invite-код?{" "}
           <Link href="/join" className="font-semibold text-brand-cyan hover:underline">
-            Подключиться к турниру
+            Найти турнир по invite-коду
           </Link>
         </p>
       </ContentContainer>

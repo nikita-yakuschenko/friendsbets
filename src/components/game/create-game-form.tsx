@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -35,10 +36,12 @@ export function CreateGameForm({
   scoringRules,
   tournamentTemplates,
   defaultTemplateId,
+  isPlatformSuperadmin = false,
 }: {
   scoringRules: ScoringOption[];
   tournamentTemplates: TournamentTemplateOption[];
   defaultTemplateId: string;
+  isPlatformSuperadmin?: boolean;
 }) {
   const [state, formAction] = useActionState<
     ActionResult | undefined,
@@ -58,7 +61,36 @@ export function CreateGameForm({
     return (
       <Alert className="border-brand-neutral bg-brand-bg text-brand-muted">
         <AlertDescription>
-          Правила начисления очков не настроены. Обратитесь к администратору.
+          <div className="space-y-2">
+          {isPlatformSuperadmin ? (
+            <>
+              <p>
+                В базе нет правил начисления очков — без них турнир не создать.
+                Обычно они подставляются автоматически; если видите это сообщение,
+                проверьте подключение к PostgreSQL и выполните{" "}
+                <code className="text-brand-cyan">npm run db:seed</code> в корне проекта.
+              </p>
+              <p>
+                <Link href="/admin" className="font-semibold text-brand-cyan hover:underline">
+                  Админка платформы
+                </Link>
+                {" · "}
+                <button
+                  type="button"
+                  className="font-semibold text-brand-cyan hover:underline"
+                  onClick={() => window.location.reload()}
+                >
+                  Обновить страницу
+                </button>
+              </p>
+            </>
+          ) : (
+            <p>
+              Правила начисления очков ещё не настроены на сервере. Напишите
+              организатору платформы FriendsBets.
+            </p>
+          )}
+          </div>
         </AlertDescription>
       </Alert>
     );

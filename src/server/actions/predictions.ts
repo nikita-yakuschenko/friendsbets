@@ -34,7 +34,16 @@ export async function savePredictionAction(
     return { error: "Введите корректный счёт." };
   }
 
-  await assertGameParticipant(session, gameId);
+  try {
+    await assertGameParticipant(session, gameId);
+  } catch (error) {
+    if (error instanceof Error && error.message === "FORBIDDEN") {
+      return {
+        error: "Вы не участник этого турнира. Подключитесь по invite-коду.",
+      };
+    }
+    throw error;
+  }
 
   const match = await prisma.match.findUnique({
     where: { id: matchId },
@@ -92,8 +101,15 @@ export async function savePredictionAction(
 }
 
 export async function getPredictionsPageData(routeParam: string, userId: string) {
+  const session = await requireAuth();
   const gameId = await resolveGameIdFromRoute(routeParam);
   if (!gameId) return null;
+
+  try {
+    await assertGameParticipant(session, gameId);
+  } catch {
+    return null;
+  }
 
   const game = await prisma.game.findUnique({
     where: { id: gameId },

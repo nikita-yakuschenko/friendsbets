@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import { UserRole } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { isAdmin } from "@/lib/roles";
+import { isSuperadmin } from "@/lib/roles";
 
 const SESSION_COOKIE = "fb_session";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
@@ -97,10 +97,13 @@ export async function requireAuth(): Promise<SessionUser> {
   return session;
 }
 
-export async function requireAdmin(): Promise<SessionUser> {
+export async function requireSuperadmin(): Promise<SessionUser> {
   const session = await requireAuth();
-  if (!isAdmin(session.role)) {
+  if (!isSuperadmin(session.role)) {
     throw new Error("FORBIDDEN");
   }
   return session;
 }
+
+/** @deprecated Используйте requireSuperadmin */
+export const requireAdmin = requireSuperadmin;

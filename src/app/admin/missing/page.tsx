@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
-import { isAdmin } from "@/lib/roles";
+import { isSuperadmin } from "@/lib/roles";
 import { normalizeInviteCodeInput } from "@/lib/invite-code";
 import {
   getAdminMissingPredictions,
@@ -50,7 +50,7 @@ export default async function AdminMissingPage({
     ) ?? games[0];
 
   const items = await getAdminMissingPredictions(selectedGame.inviteCode);
-  const isPlatformAdmin = isAdmin(session.role);
+  const isPlatformAdmin = isSuperadmin(session.role);
 
   return (
     <AppShell

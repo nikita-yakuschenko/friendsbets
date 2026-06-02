@@ -59,7 +59,7 @@ export default async function HomePage() {
             </Link>
             <Link href="/join">
               <Button size="sm" variant="secondary">
-                Подключиться
+                Найти турнир
               </Button>
             </Link>
           </div>

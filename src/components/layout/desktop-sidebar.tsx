@@ -84,7 +84,7 @@ export function DesktopSidebar({
             </Link>
             <Link href="/join" className={navLinkClass(pathname === "/join")}>
               <IconUserPlus className="h-4 w-4 shrink-0" stroke={1.75} />
-              Подключиться
+              Найти турнир
             </Link>
           </>
         ) : null}
@@ -120,7 +120,7 @@ export function DesktopSidebar({
             ) : null}
             <Link href="/admin" className={navLinkClass(pathname.startsWith("/admin"))}>
               <IconShield className="h-4 w-4 shrink-0" stroke={1.75} />
-              Админка
+              {isPlatformAdmin ? "Платформа" : "Мой турнир"}
             </Link>
           </>
         ) : null}

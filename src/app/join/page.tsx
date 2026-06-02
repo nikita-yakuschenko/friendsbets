@@ -5,6 +5,7 @@ import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
+import { getGameJoinPreviewForUser } from "@/server/actions/join-game";
 
 export default async function JoinGamePage({
   searchParams,
@@ -20,14 +21,21 @@ export default async function JoinGamePage({
     redirect(`/?${params.toString()}`);
   }
 
+  const initialPreview = invite
+    ? await getGameJoinPreviewForUser(session.id, invite)
+    : null;
+
   return (
     <AppShell user={session}>
       <ContentContainer className="max-w-xl">
         <PageHeader
-          title="Подключиться к турниру"
-          description="Введите invite-код от организатора — вы станете участником его турнира."
+          title="Найти турнир"
+          description="Введите invite-код, проверьте название и организатора — и только потом вступайте."
         />
-        <JoinGameForm defaultInviteCode={invite ?? ""} />
+        <JoinGameForm
+          defaultInviteCode={invite ?? ""}
+          initialPreview={initialPreview}
+        />
         <p className="mt-6 text-center text-sm text-brand-muted">
           Хотите создать турнир?{" "}
           <Link href="/create" className="font-semibold text-brand-lime hover:underline">

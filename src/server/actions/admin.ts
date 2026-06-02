@@ -9,7 +9,7 @@ import {
   revalidateGamePaths,
   resolveGameIdFromRoute,
 } from "@/lib/game-access";
-import { isAdmin } from "@/lib/roles";
+import { isSuperadmin } from "@/lib/roles";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { deriveWinnerTeamId } from "@/lib/utils";
@@ -39,7 +39,7 @@ export async function updateMatchResultAction(
   }
 
   const allowed =
-    isAdmin(session.role) || (await isGameOrganizer(session.id, gameId));
+    isSuperadmin(session.role) || (await isGameOrganizer(session.id, gameId));
   if (!allowed) {
     return { error: "Нет доступа." };
   }
@@ -87,7 +87,7 @@ export async function syncChampionatMatchesAction(): Promise<
   }
 > {
   const session = await requireAuth();
-  if (!isAdmin(session.role)) {
+  if (!isSuperadmin(session.role)) {
     const games = await getMissingPredictionsGames(session.id, session.role);
     if (games.length === 0) {
       return { error: "Нет доступа." };
@@ -156,7 +156,7 @@ export async function getAdminDashboardData(userId: string, role: UserRole) {
 
   const [tournaments, matches, templates] = await Promise.all([
     prisma.tournament.findMany({
-      where: isAdmin(role) ? {} : { id: { in: tournamentIds } },
+      where: isSuperadmin(role) ? {} : { id: { in: tournamentIds } },
       orderBy: { createdAt: "desc" },
     }),
     prisma.match.findMany({
@@ -199,7 +199,7 @@ export async function recalculateAllScoresAction(
 ): Promise<ActionResult> {
   const session = await requireAuth();
   const allowed =
-    isAdmin(session.role) || (await isGameOrganizer(session.id, gameId));
+    isSuperadmin(session.role) || (await isGameOrganizer(session.id, gameId));
   if (!allowed) {
     return { error: "Нет доступа." };
   }
@@ -230,7 +230,7 @@ export async function getAdminMissingPredictions(routeParam: string) {
   if (!gameId) return [];
 
   const allowed =
-    isAdmin(session.role) || (await isGameOrganizer(session.id, gameId));
+    isSuperadmin(session.role) || (await isGameOrganizer(session.id, gameId));
   if (!allowed) return [];
 
   const game = await prisma.game.findUnique({
@@ -274,8 +274,56 @@ export async function getAdminMissingPredictions(routeParam: string) {
   });
 }
 
+export async function getAdminUsers() {
+  const session = await requireAuth();
+  if (!isSuperadmin(session.role)) {
+    throw new Error("FORBIDDEN");
+  }
+
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      gameParticipants: {
+        include: {
+          game: { select: { id: true, title: true, inviteCode: true } },
+        },
+      },
+    },
+  });
+
+  return users.map((user) => {
+    const organizerGames = user.gameParticipants
+      .filter((p) => p.role === GameParticipantRole.ORGANIZER)
+      .map((p) => ({
+        id: p.game.id,
+        title: p.game.title,
+        inviteCode: p.game.inviteCode,
+      }))
+      .sort((a, b) => a.title.localeCompare(b.title, "ru"));
+
+    const participantGames = user.gameParticipants
+      .filter((p) => p.role === GameParticipantRole.PARTICIPANT)
+      .map((p) => ({
+        id: p.game.id,
+        title: p.game.title,
+        inviteCode: p.game.inviteCode,
+      }))
+      .sort((a, b) => a.title.localeCompare(b.title, "ru"));
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      platformRole: user.role,
+      createdAt: user.createdAt.toISOString(),
+      organizerGames,
+      participantGames,
+    };
+  });
+}
+
 export async function getMissingPredictionsGames(userId: string, role: UserRole) {
-  if (isAdmin(role)) {
+  if (isSuperadmin(role)) {
     return prisma.game.findMany({
       orderBy: { createdAt: "desc" },
       select: { id: true, title: true, slug: true, inviteCode: true },

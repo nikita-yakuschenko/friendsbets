@@ -2,9 +2,10 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { getSession } from "@/lib/auth";
-import { isAdmin } from "@/lib/roles";
+import { isSuperadmin } from "@/lib/roles";
 import { NoGamesPrompt } from "@/components/game/no-games-prompt";
 import { ContentContainer } from "@/components/layout/content-container";
+import { prisma } from "@/lib/db";
 import {
   assertGameParticipant,
   canManageGame,
@@ -47,6 +48,13 @@ export default async function GameLayout({
     if (error instanceof Error && error.message === "GAME_NOT_FOUND") {
       notFound();
     }
+    const inviteGame = await prisma.game.findUnique({
+      where: { id: internalId },
+      select: { inviteCode: true },
+    });
+    if (inviteGame) {
+      redirect(`/join?invite=${encodeURIComponent(inviteGame.inviteCode)}`);
+    }
     redirect("/");
   }
 
@@ -62,7 +70,7 @@ export default async function GameLayout({
     <AppShell
       user={session}
       gameInviteCode={game.inviteCode}
-      isPlatformAdmin={isAdmin(session.role)}
+      isPlatformAdmin={isSuperadmin(session.role)}
       canManageGame={canManage}
     >
       {children}

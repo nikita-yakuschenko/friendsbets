@@ -5,9 +5,10 @@ import { requireAuth } from "@/lib/auth";
 import {
   assertGameParticipant,
   isGameOrganizer,
+  isGameParticipant,
   resolveGameIdFromRoute,
 } from "@/lib/game-access";
-import { isAdmin } from "@/lib/roles";
+import { isSuperadmin } from "@/lib/roles";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { computeLivePredictionStats } from "@/lib/live-match-stats";
@@ -19,6 +20,10 @@ import type { ActionResult } from "@/server/actions/auth";
 export async function getGameOverview(routeParam: string, userId: string) {
   const gameId = await resolveGameIdFromRoute(routeParam);
   if (!gameId) return null;
+
+  if (!(await isGameParticipant(userId, gameId))) {
+    return null;
+  }
 
   const game = await prisma.game.findUnique({
     where: { id: gameId },
@@ -284,7 +289,7 @@ export async function recalculateMatchScoresAction(
 ): Promise<ActionResult> {
   const session = await requireAuth();
   const allowed =
-    isAdmin(session.role) || (await isGameOrganizer(session.id, gameId));
+    isSuperadmin(session.role) || (await isGameOrganizer(session.id, gameId));
   if (!allowed) {
     return { error: "Нет доступа." };
   }
@@ -334,7 +339,7 @@ export async function recalculateGameScoresAction(
 ): Promise<ActionResult> {
   const session = await requireAuth();
   const allowed =
-    isAdmin(session.role) || (await isGameOrganizer(session.id, gameId));
+    isSuperadmin(session.role) || (await isGameOrganizer(session.id, gameId));
   if (!allowed) {
     return { error: "Нет доступа." };
   }

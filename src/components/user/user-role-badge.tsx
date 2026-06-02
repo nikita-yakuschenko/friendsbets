@@ -1,21 +1,26 @@
 import { Badge } from "@/components/ui/badge";
-import { getRoleLabel, isAdmin } from "@/lib/roles";
-import type { UserRole } from "@/generated/prisma/client";
-import { cn } from "@/lib/utils";
 
+const PLATFORM_ROLE_LABELS = {
+  ADMIN: "Суперадмин",
+  PARTICIPANT: "Участник",
+} as const;
+
+export type PlatformRole = keyof typeof PLATFORM_ROLE_LABELS;
+
+/** Бейдж роли на уровне платформы (не организатор турнира). */
 export function UserRoleBadge({
   role,
   className,
 }: {
-  role: UserRole;
+  role: PlatformRole;
   className?: string;
 }) {
   return (
     <Badge
-      variant={isAdmin(role) ? "default" : "secondary"}
-      className={cn("font-normal", className)}
+      variant={role === "ADMIN" ? "default" : "secondary"}
+      className={className}
     >
-      {getRoleLabel(role)}
+      {PLATFORM_ROLE_LABELS[role]}
     </Badge>
   );
 }

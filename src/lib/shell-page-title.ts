@@ -2,12 +2,12 @@
 export function resolveDesktopHeaderTitle(pathname: string): string | null {
   if (pathname === "/") return "Мои турниры";
   if (pathname === "/profile") return "Профиль";
-  if (pathname === "/join") return "Подключиться";
+  if (pathname === "/join") return "Найти турнир";
   if (pathname === "/add-tournament") return "Добавить турнир";
   if (pathname === "/create") return "Создать турнир";
   if (pathname.startsWith("/create/success")) return "Турнир создан";
   if (pathname.startsWith("/admin/missing")) return "Кто не поставил";
-  if (pathname === "/admin") return "Админка";
+  if (pathname === "/admin") return "Управление";
 
   const gameSubpage = pathname.match(/^\/game\/[^/]+\/([^/]+)\/?$/);
   if (gameSubpage) {

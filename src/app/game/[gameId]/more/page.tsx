@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { canManageGame, resolveGameIdFromRoute } from "@/lib/game-access";
 import { getSession } from "@/lib/auth";
-import { isAdmin } from "@/lib/roles";
+import { isSuperadmin } from "@/lib/roles";
 import { prisma } from "@/lib/db";
 
 export default async function GameMorePage({
@@ -27,7 +27,7 @@ export default async function GameMorePage({
   if (!game) return notFound();
 
   const canManage = await canManageGame(session, internalId);
-  const isPlatformAdmin = isAdmin(session.role);
+  const isPlatformAdmin = isSuperadmin(session.role);
 
   return (
     <ContentContainer>

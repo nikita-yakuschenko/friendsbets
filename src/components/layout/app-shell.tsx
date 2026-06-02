@@ -10,7 +10,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { shellHeaderHeightClass } from "@/components/layout/shell-header";
 import { getUserGamesState } from "@/lib/game-access";
 import { cn } from "@/lib/utils";
-import { isAdmin } from "@/lib/roles";
+import { isSuperadmin } from "@/lib/roles";
 import type { SessionUser } from "@/lib/auth";
 
 export async function AppShell({
@@ -26,7 +26,7 @@ export async function AppShell({
   isPlatformAdmin?: boolean;
   canManageGame?: boolean;
 }) {
-  const userIsPlatformAdmin = isPlatformAdmin ?? (user ? isAdmin(user.role) : false);
+  const userIsPlatformAdmin = isPlatformAdmin ?? (user ? isSuperadmin(user.role) : false);
 
   let hasGames = false;
   let activeInviteCode = gameInviteCode;
@@ -92,7 +92,7 @@ export async function AppShell({
                                 stroke={1.75}
                                 aria-hidden
                               />
-                              <span className="sr-only">Администратор</span>
+                              <span className="sr-only">Суперадмин</span>
                             </>
                           ) : null}
                         </span>

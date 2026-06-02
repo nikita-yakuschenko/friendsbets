@@ -9,6 +9,9 @@ services:
       - .env
     volumes:
       - friendsbets_pg_data:/var/lib/postgresql/data
+    ports:
+      # 5433 — чтобы не конфликтовать с локальным PostgreSQL на Windows (часто занят :5432)
+      - "5433:5432"
     healthcheck:
       test:
         [

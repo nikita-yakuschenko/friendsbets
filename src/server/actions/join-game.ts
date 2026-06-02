@@ -4,13 +4,39 @@ import { redirect } from "next/navigation";
 import { GameParticipantRole } from "@/generated/prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { findGameByInviteCode } from "@/lib/game-invite";
-import { validateInviteCodeFormat, normalizeInviteCodeInput } from "@/lib/invite-code";
 import { gamePath } from "@/lib/game-path";
 import { revalidateGamePaths } from "@/lib/game-access";
+import {
+  resolveGameJoinPreview,
+  type GameJoinPreview,
+} from "@/lib/join-game-preview";
+import {
+  normalizeInviteCodeInput,
+  validateInviteCodeFormat,
+} from "@/lib/invite-code";
 import { prisma } from "@/lib/db";
 import type { ActionResult } from "@/server/actions/auth";
 
-export async function joinGameAction(
+export type LookupGameResult = ActionResult & {
+  preview?: GameJoinPreview;
+};
+
+export async function lookupGameByInviteAction(
+  _prev: LookupGameResult | undefined,
+  formData: FormData,
+): Promise<LookupGameResult> {
+  const session = await requireAuth();
+  const inviteCodeRaw = String(formData.get("inviteCode") ?? "");
+
+  const result = await resolveGameJoinPreview(session.id, inviteCodeRaw);
+  if ("error" in result) {
+    return { error: result.error };
+  }
+
+  return { success: true, preview: result.preview };
+}
+
+export async function confirmJoinGameAction(
   _prev: ActionResult | undefined,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -18,7 +44,7 @@ export async function joinGameAction(
   const inviteCodeRaw = String(formData.get("inviteCode") ?? "").trim();
 
   if (!inviteCodeRaw) {
-    return { error: "Введите invite-код." };
+    return { error: "Код турнира не указан. Найдите турнир заново." };
   }
 
   const formatError = validateInviteCodeFormat(inviteCodeRaw);
@@ -28,7 +54,7 @@ export async function joinGameAction(
   const game = await findGameByInviteCode(inviteCode);
 
   if (!game) {
-    return { error: "Турнир с таким invite-кодом не найден." };
+    return { error: "Турнир не найден. Возможно, код изменился — найдите турнир снова." };
   }
 
   const existing = await prisma.gameParticipant.findUnique({
@@ -52,4 +78,13 @@ export async function joinGameAction(
 
   await revalidateGamePaths(game.id);
   redirect(gamePath(game.inviteCode));
+}
+
+/** Для SSR на /join?invite=… */
+export async function getGameJoinPreviewForUser(
+  userId: string,
+  inviteCodeRaw: string,
+): Promise<GameJoinPreview | null> {
+  const result = await resolveGameJoinPreview(userId, inviteCodeRaw);
+  return "preview" in result ? result.preview : null;
 }

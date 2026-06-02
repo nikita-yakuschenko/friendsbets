@@ -1,6 +1,7 @@
+import type { PrismaClient } from "@/generated/prisma/client";
 import { parseChampionatTournamentUrl, type ParsedChampionatTournamentUrl } from "@/lib/championat-url";
 import { prisma } from "@/lib/db";
-import { SYSTEM_TEMPLATE_WC_2026 } from "@/lib/tournament-template-presets";
+import { ensureSystemTournamentTemplate } from "@/lib/platform-essentials";
 
 export type TournamentTemplateUi = {
   id: string;
@@ -10,23 +11,10 @@ export type TournamentTemplateUi = {
   matchCount: number | null;
 };
 
-export async function ensureSystemTournamentTemplates(): Promise<void> {
-  await prisma.tournamentTemplate.upsert({
-    where: { slug: SYSTEM_TEMPLATE_WC_2026.slug },
-    update: {
-      title: SYSTEM_TEMPLATE_WC_2026.title,
-      description: SYSTEM_TEMPLATE_WC_2026.description,
-      championatUrl: SYSTEM_TEMPLATE_WC_2026.championatUrl,
-      isSystem: true,
-    },
-    create: {
-      slug: SYSTEM_TEMPLATE_WC_2026.slug,
-      title: SYSTEM_TEMPLATE_WC_2026.title,
-      description: SYSTEM_TEMPLATE_WC_2026.description,
-      championatUrl: SYSTEM_TEMPLATE_WC_2026.championatUrl,
-      isSystem: true,
-    },
-  });
+export async function ensureSystemTournamentTemplates(
+  db: PrismaClient = prisma,
+): Promise<void> {
+  await ensureSystemTournamentTemplate(db);
 }
 
 export async function listTournamentTemplatesForUi(): Promise<TournamentTemplateUi[]> {

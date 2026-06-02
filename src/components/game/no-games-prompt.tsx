@@ -16,7 +16,7 @@ export function NoGamesPrompt() {
           </Link>
           <Link href="/join">
             <Button variant="secondary" className="w-full sm:w-auto">
-              Подключиться по invite
+              Найти турнир по invite
             </Button>
           </Link>
         </div>

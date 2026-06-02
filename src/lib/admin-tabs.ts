@@ -1,4 +1,5 @@
 export const ADMIN_TAB_IDS = [
+  "users",
   "tournaments",
   "games",
   "matches",
@@ -8,15 +9,32 @@ export const ADMIN_TAB_IDS = [
 export type AdminTabId = (typeof ADMIN_TAB_IDS)[number];
 
 export const ADMIN_TABS: { id: AdminTabId; label: string }[] = [
+  { id: "users", label: "Пользователи" },
   { id: "tournaments", label: "Турниры и шаблоны" },
   { id: "games", label: "Игры" },
   { id: "matches", label: "Матчи и результаты" },
   { id: "integrations", label: "API и интеграции" },
 ];
 
-export function parseAdminTab(raw?: string): AdminTabId {
-  if (raw && ADMIN_TAB_IDS.includes(raw as AdminTabId)) {
+/** Вкладки только для организатора своего турнира (без платформенных интеграций). */
+export const ORGANIZER_ADMIN_TAB_IDS: AdminTabId[] = [
+  "tournaments",
+  "games",
+  "matches",
+];
+
+export function getAdminTabsForUser(isSuperadmin: boolean) {
+  if (isSuperadmin) return ADMIN_TABS;
+  return ADMIN_TABS.filter((tab) => ORGANIZER_ADMIN_TAB_IDS.includes(tab.id));
+}
+
+export function parseAdminTab(
+  raw: string | undefined,
+  isSuperadmin: boolean,
+): AdminTabId {
+  const allowed = getAdminTabsForUser(isSuperadmin).map((tab) => tab.id);
+  if (raw && allowed.includes(raw as AdminTabId)) {
     return raw as AdminTabId;
   }
-  return "tournaments";
+  return allowed[0] ?? "games";
 }

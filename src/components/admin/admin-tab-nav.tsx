@@ -1,14 +1,20 @@
 import Link from "next/link";
-import { ADMIN_TABS, type AdminTabId } from "@/lib/admin-tabs";
+import type { AdminTabId } from "@/lib/admin-tabs";
 import { cn } from "@/lib/utils";
 
-export function AdminTabNav({ activeTab }: { activeTab: AdminTabId }) {
+export function AdminTabNav({
+  activeTab,
+  tabs,
+}: {
+  activeTab: AdminTabId;
+  tabs: { id: AdminTabId; label: string }[];
+}) {
   return (
     <nav
       className="mb-6 flex flex-wrap gap-1 rounded-xl border border-brand-neutral bg-brand-surface/50 p-1"
-      aria-label="Разделы админки"
+      aria-label="Разделы управления"
     >
-      {ADMIN_TABS.map((tab) => {
+      {tabs.map((tab) => {
         const active = tab.id === activeTab;
         return (
           <Link

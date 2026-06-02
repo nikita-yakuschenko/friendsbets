@@ -24,11 +24,14 @@ fi
 echo "[entrypoint] Prisma migrate deploy…"
 npm run db:migrate:deploy
 
+echo "[entrypoint] Platform essentials (scoring rules, system template)…"
+npm run db:essentials
+
 if [ "${RUN_DB_SEED:-true}" = "true" ]; then
   echo "[entrypoint] Database seed…"
   npm run db:seed
 else
-  echo "[entrypoint] Seed skipped (RUN_DB_SEED=false)."
+  echo "[entrypoint] Full seed skipped (RUN_DB_SEED=false); essentials already applied above."
 fi
 
 echo "[entrypoint] Starting application…"

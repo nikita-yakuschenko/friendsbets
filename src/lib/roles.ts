@@ -1,39 +1,69 @@
-import { UserRole } from "@/generated/prisma/client";
+import { GameParticipantRole, UserRole } from "@/generated/prisma/client";
 
-/** Роли пользователей в приложении. */
+/** Значения `User.role` для клиентских компонентов без импорта Prisma. */
+export type PlatformRole = "ADMIN" | "PARTICIPANT";
+
+/**
+ * Роли уровня платформы (таблица User).
+ * ADMIN = суперадмин сервиса (один аккаунт из ADMIN_EMAIL при seed).
+ * PARTICIPANT = обычный пользователь.
+ *
+ * «Админ турнира» — это GameParticipantRole.ORGANIZER, не User.role.
+ */
 export const USER_ROLES = {
-  ADMIN: UserRole.ADMIN,
+  SUPERADMIN: UserRole.ADMIN,
   PARTICIPANT: UserRole.PARTICIPANT,
 } as const;
 
-/** Человекочитаемые названия ролей. */
-export const ROLE_LABELS: Record<UserRole, string> = {
-  [UserRole.ADMIN]: "Администратор",
+export const PLATFORM_ROLE_LABELS: Record<UserRole, string> = {
+  [UserRole.ADMIN]: "Суперадмин",
   [UserRole.PARTICIPANT]: "Участник",
 };
 
-export type RolePermission = "adminPanel" | "gamePlay";
+export const GAME_PARTICIPANT_ROLE_LABELS: Record<GameParticipantRole, string> = {
+  [GameParticipantRole.ORGANIZER]: "Организатор турнира",
+  [GameParticipantRole.PARTICIPANT]: "Участник",
+};
 
-/** Права доступа по ролям. */
+export type RolePermission = "platformAdmin" | "gamePlay";
+
+/** Права доступа по ролям платформы. */
 export const ROLE_PERMISSIONS: Record<RolePermission, readonly UserRole[]> = {
-  /** Админ-панель, результаты матчей, пересчёт очков, «Кто не поставил». */
-  adminPanel: [UserRole.ADMIN],
-  /** Прогнозы, таблица, Live. */
+  /** Глобальная админка, все турниры, интеграции, пользователи (когда добавим). */
+  platformAdmin: [UserRole.ADMIN],
+  /** Прогнозы, таблица, Live — любой авторизованный пользователь. */
   gamePlay: [UserRole.ADMIN, UserRole.PARTICIPANT],
 };
 
-export function getRoleLabel(role: UserRole): string {
-  return ROLE_LABELS[role] ?? role;
+export function getPlatformRoleLabel(role: UserRole | PlatformRole): string {
+  return PLATFORM_ROLE_LABELS[role as UserRole] ?? role;
 }
 
-export function isAdmin(role: UserRole): boolean {
+export function getGameParticipantRoleLabel(role: GameParticipantRole): string {
+  return GAME_PARTICIPANT_ROLE_LABELS[role] ?? role;
+}
+
+/** Суперадмин платформы (создатель сервиса). */
+export function isSuperadmin(role: UserRole | PlatformRole): boolean {
   return role === UserRole.ADMIN;
 }
 
-export function isParticipant(role: UserRole): boolean {
+/** @deprecated Используйте isSuperadmin — «admin» в коде означал платформу, не организатора турнира. */
+export const isAdmin = isSuperadmin;
+
+export function isPlatformParticipant(role: UserRole): boolean {
   return role === UserRole.PARTICIPANT;
+}
+
+export function isGameOrganizerRole(role: GameParticipantRole): boolean {
+  return role === GameParticipantRole.ORGANIZER;
 }
 
 export function hasPermission(role: UserRole, permission: RolePermission): boolean {
   return ROLE_PERMISSIONS[permission].includes(role);
+}
+
+/** @deprecated Используйте hasPermission(role, "platformAdmin") */
+export function hasAdminPanelAccess(role: UserRole): boolean {
+  return hasPermission(role, "platformAdmin");
 }
