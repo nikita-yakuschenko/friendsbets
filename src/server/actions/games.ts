@@ -248,7 +248,9 @@ export async function getLiveMatches(routeParam: string) {
     prisma.match.findMany({
       where: {
         tournamentId: game.tournamentId,
-        status: { notIn: [MatchStatus.FINISHED, MatchStatus.CANCELLED] },
+        status: {
+          in: [MatchStatus.LIVE],
+        },
         startsAt: { lte: now },
       },
       include: {

@@ -23,6 +23,7 @@ enum MatchStatus {
   LIVE
   FINISHED
   CANCELLED
+  POSTPONED
 }
 
 enum GameParticipantRole {

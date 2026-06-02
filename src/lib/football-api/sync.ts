@@ -166,21 +166,40 @@ async function upsertExternalMatch(
   return "updated";
 }
 
-async function enrichMatchVenues(
+export async function refreshChampionatMatchPages(
+  tournamentId: string,
+  source: ParsedChampionatTournamentUrl,
+): Promise<{ venuesUpdated: number; statusesUpdated: number }> {
+  return enrichMatchesFromChampionatPages(tournamentId, source);
+}
+
+async function enrichMatchesFromChampionatPages(
   tournamentId: string,
   source?: ParsedChampionatTournamentUrl,
-): Promise<number> {
+): Promise<{ venuesUpdated: number; statusesUpdated: number }> {
   const config = source ?? getChampionatSyncConfig();
+  const now = new Date();
+
   const matches = await prisma.match.findMany({
     where: {
       tournamentId,
       externalId: { startsWith: "championat:" },
-      OR: [{ venueName: null }, { venueCity: null }],
+      OR: [
+        { venueName: null },
+        { venueCity: null },
+        {
+          status: { in: [MatchStatus.SCHEDULED, MatchStatus.LIVE] },
+          startsAt: { lte: now },
+          homeScore: null,
+          awayScore: null,
+        },
+      ],
     },
-    select: { id: true, externalId: true },
+    select: { id: true, externalId: true, status: true },
   });
 
   let venuesUpdated = 0;
+  let statusesUpdated = 0;
 
   for (const match of matches) {
     const championatMatchId = extractChampionatMatchId(match.externalId);
@@ -192,19 +211,37 @@ async function enrichMatchVenues(
         sportSlug: config.sportSlug,
       });
 
-      if (!details.venueName && !details.venueCity) {
+      const data: {
+        venueName?: string | null;
+        venueCity?: string | null;
+        status?: MatchStatus;
+      } = {};
+
+      if (details.venueName || details.venueCity) {
+        data.venueName = details.venueName ?? null;
+        data.venueCity = normalizeVenueCity(details.venueCity) ?? null;
+      }
+
+      if (details.status && details.status !== match.status) {
+        data.status = details.status;
+      }
+
+      if (Object.keys(data).length === 0) {
         await sleep(VENUE_FETCH_DELAY_MS);
         continue;
       }
 
       await prisma.match.update({
         where: { id: match.id },
-        data: {
-          venueName: details.venueName ?? null,
-          venueCity: normalizeVenueCity(details.venueCity) ?? null,
-        },
+        data,
       });
-      venuesUpdated += 1;
+
+      if (data.venueName !== undefined || data.venueCity !== undefined) {
+        venuesUpdated += 1;
+      }
+      if (data.status !== undefined) {
+        statusesUpdated += 1;
+      }
     } catch {
       // Пропускаем матч при временной ошибке Championat.
     }
@@ -212,7 +249,7 @@ async function enrichMatchVenues(
     await sleep(VENUE_FETCH_DELAY_MS);
   }
 
-  return venuesUpdated;
+  return { venuesUpdated, statusesUpdated };
 }
 
 async function normalizeStoredVenueCities(tournamentId: string): Promise<void> {
@@ -239,7 +276,10 @@ export async function enrichChampionatVenuesOnly(
   dbTournamentId: string,
   source: ParsedChampionatTournamentUrl,
 ): Promise<number> {
-  const venuesUpdated = await enrichMatchVenues(dbTournamentId, source);
+  const { venuesUpdated } = await enrichMatchesFromChampionatPages(
+    dbTournamentId,
+    source,
+  );
   await normalizeStoredVenueCities(dbTournamentId);
   return venuesUpdated;
 }
@@ -283,11 +323,19 @@ export async function syncChampionatTournament(
   }
 
   let venuesUpdated = 0;
+  let statusesUpdated = 0;
   if (enrichVenues) {
-    console.info("[championat-sync] enriching venues…");
-    venuesUpdated = await enrichMatchVenues(dbTournamentId, source);
+    console.info("[championat-sync] enriching match pages…");
+    const enriched = await enrichMatchesFromChampionatPages(
+      dbTournamentId,
+      source,
+    );
+    venuesUpdated = enriched.venuesUpdated;
+    statusesUpdated = enriched.statusesUpdated;
     await normalizeStoredVenueCities(dbTournamentId);
-    console.info(`[championat-sync] venues updated=${venuesUpdated}`);
+    console.info(
+      `[championat-sync] venues updated=${venuesUpdated} statuses updated=${statusesUpdated}`,
+    );
   }
 
   return {

@@ -16,6 +16,7 @@ export type PredictionMatchItem = {
   canPredict: boolean;
   prediction: { homeScore: number; awayScore: number } | null;
   locked: boolean;
+  postponed: boolean;
   points: number;
 };
 

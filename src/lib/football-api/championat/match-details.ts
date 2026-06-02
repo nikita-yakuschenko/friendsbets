@@ -1,4 +1,6 @@
+import { MatchStatus } from "@/generated/prisma/client";
 import { CHAMPIONAT_WORLD_CUP_2026 } from "@/lib/football-api/championat/constants";
+import { parseChampionatMatchStatusFromHtml } from "@/lib/football-api/championat/match-status";
 import { normalizeVenueCityParts } from "@/lib/venue";
 
 const FETCH_USER_AGENT =
@@ -7,6 +9,7 @@ const FETCH_USER_AGENT =
 export type ChampionatMatchDetails = {
   venueName?: string;
   venueCity?: string;
+  status?: MatchStatus;
 };
 
 function normalizeWhitespace(value: string): string {
@@ -20,8 +23,10 @@ export function parseChampionatMatchPageHtml(
     /Стадион:\s*<a[^>]*>([^<]+)<\/a>\s*\(\s*([^)]+)\s*\)/i,
   );
 
+  const status = parseChampionatMatchStatusFromHtml(html);
+
   if (!stadiumBlock) {
-    return {};
+    return status ? { status } : {};
   }
 
   const venueName = normalizeWhitespace(stadiumBlock[1] ?? "");
@@ -34,6 +39,7 @@ export function parseChampionatMatchPageHtml(
   return {
     venueName: venueName || undefined,
     venueCity: venueCity || undefined,
+    status,
   };
 }
 

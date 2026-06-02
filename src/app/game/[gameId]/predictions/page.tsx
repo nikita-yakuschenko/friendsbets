@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { MatchStatus } from "@/generated/prisma/client";
+import { gamePath } from "@/lib/game-path";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { MatchPredictionCard } from "@/components/prediction/match-prediction-card";
@@ -9,27 +10,25 @@ import { getSession } from "@/lib/auth";
 import { gamePlatformViewPath, isPlatformViewQuery } from "@/lib/game-platform-view";
 import { requireGameViewByRoute } from "@/lib/game-access";
 import {
+  emptyPredictionsFilterCounts,
   matchPredictionsFilter,
   parsePredictionsFilter,
   PREDICTIONS_FILTER_EMPTY,
-  PREDICTIONS_FILTER_IDS,
   type PredictionsFilterId,
 } from "@/lib/predictions-match-filter";
-import { buildPredictionStageGroups } from "@/lib/predictions-list";
+import {
+  buildPredictionStageGroups,
+  type PredictionMatchItem,
+} from "@/lib/predictions-list";
 import { getPredictionsPageData } from "@/server/actions/predictions";
 
 function countByFilter(
-  items: { match: { status: string } }[],
+  items: { match: PredictionMatchItem["match"] }[],
 ): Record<PredictionsFilterId, number> {
-  const counts = { upcoming: 0, finished: 0, all: 0 } as Record<
-    PredictionsFilterId,
-    number
-  >;
+  const counts = emptyPredictionsFilterCounts();
   for (const item of items) {
-    const status = item.match.status as MatchStatus;
-    counts.all += 1;
-    for (const id of PREDICTIONS_FILTER_IDS) {
-      if (id !== "all" && matchPredictionsFilter(status, id)) {
+    for (const id of Object.keys(counts) as PredictionsFilterId[]) {
+      if (matchPredictionsFilter(item.match, id)) {
         counts[id] += 1;
       }
     }
@@ -63,7 +62,7 @@ export default async function PredictionsPage({
   const counts = countByFilter(data.items);
 
   const filteredItems = data.items.filter((item) =>
-    matchPredictionsFilter(item.match.status as MatchStatus, activeFilter),
+    matchPredictionsFilter(item.match, activeFilter),
   );
   const stageGroups = buildPredictionStageGroups(filteredItems);
 
@@ -79,6 +78,19 @@ export default async function PredictionsPage({
         activeFilter={activeFilter}
         counts={counts}
       />
+
+      {counts.postponed > 0 && activeFilter === "upcoming" ? (
+        <p className="mb-4 text-sm text-brand-muted">
+          Перенесённых матчей:{" "}
+          <span className="font-medium text-white">{counts.postponed}</span>.{" "}
+          <Link
+            href={`${gamePath(data.game.inviteCode, "predictions")}?view=postponed`}
+            className="text-brand-lime underline-offset-2 hover:underline"
+          >
+            Открыть вкладку «Перенесённые»
+          </Link>
+        </p>
+      ) : null}
 
       {stageGroups.length === 0 ? (
         <Card>
@@ -102,6 +114,7 @@ export default async function PredictionsPage({
                     canPredict={item.canPredict}
                     prediction={item.prediction}
                     locked={item.locked}
+                    postponed={item.postponed}
                     points={item.points}
                   />
                 ))}

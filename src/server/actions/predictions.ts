@@ -8,7 +8,13 @@ import {
 } from "@/lib/game-access";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
-import { deriveWinnerTeamId, isMatchLocked } from "@/lib/utils";
+import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
+import { refreshChampionatMatchPages } from "@/lib/football-api/sync";
+import {
+  isMatchLockedForPredictions,
+  isMatchPostponed,
+} from "@/lib/match-prediction-state";
+import { deriveWinnerTeamId } from "@/lib/utils";
 import type { PredictionMatchItem } from "@/lib/predictions-list";
 import { buildPredictionStageGroups } from "@/lib/predictions-list";
 import type { ActionResult } from "@/server/actions/auth";
@@ -60,7 +66,10 @@ export async function savePredictionAction(
     return { error: "Прогноз на этот матч пока недоступен." };
   }
 
-  if (isMatchLocked(match.startsAt)) {
+  if (isMatchLockedForPredictions(match)) {
+    if (isMatchPostponed(match)) {
+      return { error: "Матч перенесён — прогноз недоступен." };
+    }
     return {
       error: "Прогноз нельзя изменить после начала матча.",
     };
@@ -119,6 +128,17 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
   });
   if (!game) return null;
 
+  const championatSource = await resolveChampionatSourceForTournament(
+    game.tournamentId,
+  );
+  if (championatSource) {
+    try {
+      await refreshChampionatMatchPages(game.tournamentId, championatSource);
+    } catch (err) {
+      console.error("[predictions] championat status refresh failed", err);
+    }
+  }
+
   const matches = await prisma.match.findMany({
     where: { tournamentId: game.tournamentId },
     include: {
@@ -143,7 +163,8 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
       prediction: saved
         ? { homeScore: saved.homeScore, awayScore: saved.awayScore }
         : null,
-      locked: isMatchLocked(match.startsAt),
+      locked: isMatchLockedForPredictions(match),
+      postponed: isMatchPostponed(match),
       points:
         saved?.scores.reduce((sum, score) => sum + score.points, 0) ?? 0,
     };

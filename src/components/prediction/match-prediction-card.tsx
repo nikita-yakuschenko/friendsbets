@@ -34,6 +34,7 @@ type MatchCardProps = {
   } | null;
   canPredict: boolean;
   locked: boolean;
+  postponed: boolean;
   points: number;
 };
 
@@ -194,6 +195,7 @@ export function MatchPredictionCard({
   canPredict,
   prediction,
   locked,
+  postponed,
   points,
 }: MatchCardProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -250,28 +252,33 @@ export function MatchPredictionCard({
   }, [state]);
 
   const isFinished = match.status === "FINISHED";
-  const editable = canPredict && !locked && !isFinished;
-  const awaitingTeams = !canPredict && !locked && !isFinished;
+  const isPostponed = postponed || match.status === "POSTPONED";
+  const editable = canPredict && !locked && !isFinished && !isPostponed;
+  const awaitingTeams = !canPredict && !locked && !isFinished && !isPostponed;
 
   const statusBadge = isFinished
     ? "secondary"
-    : awaitingTeams
+    : isPostponed
       ? "secondary"
-      : locked
-        ? "warning"
-        : prediction
-          ? "default"
-          : "destructive";
+      : awaitingTeams
+        ? "secondary"
+        : locked
+          ? "warning"
+          : prediction
+            ? "default"
+            : "destructive";
 
   const statusText = isFinished
     ? "Матч завершен"
-    : awaitingTeams
-      ? "Команды неизвестны"
-      : locked
-        ? "Матч начался"
-        : prediction
-          ? "Прогноз принят"
-          : "Прогноз не сделан";
+    : isPostponed
+      ? "Матч перенесён"
+      : awaitingTeams
+        ? "Команды неизвестны"
+        : locked
+          ? "Матч начался"
+          : prediction
+            ? "Прогноз принят"
+            : "Прогноз не сделан";
 
   return (
     <Card className="w-full min-w-0 max-w-full overflow-hidden p-0">
@@ -348,7 +355,7 @@ export function MatchPredictionCard({
                 позже!
               </p>
             )}
-            {!prediction && locked && !isFinished && !awaitingTeams && (
+            {!prediction && locked && !isFinished && !isPostponed && !awaitingTeams && (
               <p className="text-center text-sm text-brand-muted">Прогноз не сделан</p>
             )}
             {isFinished && <FinishedMatchSummary match={match} points={points} />}

@@ -47,17 +47,13 @@ function LiveBadge({ status }: { status: string }) {
 
   return (
     <Badge
-      variant={isLive ? "destructive" : "secondary"}
+      variant="destructive"
       className={cn(
         "gap-1.5 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
-        isLive
-          ? "border-brand-red/40 bg-brand-red/10 text-brand-red"
-          : "border-brand-neutral bg-brand-neutral/20 text-brand-muted",
+        "border-brand-red/40 bg-brand-red/10 text-brand-red",
       )}
     >
-      {isLive ? (
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-red live-pulse-dot" />
-      ) : null}
+      <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-red live-pulse-dot" />
       {isLive ? "В эфире" : "Идёт матч"}
     </Badge>
   );
