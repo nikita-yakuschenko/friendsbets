@@ -8,6 +8,12 @@ export type SendEmailInput = {
   html?: string;
 };
 
+export type EmailDeliveryMode = "smtp" | "mock";
+
+export function getEmailDeliveryMode(): EmailDeliveryMode {
+  return isSmtpConfigured() ? "smtp" : "mock";
+}
+
 function isSmtpConfigured(): boolean {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM);
 }

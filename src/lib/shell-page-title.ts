@@ -13,6 +13,7 @@ export function resolveDesktopHeaderTitle(pathname: string): string | null {
   if (gameSubpage) {
     const titles: Record<string, string> = {
       predictions: "Мои прогнозы",
+      control: "Кто не поставил",
       leaderboard: "Таблица",
       live: "Лайв",
       more: "Ещё",

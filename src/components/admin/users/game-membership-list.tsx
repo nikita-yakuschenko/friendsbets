@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { gamePath } from "@/lib/game-path";
+import { gamePlatformViewPath } from "@/lib/game-platform-view";
 import type { AdminUserGameRef } from "@/components/admin/users/types";
 
 export function GameMembershipList({
@@ -18,11 +18,14 @@ export function GameMembershipList({
     <ul className="flex max-w-xs flex-col gap-1.5">
       {games.map((game) => (
         <li key={game.id}>
-          <Link href={gamePath(game.inviteCode)} className="inline-flex max-w-full">
+          <Link
+            href={gamePlatformViewPath(game.inviteCode)}
+            className="inline-flex max-w-full"
+            title={`Открыть просмотр: ${game.title}`}
+          >
             <Badge
               variant={variant === "organizer" ? "default" : "secondary"}
               className="max-w-full truncate font-normal"
-              title={game.title}
             >
               {game.title}
             </Badge>

@@ -18,6 +18,9 @@ import { recalculateMatchScoresAction } from "@/server/actions/games";
 import { getChampionatSyncConfig } from "@/lib/football-api/client";
 import { syncMatches } from "@/lib/football-api/sync";
 import { listTournamentTemplatesForUi } from "@/lib/tournament-templates";
+import { getEmailDeliveryMode, sendEmail } from "@/lib/email";
+import { buildTestEmailContent } from "@/lib/email/templates";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function updateMatchResultAction(
   _prev: ActionResult | undefined,
@@ -320,6 +323,63 @@ export async function getAdminUsers() {
       participantGames,
     };
   });
+}
+
+export async function sendTestEmailToUserAction(
+  userId: string,
+): Promise<ActionResult> {
+  const session = await requireAuth();
+  if (!isSuperadmin(session.role)) {
+    return { error: "Нет доступа." };
+  }
+
+  const rate = checkRateLimit(
+    `admin:test-email:${session.id}`,
+    20,
+    60 * 60 * 1000,
+  );
+  if (!rate.allowed) {
+    return { error: "Слишком много тестовых писем. Попробуйте позже." };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, name: true },
+  });
+  if (!user) {
+    return { error: "Пользователь не найден." };
+  }
+
+  const deliveryMode = getEmailDeliveryMode();
+  const subject = "FriendsBets: проверка доставки почты";
+  const { text, html } = buildTestEmailContent(user.name);
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject,
+      text,
+      html,
+    });
+  } catch (err) {
+    console.error("[admin:test-email]", user.email, err);
+    return {
+      error:
+        "Не удалось отправить письмо. Проверьте SMTP_HOST, SMTP_FROM и учётные данные.",
+    };
+  }
+
+  if (deliveryMode === "mock") {
+    return {
+      success: true,
+      message: `SMTP не настроен — письмо записано в консоль сервера ([email:mock]) для ${user.email}.`,
+    };
+  }
+
+  return {
+    success: true,
+    message: `Тестовое письмо отправлено на ${user.email}. Проверьте входящие и спам.`,
+  };
 }
 
 export async function getMissingPredictionsGames(userId: string, role: UserRole) {

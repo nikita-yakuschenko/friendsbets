@@ -11,20 +11,26 @@ import {
   IconUser,
   IconUserPlus,
   IconCirclePlus,
+  IconClipboardList,
 } from "@tabler/icons-react";
 import { BrandLogo } from "@/components/brand/logo";
 import { LiveNavLabel } from "@/components/layout/live-nav-label";
 import { Button } from "@/components/ui/button";
 import { gamePath } from "@/lib/game-path";
+import { gamePlatformViewPath } from "@/lib/game-platform-view";
 import { shellHeaderHeightClass } from "@/components/layout/shell-header";
 import { cn } from "@/lib/utils";
 
-const gameLinks = [
-  { href: "base", label: "Турнир", icon: IconHome },
-  { href: "predictions", label: "Прогнозы", icon: IconTarget },
-  { href: "leaderboard", label: "Таблица", icon: IconTrophy },
-  { href: "live", label: "Лайв", icon: IconBroadcast, isLive: true },
-];
+function buildGameLinks(oversight: boolean) {
+  return [
+    { href: "base", label: "Турнир", icon: IconHome },
+    oversight
+      ? { href: "control", label: "Контроль", icon: IconClipboardList }
+      : { href: "predictions", label: "Прогнозы", icon: IconTarget },
+    { href: "leaderboard", label: "Таблица", icon: IconTrophy },
+    { href: "live", label: "Лайв", icon: IconBroadcast, isLive: true },
+  ] as const;
+}
 
 function navLinkClass(active: boolean) {
   return cn(
@@ -40,15 +46,22 @@ export function DesktopSidebar({
   hasGames,
   isPlatformAdmin,
   canManageGame,
+  gameOversightMode = false,
 }: {
   gameInviteCode?: string;
   hasGames: boolean;
   isPlatformAdmin: boolean;
   canManageGame: boolean;
+  gameOversightMode?: boolean;
 }) {
   const pathname = usePathname();
   const inviteFromPath = pathname.match(/^\/game\/([^/]+)/)?.[1];
   const activeInviteCode = hasGames ? (gameInviteCode ?? inviteFromPath) : undefined;
+  const gameLinks = buildGameLinks(gameOversightMode);
+  const gameHref = (segment?: string) =>
+    gameOversightMode && activeInviteCode
+      ? gamePlatformViewPath(activeInviteCode, segment)
+      : gamePath(activeInviteCode!, segment);
   const showAdminLink =
     hasGames &&
     (isPlatformAdmin || canManageGame) &&
@@ -94,10 +107,8 @@ export function DesktopSidebar({
             <div className="my-2 h-px bg-brand-neutral/60" aria-hidden="true" />
             {gameLinks.map((link) => {
               const href =
-                link.href === "base"
-                  ? gamePath(activeInviteCode)
-                  : gamePath(activeInviteCode, link.href);
-              const active = pathname === href;
+                link.href === "base" ? gameHref() : gameHref(link.href);
+              const active = pathname === href.split("?")[0];
               const Icon = link.icon;
               return (
                 <Link key={href} href={href} className={navLinkClass(active)}>

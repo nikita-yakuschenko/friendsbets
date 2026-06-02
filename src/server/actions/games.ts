@@ -6,6 +6,7 @@ import {
   assertGameParticipant,
   isGameOrganizer,
   isGameParticipant,
+  requireGameViewByRoute,
   resolveGameIdFromRoute,
 } from "@/lib/game-access";
 import { isSuperadmin } from "@/lib/roles";
@@ -16,6 +17,33 @@ import { calculatePredictionScore } from "@/lib/scoring";
 import { getLeaderboardColumns } from "@/lib/scoring/catalog";
 import type { ScoreTier } from "@/lib/scoring/rules";
 import type { ActionResult } from "@/server/actions/auth";
+
+export async function getGameOversightOverview(
+  routeParam: string,
+  platformView = false,
+) {
+  const view = await requireGameViewByRoute(routeParam, platformView);
+  if (!view?.access.isPlatformOversight) return null;
+
+  const game = await prisma.game.findUnique({
+    where: { id: view.gameId },
+    include: {
+      tournament: true,
+      scoringRule: true,
+      createdBy: { select: { name: true, email: true } },
+      participants: {
+        orderBy: { joinedAt: "asc" },
+        include: {
+          user: { select: { email: true } },
+        },
+      },
+    },
+  });
+
+  if (!game) return null;
+
+  return { game, participants: game.participants };
+}
 
 export async function getGameOverview(routeParam: string, userId: string) {
   const gameId = await resolveGameIdFromRoute(routeParam);
@@ -119,11 +147,10 @@ export async function getGameOverview(routeParam: string, userId: string) {
 }
 
 export async function getLeaderboardData(routeParam: string) {
-  const gameId = await resolveGameIdFromRoute(routeParam);
-  if (!gameId) return null;
+  const view = await requireGameViewByRoute(routeParam);
+  if (!view) return null;
 
-  const session = await requireAuth();
-  await assertGameParticipant(session, gameId);
+  const { gameId } = view;
 
   const game = await prisma.game.findUnique({
     where: { id: gameId },
@@ -203,11 +230,11 @@ export async function getLeaderboardData(routeParam: string) {
 }
 
 export async function getLiveMatches(routeParam: string) {
-  const gameId = await resolveGameIdFromRoute(routeParam);
-  if (!gameId) return [];
+  const view = await requireGameViewByRoute(routeParam);
+  if (!view) return [];
 
-  const session = await requireAuth();
-  await assertGameParticipant(session, gameId);
+  const { session, gameId, access } = view;
+  const oversight = access.isPlatformOversight;
 
   const game = await prisma.game.findUnique({
     where: { id: gameId },
@@ -252,20 +279,28 @@ export async function getLiveMatches(routeParam: string) {
   );
 
   return matches.filter(isMatchPredictable).map((match) => {
-    const myPrediction =
-      match.predictions.find((prediction) => prediction.userId === session.id) ??
-      null;
+    const myPrediction = oversight
+      ? null
+      : (match.predictions.find((prediction) => prediction.userId === session.id) ??
+        null);
 
-    const friendPredictions = match.predictions
-      .filter((prediction) => prediction.userId !== session.id)
-      .map((prediction) => ({
-        userId: prediction.userId,
-        displayName:
-          displayNameByUserId.get(prediction.userId) ?? "Участник",
-        homeScore: prediction.homeScore,
-        awayScore: prediction.awayScore,
-      }))
-      .sort((a, b) => a.displayName.localeCompare(b.displayName, "ru"));
+    const friendPredictions = oversight
+      ? match.predictions.map((prediction) => ({
+          userId: prediction.userId,
+          displayName:
+            displayNameByUserId.get(prediction.userId) ?? "Участник",
+          hasPrediction: true as const,
+        }))
+      : match.predictions
+          .filter((prediction) => prediction.userId !== session.id)
+          .map((prediction) => ({
+            userId: prediction.userId,
+            displayName:
+              displayNameByUserId.get(prediction.userId) ?? "Участник",
+            homeScore: prediction.homeScore,
+            awayScore: prediction.awayScore,
+          }))
+          .sort((a, b) => a.displayName.localeCompare(b.displayName, "ru"));
 
     const liveScore =
       match.homeScore != null && match.awayScore != null

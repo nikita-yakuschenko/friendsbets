@@ -19,12 +19,18 @@ export async function AppShell({
   gameInviteCode,
   isPlatformAdmin,
   canManageGame = false,
+  gameOversightMode = false,
+  hasGamesOrOversight,
 }: {
   children: React.ReactNode;
   user: SessionUser | null;
   gameInviteCode?: string;
   isPlatformAdmin?: boolean;
   canManageGame?: boolean;
+  /** Суперадмин смотрит чужой турнир без участия */
+  gameOversightMode?: boolean;
+  /** Показать навигацию по игре (участник или надзор) */
+  hasGamesOrOversight?: boolean;
 }) {
   const userIsPlatformAdmin = isPlatformAdmin ?? (user ? isSuperadmin(user.role) : false);
 
@@ -39,7 +45,8 @@ export async function AppShell({
     }
   }
 
-  const showMobileNav = Boolean(user && hasGames && activeInviteCode);
+  const showGameNav = hasGamesOrOversight ?? hasGames;
+  const showMobileNav = Boolean(user && showGameNav && activeInviteCode);
 
   return (
     <div className="relative min-h-screen bg-brand-bg text-white">
@@ -52,9 +59,10 @@ export async function AppShell({
         {user ? (
           <DesktopSidebar
             gameInviteCode={activeInviteCode}
-            hasGames={hasGames}
+            hasGames={showGameNav}
             isPlatformAdmin={userIsPlatformAdmin}
             canManageGame={canManageGame}
+            gameOversightMode={gameOversightMode}
           />
         ) : null}
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
@@ -137,7 +145,10 @@ export async function AppShell({
         </div>
       </div>
       {showMobileNav && activeInviteCode ? (
-        <MobileBottomNav gameInviteCode={activeInviteCode} />
+        <MobileBottomNav
+          gameInviteCode={activeInviteCode}
+          gameOversightMode={gameOversightMode}
+        />
       ) : null}
     </div>
   );

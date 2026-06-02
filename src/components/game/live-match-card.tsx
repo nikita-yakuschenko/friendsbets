@@ -5,12 +5,18 @@ import type { LivePredictionStats } from "@/lib/live-match-stats";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 
-type FriendPrediction = {
-  userId: string;
-  displayName: string;
-  homeScore: number;
-  awayScore: number;
-};
+type FriendPrediction =
+  | {
+      userId: string;
+      displayName: string;
+      homeScore: number;
+      awayScore: number;
+    }
+  | {
+      userId: string;
+      displayName: string;
+      hasPrediction: true;
+    };
 
 type LiveMatchCardProps = {
   match: {
@@ -32,6 +38,8 @@ type LiveMatchCardProps = {
   } | null;
   friendPredictions: FriendPrediction[];
   stats: LivePredictionStats | null;
+  /** Режим суперадмина: только факт прогноза, без чужих счётов */
+  hideFriendScores?: boolean;
 };
 
 function LiveBadge({ status }: { status: string }) {
@@ -129,6 +137,7 @@ export function LiveMatchCard({
   myPrediction,
   friendPredictions,
   stats,
+  hideFriendScores = false,
 }: LiveMatchCardProps) {
   const venue = formatMatchVenue(match.venueName, match.venueCity);
   const homeScore = match.homeScore ?? 0;
@@ -213,22 +222,34 @@ export function LiveMatchCard({
 
         <div className="mt-4">
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-brand-muted">
-            Прогнозы друзей
+            {hideFriendScores ? "Участники с прогнозом" : "Прогнозы друзей"}
           </p>
           {friendPredictions.length === 0 ? (
             <p className="rounded-xl bg-brand-bg px-3 py-2 text-sm text-brand-muted">
-              Пока никто из друзей не поставил
+              {hideFriendScores
+                ? "Пока никто не поставил"
+                : "Пока никто из друзей не поставил"}
             </p>
           ) : (
             <ul className="space-y-2">
-              {friendPredictions.map((prediction) => (
-                <PredictionRow
-                  key={prediction.userId}
-                  name={prediction.displayName}
-                  homeScore={prediction.homeScore}
-                  awayScore={prediction.awayScore}
-                />
-              ))}
+              {friendPredictions.map((prediction) =>
+                hideFriendScores || "hasPrediction" in prediction ? (
+                  <li
+                    key={prediction.userId}
+                    className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-3 py-2 text-sm"
+                  >
+                    <span className="text-white">{prediction.displayName}</span>
+                    <span className="shrink-0 text-brand-lime">Сделан</span>
+                  </li>
+                ) : (
+                  <PredictionRow
+                    key={prediction.userId}
+                    name={prediction.displayName}
+                    homeScore={prediction.homeScore}
+                    awayScore={prediction.awayScore}
+                  />
+                ),
+              )}
             </ul>
           )}
         </div>

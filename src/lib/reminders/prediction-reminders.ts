@@ -4,6 +4,10 @@ import {
   PredictionReminderKind,
 } from "@/generated/prisma/client";
 import { sendEmail } from "@/lib/email";
+import {
+  buildAdminMissingPredictionsEmail,
+  buildPredictionReminderEmail,
+} from "@/lib/email/templates";
 import { gamePath } from "@/lib/game-path";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
@@ -112,25 +116,17 @@ async function sendReminderEmail(params: {
 }) {
   const link = predictionsUrl(params.gameInviteCode);
   const subject = `FriendsBets: прогноз через ${params.timeLabel} — ${params.homeTeam} — ${params.awayTeam}`;
-  const text = [
-    `Привет, ${params.userName}!`,
-    "",
-    `До матча ${params.homeTeam} — ${params.awayTeam} осталось ${params.timeLabel}.`,
-    `Начало: ${formatDateTime(params.startsAt)}.`,
-    `Турнир: ${params.gameTitle}.`,
-    "",
-    "Вы ещё не сделали прогноз. Успейте до начала матча:",
+  const { text, html } = buildPredictionReminderEmail({
+    userName: params.userName,
+    homeTeam: params.homeTeam,
+    awayTeam: params.awayTeam,
+    gameTitle: params.gameTitle,
+    startsAtLabel: formatDateTime(params.startsAt),
+    timeLabel: params.timeLabel,
     link,
-    "",
-    "— FriendsBets",
-  ].join("\n");
-
-  await sendEmail({
-    to: params.to,
-    subject,
-    text,
-    html: text.replace(/\n/g, "<br>"),
   });
+
+  await sendEmail({ to: params.to, subject, text, html });
 }
 
 async function sendAdminMissingListEmail(params: {
@@ -144,30 +140,20 @@ async function sendAdminMissingListEmail(params: {
   timeLabel: string;
   missingNames: string[];
 }) {
-  const list = params.missingNames.map((name) => `- ${name}`).join("\n");
   const link = missingUrl(params.gameInviteCode);
   const subject = `FriendsBets: кто не поставил (через ${params.timeLabel}) — ${params.homeTeam} — ${params.awayTeam}`;
-  const text = [
-    `Привет, ${params.adminName}!`,
-    "",
-    `До матча ${params.homeTeam} — ${params.awayTeam} осталось ${params.timeLabel}.`,
-    `Начало: ${formatDateTime(params.startsAt)}.`,
-    `Турнир: ${params.gameTitle}.`,
-    "",
-    "Не сделали прогноз:",
-    list,
-    "",
+  const { text, html } = buildAdminMissingPredictionsEmail({
+    adminName: params.adminName,
+    homeTeam: params.homeTeam,
+    awayTeam: params.awayTeam,
+    gameTitle: params.gameTitle,
+    startsAtLabel: formatDateTime(params.startsAt),
+    timeLabel: params.timeLabel,
+    missingNames: params.missingNames,
     link,
-    "",
-    "— FriendsBets",
-  ].join("\n");
-
-  await sendEmail({
-    to: params.to,
-    subject,
-    text,
-    html: text.replace(/\n/g, "<br>"),
   });
+
+  await sendEmail({ to: params.to, subject, text, html });
 }
 
 export async function sendDuePredictionReminders(

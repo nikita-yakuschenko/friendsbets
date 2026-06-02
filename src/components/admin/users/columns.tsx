@@ -7,6 +7,7 @@ import {
 } from "@tabler/icons-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { GameMembershipList } from "@/components/admin/users/game-membership-list";
+import { SendTestEmailButton } from "@/components/admin/users/send-test-email-button";
 import type { AdminUserRow } from "@/components/admin/users/types";
 import { UserRoleBadge } from "@/components/user/user-role-badge";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,17 @@ export const adminUsersColumns: ColumnDef<AdminUserRow>[] = [
       <GameMembershipList
         games={row.original.participantGames}
         variant="participant"
+      />
+    ),
+    enableSorting: false,
+  },
+  {
+    id: "testEmail",
+    header: "Почта",
+    cell: ({ row }) => (
+      <SendTestEmailButton
+        userId={row.original.id}
+        email={row.original.email}
       />
     ),
     enableSorting: false,

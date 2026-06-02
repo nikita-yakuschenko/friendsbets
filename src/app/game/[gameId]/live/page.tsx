@@ -1,29 +1,64 @@
 import { notFound } from "next/navigation";
+import { GameOversightBanner } from "@/components/game/game-oversight-banner";
+import { OversightBackLink } from "@/components/game/oversight-back-link";
 import { LiveMatchCard } from "@/components/game/live-match-card";
 import { NextMatchEmpty, NextMatchPreview } from "@/components/game/next-match-preview";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
-import { gamePath } from "@/lib/game-access";
+import { gamePath } from "@/lib/game-path";
 import { getSession } from "@/lib/auth";
+import { isPlatformViewQuery } from "@/lib/game-platform-view";
+import { requireGameViewByRoute } from "@/lib/game-access";
 import { getGameOverview, getLiveMatches } from "@/server/actions/games";
 
 export const revalidate = 30;
 
 export default async function LivePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ gameId: string }>;
+  searchParams: Promise<{ as?: string }>;
 }) {
   const session = await getSession();
   if (!session) return notFound();
 
   const { gameId } = await params;
+  const { as } = await searchParams;
+  const view = await requireGameViewByRoute(gameId, isPlatformViewQuery(as));
+  if (!view) return notFound();
 
-  const [items, overview] = await Promise.all([
-    getLiveMatches(gameId),
-    getGameOverview(gameId, session.id),
-  ]);
+  const oversight = view.access.isPlatformOversight;
+  const items = await getLiveMatches(gameId);
 
+  if (oversight) {
+    return (
+      <ContentContainer>
+        <PageHeader
+          title="Лайв"
+          action={
+            <OversightBackLink inviteCode={view.access.game.inviteCode} />
+          }
+        />
+        <GameOversightBanner inviteCode={view.access.game.inviteCode} />
+        {items.length > 0 ? (
+          <div className="space-y-4">
+            {items.map(({ match, friendPredictions, stats }) => (
+              <LiveMatchCard
+                key={match.id}
+                match={match}
+                friendPredictions={friendPredictions}
+                stats={stats}
+                hideFriendScores
+              />
+            ))}
+          </div>
+        ) : null}
+      </ContentContainer>
+    );
+  }
+
+  const overview = await getGameOverview(gameId, session.id);
   if (!overview) return notFound();
 
   const {

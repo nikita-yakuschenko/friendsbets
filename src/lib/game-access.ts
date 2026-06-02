@@ -55,7 +55,64 @@ export async function isGameParticipant(
   return row !== null;
 }
 
-/** Участие в турнире обязательно для прогнозов и разделов игры. Суперадмин — без исключений. */
+export type GameViewAccess =
+  | { status: "not_found" }
+  | { status: "need_join"; game: { id: string; inviteCode: string } }
+  | {
+      status: "ok";
+      game: { id: string; inviteCode: string; title: string };
+      canPredict: boolean;
+      isPlatformOversight: boolean;
+    };
+
+/** Просмотр турнира: участник или суперадмин (надзор без прогнозов). */
+export async function resolveGameViewAccess(
+  user: SessionUser,
+  gameId: string,
+  options?: { platformView?: boolean },
+): Promise<GameViewAccess> {
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    select: { id: true, inviteCode: true, title: true },
+  });
+
+  if (!game) return { status: "not_found" };
+
+  const participant = await isGameParticipant(user.id, gameId);
+  const platformView =
+    isSuperadmin(user.role) && (options?.platformView === true || !participant);
+
+  if (platformView) {
+    return {
+      status: "ok",
+      game,
+      canPredict: false,
+      isPlatformOversight: true,
+    };
+  }
+
+  if (participant) {
+    return {
+      status: "ok",
+      game,
+      canPredict: true,
+      isPlatformOversight: false,
+    };
+  }
+
+  if (isSuperadmin(user.role)) {
+    return {
+      status: "ok",
+      game,
+      canPredict: false,
+      isPlatformOversight: true,
+    };
+  }
+
+  return { status: "need_join", game };
+}
+
+/** Участие в турнире обязательно для прогнозов. Суперадмин без записи участника — нельзя. */
 export async function assertGameParticipant(
   user: SessionUser,
   gameId: string,
@@ -118,6 +175,20 @@ export async function isGameOrganizer(userId: string, gameId: string): Promise<b
   return participant?.role === GameParticipantRole.ORGANIZER;
 }
 
+export async function requireGameViewByRoute(
+  routeParam: string,
+  platformView = false,
+) {
+  const session = await requireAuth();
+  const gameId = await resolveGameIdFromRoute(routeParam);
+  if (!gameId) return null;
+
+  const access = await resolveGameViewAccess(session, gameId, { platformView });
+  if (access.status !== "ok") return null;
+
+  return { session, gameId, access };
+}
+
 export async function canManageGame(
   user: SessionUser,
   gameId: string,
@@ -155,6 +226,7 @@ export async function revalidateGamePaths(gameId: string) {
   const paths = [
     gamePath(game.inviteCode),
     gamePath(game.inviteCode, "predictions"),
+    gamePath(game.inviteCode, "control"),
     gamePath(game.inviteCode, "leaderboard"),
     gamePath(game.inviteCode, "live"),
     gamePath(game.inviteCode, "more"),

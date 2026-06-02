@@ -20,6 +20,12 @@ export function Alert({
   );
 }
 
-export function AlertDescription({ children }: { children: React.ReactNode }) {
-  return <p>{children}</p>;
+export function AlertDescription({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <div className={cn("text-sm leading-relaxed", className)}>{children}</div>;
 }

@@ -15,6 +15,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 export type ActionResult = {
   error?: string;
   success?: boolean;
+  message?: string;
 };
 
 export async function loginAction(

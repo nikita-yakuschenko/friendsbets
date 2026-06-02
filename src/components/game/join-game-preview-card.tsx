@@ -51,9 +51,12 @@ export function JoinGamePreviewCard({
             <p className="text-sm text-brand-muted">
               Вы уже участник этого турнира.
             </p>
-            <Button asChild className="w-full">
-              <Link href={gamePath(preview.inviteCode)}>Перейти в турнир</Link>
-            </Button>
+            <Link
+              href={gamePath(preview.inviteCode)}
+              className="flex h-10 w-full items-center justify-center rounded-lg bg-brand-lime text-sm font-semibold text-brand-bg"
+            >
+              Перейти в турнир
+            </Link>
           </div>
         ) : (
           <p className="text-sm text-brand-muted">
