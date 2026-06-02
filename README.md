@@ -19,13 +19,13 @@
 npm install
 ```
 
-### 2. PostgreSQL через Docker
+### 2. PostgreSQL через Docker (только БД для локальной разработки)
 
 ```powershell
-docker compose up -d
+docker compose up -d postgres
 ```
 
-Контейнер: `postgres:16-alpine`, порт `5432`, БД `friendsbets`, логин/пароль `postgres`/`postgres`.
+Для dev: `docker compose up -d postgres` и свой `DATABASE_URL` в `.env` (см. `.env.example`).
 
 ### 3. Настройка окружения
 
@@ -201,6 +201,65 @@ curl -H "Authorization: Bearer $env:CRON_SECRET" http://localhost:3000/api/cron/
 
 **Стадионы:** город и арена подтягиваются со страницы каждого матча (календарь их не содержит). При синке заполняются только пустые `venueName` / `venueCity`.
 
+## Деплой в Dokploy (один проход)
+
+В репозитории есть `Dockerfile` и `docker-compose.yml` с сервисами **postgres** + **app**. При старте контейнера приложения автоматически выполняются миграции Prisma и (опционально) seed.
+
+### 1. Подготовка секретов
+
+Скопируйте шаблон и заполните **все** пустые поля (без стандартных паролей):
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Сгенерировать случайные секреты (PowerShell):
+
+```powershell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }) -as [byte[]])
+```
+
+Используйте отдельные значения для `POSTGRES_PASSWORD`, `SESSION_SECRET`, `CRON_SECRET`, `ADMIN_PASSWORD`.
+
+### 2. Dokploy
+
+1. Новый проект → **Docker Compose**
+2. Репозиторий + ветка
+3. Путь к compose: `docker-compose.yml`
+4. Переменные окружения из `.env` (или вставьте те же ключи в UI Dokploy)
+5. Домен и HTTPS на сервис **app**, порт **3000**
+6. Deploy
+
+Обязательные переменные (compose не поднимется без них):  
+`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `SESSION_SECRET`, `NEXT_PUBLIC_APP_URL`, `CRON_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+
+### 3. После первого успешного деплоя
+
+| Действие | Зачем |
+|----------|--------|
+| `RUN_DB_SEED=false` | Seed идемпотентный, но Championat при seed не нужен на каждый рестарт |
+| Cron в Dokploy / внешний | `GET /api/cron/prediction-reminders` и `/api/cron/sync-matches` с заголовком `Authorization: Bearer <CRON_SECRET>` каждые 5–15 мин |
+| `npm run sync:championat` (опционально) | Разово загрузить матчи, если `SKIP_CHAMPIONAT_SEED=true` |
+
+Вход: `ADMIN_EMAIL` / `ADMIN_PASSWORD` из `.env`.
+
+### 4. Тома данных
+
+- `friendsbets_pg_data` — база
+- `friendsbets_avatars` — загруженные аватары
+
+PostgreSQL **не** проброшен на хост (только внутренняя сеть compose).
+
+### Локальная проверка production-образа
+
+```powershell
+Copy-Item .env.example .env
+# заполните .env
+docker compose up -d --build
+```
+
+Приложение: `http://localhost:3000` (или `APP_PORT` из `.env`).
+
 ## NPM scripts
 
 | Script | Описание |
@@ -209,6 +268,7 @@ curl -H "Authorization: Bearer $env:CRON_SECRET" http://localhost:3000/api/cron/
 | `npm run build` | Production build |
 | `npm run db:generate` | Prisma generate |
 | `npm run db:migrate` | Prisma migrate dev |
+| `npm run db:migrate:deploy` | Prisma migrate deploy (production / Docker) |
 | `npm run db:seed` | Seed database |
 | `npm run reminders:send` | Отправить due email-напоминания |
 | `npm run sync:championat` | Синхронизировать матчи с Championat (env / первый ACTIVE) |

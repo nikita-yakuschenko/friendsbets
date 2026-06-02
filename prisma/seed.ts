@@ -23,7 +23,7 @@ async function main() {
   await bootstrapEssentialData(prisma, adminEmail, adminHash);
 
   const parsed = parseChampionatTournamentUrl(SYSTEM_TEMPLATE_WC_2026.championatUrl);
-  if (parsed) {
+  if (parsed && process.env.SKIP_CHAMPIONAT_SEED !== "1") {
     console.log("Загрузка данных системного шаблона ЧМ-2026 с Championat…");
     const { matchCount } = await ensureChampionatTournament(parsed);
     console.log(`Шаблон ЧМ-2026: ${matchCount} матчей в базе.`);

@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+deploy.env.example
+README.md
+coverage
+.DS_Store
+*.md
+.cursor
+terminals
