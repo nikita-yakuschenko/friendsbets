@@ -16,7 +16,7 @@ function createPrismaClient() {
   const pool = globalForPrisma.pool ?? new Pool({ connectionString });
   const adapter = new PrismaPg(pool);
 
-  if (process.env.NODE_ENV !== "production") {
+  if (!globalForPrisma.pool) {
     globalForPrisma.pool = pool;
   }
 
@@ -24,7 +24,8 @@ function createPrismaClient() {
 }
 
 function isPrismaClientCurrent(client: PrismaClient): boolean {
-  return typeof (client as PrismaClient & { tournamentTemplate?: unknown }).tournamentTemplate !== "undefined";
+  return typeof (client as PrismaClient & { tournamentTemplate?: unknown })
+    .tournamentTemplate !== "undefined";
 }
 
 function getPrismaClient(): PrismaClient {
@@ -34,12 +35,18 @@ function getPrismaClient(): PrismaClient {
   }
 
   const client = createPrismaClient();
-
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = client;
-  }
-
+  globalForPrisma.prisma = client;
   return client;
 }
 
-export const prisma = getPrismaClient();
+/** Ленивый клиент — не требует DATABASE_URL при импорте (нужно для next build). */
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const client = getPrismaClient();
+    const value = Reflect.get(client as object, prop, client);
+    if (typeof value === "function") {
+      return (value as (...args: unknown[]) => unknown).bind(client);
+    }
+    return value;
+  },
+});

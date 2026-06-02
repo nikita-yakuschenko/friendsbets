@@ -13,6 +13,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# next build импортирует server-модули; реальная БД подставится в runtime через .env
+ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=public
 RUN npx prisma generate
 RUN npm run build
 
