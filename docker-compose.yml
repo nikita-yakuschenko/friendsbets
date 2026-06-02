@@ -1,18 +1,19 @@
+# Переменные — из файла .env в корне (локально) или из вкладки Environment в Dokploy.
+# Секреты не подставляются через ${VAR:?…} — иначе compose падает до сборки, если Dokploy не передал env в shell.
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:?Задайте POSTGRES_USER в .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в .env}
-      POSTGRES_DB: ${POSTGRES_DB:?Задайте POSTGRES_DB в .env}
+    env_file:
+      - .env
     volumes:
       - friendsbets_pg_data:/var/lib/postgresql/data
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB",
+          "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\"",
         ]
       interval: 5s
       timeout: 5s
@@ -28,25 +29,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - .env
     ports:
       - "${APP_PORT:-3000}:3000"
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
-      SESSION_SECRET: ${SESSION_SECRET:?Задайте SESSION_SECRET в .env}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Задайте NEXT_PUBLIC_APP_URL в .env}
-      CRON_SECRET: ${CRON_SECRET:?Задайте CRON_SECRET в .env}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:?Задайте ADMIN_EMAIL в .env}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Задайте ADMIN_PASSWORD в .env}
-      RUN_DB_SEED: ${RUN_DB_SEED:-true}
-      SKIP_CHAMPIONAT_SEED: ${SKIP_CHAMPIONAT_SEED:-true}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-}
-      CHAMPIONAT_TOURNAMENT_ID: ${CHAMPIONAT_TOURNAMENT_ID:-6858}
-      CHAMPIONAT_SPORT_SLUG: ${CHAMPIONAT_SPORT_SLUG:-_worldcup}
-      CHAMPIONAT_SYNC_TOURNAMENT_ID: ${CHAMPIONAT_SYNC_TOURNAMENT_ID:-}
     volumes:
       - friendsbets_avatars:/app/public/avatars
     networks:

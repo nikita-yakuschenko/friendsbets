@@ -2,6 +2,9 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
+# postinstall вызывает prisma generate — схема нужна уже здесь
+COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN npm ci
 
 FROM node:20-alpine AS builder

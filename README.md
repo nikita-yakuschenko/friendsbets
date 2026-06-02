@@ -226,12 +226,28 @@ Copy-Item .env.example .env
 1. Новый проект → **Docker Compose**
 2. Репозиторий + ветка
 3. Путь к compose: `docker-compose.yml`
-4. Переменные окружения из `.env` (или вставьте те же ключи в UI Dokploy)
+4. **Environment** (обязательно): вставьте переменные **построчно** (как в `.env.example`).  
+   Dokploy должен создать файл `.env` рядом с `docker-compose.yml` на сервере.  
+   Без этого шага будет ошибка `CRON_SECRET is missing` или падение при старте контейнера.
 5. Домен и HTTPS на сервис **app**, порт **3000**
 6. Deploy
 
-Обязательные переменные (compose не поднимется без них):  
-`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `SESSION_SECRET`, `NEXT_PUBLIC_APP_URL`, `CRON_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+Минимальный набор (все со своими значениями, не оставляйте пустым):
+
+```env
+POSTGRES_USER=friendsbets
+POSTGRES_PASSWORD=<случайный>
+POSTGRES_DB=friendsbets
+SESSION_SECRET=<случайный>
+NEXT_PUBLIC_APP_URL=https://ваш-домен
+CRON_SECRET=<случайный>
+ADMIN_EMAIL=admin@ваш-домен
+ADMIN_PASSWORD=<свой>
+RUN_DB_SEED=true
+SKIP_CHAMPIONAT_SEED=true
+```
+
+`DATABASE_URL` в Dokploy **не нужен** — собирается внутри контейнера из `POSTGRES_*`.
 
 ### 3. После первого успешного деплоя
 
