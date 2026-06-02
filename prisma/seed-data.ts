@@ -92,12 +92,16 @@ export async function bootstrapEssentialData(
     update: {
       passwordHash: adminPasswordHash,
       role: UserRole.ADMIN,
+      emailVerifiedAt: new Date(),
+      emailVerificationToken: null,
+      emailVerificationExpiresAt: null,
     },
     create: {
       email: adminEmail,
       name: "Admin",
       passwordHash: adminPasswordHash,
       role: UserRole.ADMIN,
+      emailVerifiedAt: new Date(),
     },
   });
 

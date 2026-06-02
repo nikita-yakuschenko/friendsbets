@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { AuthEntry } from "@/components/auth/auth-entry";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { getSession } from "@/lib/auth";
+import { userNeedsEmailVerification } from "@/lib/email-verification";
+import { redirect } from "next/navigation";
 import { GameParticipantRole } from "@/generated/prisma/client";
 import { getUserGames } from "@/lib/game-access";
 import { AppShell } from "@/components/layout/app-shell";
@@ -17,6 +19,10 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default async function HomePage() {
   const session = await getSession();
+
+  if (session && userNeedsEmailVerification(session)) {
+    redirect("/verify-email");
+  }
 
   if (!session) {
     return (

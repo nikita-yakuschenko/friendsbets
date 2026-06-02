@@ -8,6 +8,35 @@ import {
 
 export type EmailContent = { text: string; html: string };
 
+export function buildEmailVerificationContent(params: {
+  userName: string;
+  link: string;
+}): EmailContent {
+  const text = [
+    `Здравствуйте, ${params.userName}!`,
+    "",
+    "Подтвердите email, чтобы пользоваться FriendsBets:",
+    params.link,
+    "",
+    "Ссылка действует 24 часа.",
+    "",
+    "— FriendsBets",
+  ].join("\n");
+
+  const html = renderEmailLayout({
+    preheader: "Подтвердите email для доступа к FriendsBets",
+    badge: "Подтверждение email",
+    title: "Подтвердите почту",
+    introHtml: `
+      <p style="margin:0 0 14px;">Здравствуйте, <strong style="color:${EMAIL_BRAND.heading};font-weight:600;">${escapeHtml(params.userName)}</strong>!</p>
+      <p style="margin:0;">Нажмите кнопку ниже, чтобы подтвердить адрес и получить доступ к турнирам и прогнозам.</p>`,
+    cta: { label: "Подтвердить email", href: params.link },
+    footnote: "Ссылка действует 24 часа. Если вы не регистрировались на FriendsBets, просто проигнорируйте письмо.",
+  });
+
+  return { text, html };
+}
+
 export function buildTestEmailContent(userName: string): EmailContent {
   const text = [
     `Здравствуйте, ${userName}!`,

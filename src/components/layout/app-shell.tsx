@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { IconCrown } from "@tabler/icons-react";
 import { UserAvatar } from "@/components/user/user-avatar";
 import { logoutAction } from "@/server/actions/auth";
@@ -10,6 +11,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { shellHeaderHeightClass } from "@/components/layout/shell-header";
 import { getUserGamesState } from "@/lib/game-access";
 import { cn } from "@/lib/utils";
+import { userNeedsEmailVerification } from "@/lib/email-verification";
 import { isSuperadmin } from "@/lib/roles";
 import type { SessionUser } from "@/lib/auth";
 
@@ -21,6 +23,7 @@ export async function AppShell({
   canManageGame = false,
   gameOversightMode = false,
   hasGamesOrOversight,
+  skipEmailVerification = false,
 }: {
   children: React.ReactNode;
   user: SessionUser | null;
@@ -31,7 +34,13 @@ export async function AppShell({
   gameOversightMode?: boolean;
   /** Показать навигацию по игре (участник или надзор) */
   hasGamesOrOversight?: boolean;
+  /** Страница подтверждения почты — без редиректа */
+  skipEmailVerification?: boolean;
 }) {
+  if (user && !skipEmailVerification && userNeedsEmailVerification(user)) {
+    redirect("/verify-email");
+  }
+
   const userIsPlatformAdmin = isPlatformAdmin ?? (user ? isSuperadmin(user.role) : false);
 
   let hasGames = false;

@@ -10,6 +10,10 @@ import {
   validateInviteCodeFormat,
 } from "@/lib/invite-code";
 import { prisma } from "@/lib/db";
+import {
+  sendEmailVerificationMessage,
+  userNeedsEmailVerification,
+} from "@/lib/email-verification";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export type ActionResult = {
@@ -36,7 +40,18 @@ export async function loginAction(
     return { error: "Введите email и пароль." };
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      passwordHash: true,
+      role: true,
+      emailVerifiedAt: true,
+      emailVerificationExpiresAt: true,
+    },
+  });
   if (!user) {
     return { error: "Неверный email или пароль." };
   }
@@ -47,6 +62,21 @@ export async function loginAction(
   }
 
   await setSession(user.id);
+
+  if (userNeedsEmailVerification(user)) {
+    const tokenExpired =
+      !user.emailVerificationExpiresAt ||
+      user.emailVerificationExpiresAt.getTime() < Date.now();
+    if (tokenExpired) {
+      try {
+        await sendEmailVerificationMessage(user);
+      } catch (err) {
+        console.error("[auth:login] verification email failed", err);
+      }
+    }
+    redirect("/verify-email");
+  }
+
   redirect("/");
 }
 
@@ -116,11 +146,17 @@ export async function registerAction(
           }
         : {}),
     },
+    select: { id: true, email: true, name: true, role: true, emailVerifiedAt: true },
   });
 
+  try {
+    await sendEmailVerificationMessage(user);
+  } catch (err) {
+    console.error("[auth:register] verification email failed", err);
+  }
+
   await setSession(user.id);
-  const { gamePath } = await import("@/lib/game-path");
-  redirect(game ? gamePath(game.inviteCode) : "/");
+  redirect("/verify-email");
 }
 
 export async function logoutAction() {

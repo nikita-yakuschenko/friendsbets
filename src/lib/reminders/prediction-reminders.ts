@@ -49,12 +49,22 @@ type GameWithParticipants = {
   title: string;
   inviteCode: string;
   createdById: string;
-  createdBy: { id: string; email: string; name: string };
+  createdBy: {
+    id: string;
+    email: string;
+    name: string;
+    emailVerifiedAt: Date | null;
+  };
   participants: Array<{
     userId: string;
     displayName: string;
     role: GameParticipantRole;
-    user: { id: string; email: string; name: string };
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      emailVerifiedAt: Date | null;
+    };
   }>;
 };
 
@@ -86,7 +96,10 @@ function getAdminRecipients(game: GameWithParticipants) {
   const recipients = new Map<string, { email: string; name: string }>();
 
   for (const participant of game.participants) {
-    if (participant.role === GameParticipantRole.ORGANIZER) {
+    if (
+      participant.role === GameParticipantRole.ORGANIZER &&
+      participant.user.emailVerifiedAt
+    ) {
       recipients.set(participant.userId, {
         email: participant.user.email,
         name: participant.displayName,
@@ -94,7 +107,10 @@ function getAdminRecipients(game: GameWithParticipants) {
     }
   }
 
-  if (!recipients.has(game.createdById)) {
+  if (
+    !recipients.has(game.createdById) &&
+    game.createdBy.emailVerifiedAt
+  ) {
     recipients.set(game.createdById, {
       email: game.createdBy.email,
       name: game.createdBy.name,
@@ -186,12 +202,22 @@ export async function sendDuePredictionReminders(
                 inviteCode: true,
                 createdById: true,
                 createdBy: {
-                  select: { id: true, email: true, name: true },
+                  select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    emailVerifiedAt: true,
+                  },
                 },
                 participants: {
                   include: {
                     user: {
-                      select: { id: true, email: true, name: true },
+                      select: {
+                        id: true,
+                        email: true,
+                        name: true,
+                        emailVerifiedAt: true,
+                      },
                     },
                   },
                 },
@@ -228,6 +254,11 @@ export async function sendDuePredictionReminders(
           });
 
           if (alreadySent) {
+            result.skipped++;
+            continue;
+          }
+
+          if (!participant.user.emailVerifiedAt) {
             result.skipped++;
             continue;
           }

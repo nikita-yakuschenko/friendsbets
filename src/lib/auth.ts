@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import { UserRole } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { userNeedsEmailVerification } from "@/lib/email-verification";
 import { isSuperadmin } from "@/lib/roles";
 
 const SESSION_COOKIE = "fb_session";
@@ -13,6 +14,7 @@ export type SessionUser = {
   name: string;
   avatarUrl: string | null;
   role: UserRole;
+  emailVerifiedAt: Date | null;
 };
 
 function getSecret(): string {
@@ -69,7 +71,14 @@ export async function getSession(): Promise<SessionUser | null> {
 
   return prisma.user.findUnique({
     where: { id: verified.userId },
-    select: { id: true, email: true, name: true, avatarUrl: true, role: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      avatarUrl: true,
+      role: true,
+      emailVerifiedAt: true,
+    },
   });
 }
 
@@ -89,10 +98,18 @@ export async function clearSession(): Promise<void> {
   cookieStore.delete(SESSION_COOKIE);
 }
 
-export async function requireAuth(): Promise<SessionUser> {
+export async function requireAuth(options?: {
+  allowUnverified?: boolean;
+}): Promise<SessionUser> {
   const session = await getSession();
   if (!session) {
     throw new Error("UNAUTHORIZED");
+  }
+  if (
+    !options?.allowUnverified &&
+    userNeedsEmailVerification(session)
+  ) {
+    throw new Error("EMAIL_NOT_VERIFIED");
   }
   return session;
 }
