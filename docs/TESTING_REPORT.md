@@ -68,3 +68,7 @@
 1. E2E: создание турнира из UI без ручного invite
 2. UI-тесты leaderboard / match-prediction-card
 3. Integration: полный approve join → participant + notification APPROVED
+
+## Запуск в production
+
+См. **[LAUNCH_CHECKLIST.md](./LAUNCH_CHECKLIST.md)** — оценка готовности, обязательный чеклист, cron, env, Dokploy.

@@ -11,6 +11,10 @@
 - Cookie-based session auth
 - bcryptjs
 
+## Запуск в production (чеклист)
+
+Перед открытием турнира для друзей: **[docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md)** — секреты, миграции, SMTP, cron (`quick` / `full`), health, бэкап.
+
 ## Быстрый старт
 
 ### 1. Установка зависимостей
@@ -212,7 +216,9 @@ npm run sync:championat
 - **1 мин** — в день матча и во время лайва, чтобы соблюдать интервал 30 с.
 
 ```powershell
-curl -H "Authorization: Bearer $env:CRON_SECRET" http://localhost:3000/api/cron/sync-matches
+# quick — каждые 5–15 мин; full — 1–2 раза в сутки
+curl -H "Authorization: Bearer $env:CRON_SECRET" "http://localhost:3000/api/cron/sync-matches?mode=quick"
+curl -H "Authorization: Bearer $env:CRON_SECRET" "http://localhost:3000/api/cron/sync-matches?mode=full"
 ```
 
 Матчи плей-офф с неопределёнными парами (`2A – 2B`) видны в прогнозах как «Команды неизвестны»; ставить прогноз можно, когда обе сборные станут известны.
