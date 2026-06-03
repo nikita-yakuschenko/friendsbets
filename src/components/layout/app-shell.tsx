@@ -141,7 +141,7 @@ export async function AppShell({
             className={cn(
               "min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden md:pb-6",
               showMobileNav &&
-                "pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]",
+                "pb-[calc(5.25rem+env(safe-area-inset-bottom,0))]",
             )}
           >
             {children}

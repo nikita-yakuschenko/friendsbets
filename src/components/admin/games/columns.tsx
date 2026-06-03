@@ -54,7 +54,7 @@ export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
     cell: ({ row }) => (
       <Link
         href={row.original.openHref}
-        className="line-clamp-2 max-w-[14rem] font-medium text-white hover:text-brand-lime"
+        className="line-clamp-2 max-w-56 font-medium text-white hover:text-brand-lime"
       >
         {row.original.title}
       </Link>
@@ -103,7 +103,7 @@ export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
     accessorKey: "createdByName",
     header: "Создатель",
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-[12rem] text-white">
+      <span className="line-clamp-2 max-w-48 text-white">
         {row.original.createdByName}
       </span>
     ),
@@ -112,7 +112,7 @@ export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
     id: "organizer",
     header: "Организатор",
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-[12rem] text-white">
+      <span className="line-clamp-2 max-w-48 text-white">
         {row.original.organizerNames || "—"}
       </span>
     ),

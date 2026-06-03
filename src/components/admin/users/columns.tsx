@@ -56,7 +56,7 @@ export function useAdminUsersColumns(
         accessorKey: "name",
         header: ({ column }) => <SortableHeader column={column} title="Имя" />,
         cell: ({ row }) => (
-          <div className="min-w-0 max-w-[14rem]">
+          <div className="min-w-0 max-w-56">
             <p className="truncate font-medium text-white">{row.original.name}</p>
             <p className="truncate text-xs text-brand-muted">{row.original.email}</p>
           </div>
