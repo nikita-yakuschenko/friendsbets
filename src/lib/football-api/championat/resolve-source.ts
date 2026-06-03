@@ -8,7 +8,7 @@ export async function resolveChampionatSourceForTournament(
 ): Promise<ParsedChampionatTournamentUrl | null> {
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
-    select: { externalId: true },
+    select: { externalId: true, description: true },
   });
 
   const externalId = tournament?.externalId;
@@ -26,6 +26,19 @@ export async function resolveChampionatSourceForTournament(
     select: { championatUrl: true },
   });
 
-  if (!template) return null;
-  return parseChampionatTournamentUrl(template.championatUrl);
+  if (template) {
+    return parseChampionatTournamentUrl(template.championatUrl);
+  }
+
+  if (tournament?.description) {
+    const fromDescription = parseChampionatTournamentUrl(tournament.description);
+    if (
+      fromDescription &&
+      fromDescription.tournamentExternalId === externalId
+    ) {
+      return fromDescription;
+    }
+  }
+
+  return null;
 }

@@ -113,12 +113,18 @@ export function NotificationUnreadProvider({
   );
 
   useEffect(() => {
-    setUnreadCount(initialCount);
-    prevCountRef.current = initialCount;
+    const syncId = window.setTimeout(() => {
+      setUnreadCount(initialCount);
+      prevCountRef.current = initialCount;
+    }, 0);
+    return () => window.clearTimeout(syncId);
   }, [initialCount]);
 
   useEffect(() => {
-    void fetchSnapshot({ allowToast: false });
+    const id = window.setTimeout(() => {
+      void fetchSnapshot({ allowToast: false });
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [pathname, fetchSnapshot]);
 
   useEffect(() => {
@@ -126,10 +132,12 @@ export function NotificationUnreadProvider({
 
     let cancelled = false;
 
-    void (async () => {
-      await fetchSnapshot({ allowToast: false });
-      if (!cancelled) pollingReadyRef.current = true;
-    })();
+    const bootstrap = window.setTimeout(() => {
+      void (async () => {
+        await fetchSnapshot({ allowToast: false });
+        if (!cancelled) pollingReadyRef.current = true;
+      })();
+    }, 0);
 
     const interval = window.setInterval(() => {
       void fetchSnapshot({ allowToast: true });
@@ -141,6 +149,7 @@ export function NotificationUnreadProvider({
     return () => {
       cancelled = true;
       pollingReadyRef.current = false;
+      window.clearTimeout(bootstrap);
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };

@@ -11,6 +11,8 @@ import {
   extractChampionatMatchId,
   parseChampionatMatchPageHtml,
 } from "@/lib/football-api/championat/match-details";
+import { isPlausibleFootballScore } from "@/lib/football-api/championat/football-score";
+import { parseChampionatFinalScoreFromHtml } from "@/lib/football-api/championat/parse-final-score";
 import { parseChampionatMatchProtocolHtml } from "@/lib/football-api/championat/match-protocol";
 import type { ChampionatMatchEvent } from "@/lib/football-api/championat/match-protocol-types";
 
@@ -47,10 +49,11 @@ export function deriveScoreFromProtocolEvents(
   const parsed = bestScore.match(/(\d+)\s*:\s*(\d+)/);
   if (!parsed) return null;
 
-  return {
-    homeScore: Number(parsed[1]),
-    awayScore: Number(parsed[2]),
-  };
+  const homeScore = Number(parsed[1]);
+  const awayScore = Number(parsed[2]);
+  if (!isPlausibleFootballScore(homeScore, awayScore)) return null;
+
+  return { homeScore, awayScore };
 }
 
 function pickLiveScore(
@@ -59,12 +62,19 @@ function pickLiveScore(
 ): { homeScore: number; awayScore: number } | undefined {
   const candidates: { homeScore: number; awayScore: number }[] = [];
   if (header?.homeScore !== undefined && header.awayScore !== undefined) {
-    candidates.push({
-      homeScore: header.homeScore,
-      awayScore: header.awayScore,
-    });
+    if (isPlausibleFootballScore(header.homeScore, header.awayScore)) {
+      candidates.push({
+        homeScore: header.homeScore,
+        awayScore: header.awayScore,
+      });
+    }
   }
-  if (fromGoals) candidates.push(fromGoals);
+  if (
+    fromGoals &&
+    isPlausibleFootballScore(fromGoals.homeScore, fromGoals.awayScore)
+  ) {
+    candidates.push(fromGoals);
+  }
   if (candidates.length === 0) return undefined;
 
   return candidates.sort(
@@ -78,9 +88,14 @@ export function parseChampionatMatchLiveSnapshot(
 ): ChampionatMatchLiveSnapshot {
   const events = parseChampionatMatchProtocolHtml(html);
   const details = parseChampionatMatchPageHtml(html);
-  const fromGoals = deriveScoreFromProtocolEvents(events);
-  const score = pickLiveScore(details, fromGoals);
   const liveStatus = parseChampionatLiveStatusFromHtml(html);
+  const fromGoals = deriveScoreFromProtocolEvents(events);
+  const finalScore =
+    liveStatus.phase === "finished"
+      ? parseChampionatFinalScoreFromHtml(html)
+      : null;
+  const score =
+    finalScore ?? pickLiveScore(details, fromGoals);
   const status =
     championatLivePhaseToMatchStatus(liveStatus.phase) ?? details.status;
 

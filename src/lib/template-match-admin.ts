@@ -2,7 +2,7 @@ import { GameParticipantRole, MatchStatus, UserRole } from "@/generated/prisma/c
 import { parseChampionatTournamentUrl } from "@/lib/championat-url";
 import { prisma } from "@/lib/db";
 import { isSuperadmin } from "@/lib/roles";
-import { recalculateMatchScoresAction } from "@/server/actions/games";
+import { persistMatchPredictionScores } from "@/lib/scoring/recalculate-match-scores";
 
 export type AdminPlatformMatchRow = {
   id: string;
@@ -74,7 +74,7 @@ export async function recalculateMatchScoresForTournament(
 ): Promise<void> {
   const gameIds = await getGameIdsForTournament(tournamentId);
   for (const gameId of gameIds) {
-    await recalculateMatchScoresAction(gameId, matchId);
+    await persistMatchPredictionScores(gameId, matchId);
   }
 }
 

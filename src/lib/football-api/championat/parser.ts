@@ -236,10 +236,12 @@ export function parseChampionatCalendarHtml(html: string): ExternalMatch[] {
     const scoreText = normalizeWhitespace(
       row.find(".stat-results__count-main").text(),
     );
+    const rowText = normalizeWhitespace(row.text());
 
     const startsAt = parseDateTime(dateTimeRaw);
     const { homeScore, awayScore } = parseScoreText(scoreText);
     const played = row.attr("data-played") === "1";
+    const postponed = /перенес/i.test(rowText);
 
     matches.push({
       externalId: championatMatchExternalId(matchId),
@@ -250,7 +252,9 @@ export function parseChampionatCalendarHtml(html: string): ExternalMatch[] {
       label: labelText || undefined,
       homeScore,
       awayScore,
-      status: resolveMatchStatus(played, startsAt, homeScore, awayScore),
+      status: postponed
+        ? MatchStatus.POSTPONED
+        : resolveMatchStatus(played, startsAt, homeScore, awayScore),
     });
   });
 

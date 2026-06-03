@@ -48,6 +48,9 @@ export function parseChampionatLiveStatusText(
   if (/перенес|отмен/i.test(raw)) {
     return { phase: "scheduled", rawText: raw };
   }
+  if (/не\s+начал/i.test(raw)) {
+    return { phase: "scheduled", rawText: raw };
+  }
   if (/заверш|окончен/i.test(raw)) {
     return { phase: "finished", rawText: raw };
   }
@@ -104,7 +107,17 @@ export function parseChampionatLiveStatusFromHtml(
   const parsed = parseChampionatLiveStatusText(rawText);
   if (parsed) return parsed;
 
-  if (/<title>[^<]*(?:трансляц|онлайн)/i.test(html)) {
+  // Превью будущего матча: в title «смотреть онлайн / трансляция», на странице «Не начался».
+  if (/не\s+начал/i.test(rawText)) {
+    return { phase: "scheduled", rawText: rawText };
+  }
+
+  // LIVE по title только если в заголовке уже есть счёт (идёт матч), не реклама трансляции.
+  const titleLive = html.match(/<title>[^<]*/i)?.[0] ?? "";
+  if (
+    /(?:трансляц|онлайн)/i.test(titleLive) &&
+    /сч[её]т\s+\d+\s*:\s*\d+/i.test(titleLive)
+  ) {
     return { phase: "live", rawText: rawText || "онлайн" };
   }
 
@@ -142,12 +155,7 @@ export function formatLiveBadgeLabel(status: ChampionatLiveStatus): string {
     return minute != null ? `ИДЁТ 2-й тайм${minPart}` : "ИДЁТ 2-й тайм";
   }
 
-  if (
-    phase === "live" ||
-    phase === "halftime" ||
-    phase === "extra_time" ||
-    phase === "penalties"
-  ) {
+  if (phase === "live") {
     return "ИДЁТ СЕЙЧАС";
   }
 

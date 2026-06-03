@@ -68,7 +68,8 @@ type GameWithParticipants = {
   }>;
 };
 
-function matchWindow(minutesBefore: number, now: Date) {
+/** Окно startsAt для напоминания (экспорт для тестов). */
+export function matchReminderWindow(minutesBefore: number, now: Date) {
   const half = REMINDER_WINDOW_MS / 2;
   const targetMs = minutesBefore * 60 * 1000;
   return {
@@ -183,7 +184,7 @@ export async function sendDuePredictionReminders(
   };
 
   for (const { kind, adminKind, minutesBefore, label } of REMINDER_SCHEDULE) {
-    const startsAt = matchWindow(minutesBefore, now);
+    const startsAt = matchReminderWindow(minutesBefore, now);
 
     const matches = await prisma.match.findMany({
       where: {

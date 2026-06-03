@@ -67,13 +67,11 @@ function RollingUnit({ value }: { value: string }) {
     setBottom(value);
     setRolling(false);
 
-    let resetTimer: number | undefined;
-
     const raf = requestAnimationFrame(() => {
       requestAnimationFrame(() => setRolling(true));
     });
 
-    resetTimer = window.setTimeout(() => {
+    const resetTimer = window.setTimeout(() => {
       // Сначала фиксируем новое значение, потом снимаем roll — без обратной анимации.
       setRolling(false);
       setBottom(null);

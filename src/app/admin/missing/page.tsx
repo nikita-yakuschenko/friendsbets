@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { MissingPredictionCard } from "@/components/admin/missing-prediction-card";
 import { NoGamesPrompt } from "@/components/game/no-games-prompt";
 import { AppShell } from "@/components/layout/app-shell";

@@ -8,12 +8,14 @@ import {
 } from "@/lib/game-access";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
+import { runScheduledChampionatMatchSyncs } from "@/lib/football-api/championat/sync-scheduled-championat-matches";
 import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
-import { refreshChampionatMatchPages } from "@/lib/football-api/sync";
+import { syncChampionatTournament } from "@/lib/football-api/sync";
 import {
   isMatchInProgress,
   isMatchLockedForPredictions,
   isMatchPostponed,
+  isMatchStaleAwaitingResult,
 } from "@/lib/match-prediction-state";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import type { PredictionMatchItem } from "@/lib/predictions-list";
@@ -68,9 +70,6 @@ export async function savePredictionAction(
   }
 
   if (isMatchLockedForPredictions(match)) {
-    if (isMatchPostponed(match)) {
-      return { error: "Матч перенесён — прогноз недоступен." };
-    }
     return {
       error: "Прогноз нельзя изменить после начала матча.",
     };
@@ -132,15 +131,8 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
   const championatSource = await resolveChampionatSourceForTournament(
     game.tournamentId,
   );
-  if (championatSource) {
-    try {
-      await refreshChampionatMatchPages(game.tournamentId, championatSource);
-    } catch (err) {
-      console.error("[predictions] championat status refresh failed", err);
-    }
-  }
 
-  const matches = await prisma.match.findMany({
+  let matches = await prisma.match.findMany({
     where: { tournamentId: game.tournamentId },
     include: {
       homeTeam: true,
@@ -148,6 +140,25 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
     },
     orderBy: { startsAt: "asc" },
   });
+
+  if (
+    championatSource &&
+    matches.some((match) => isMatchStaleAwaitingResult(match))
+  ) {
+    try {
+      await syncChampionatTournament(game.tournamentId, championatSource, {
+        enrichVenues: true,
+      });
+      await runScheduledChampionatMatchSyncs();
+      matches = await prisma.match.findMany({
+        where: { tournamentId: game.tournamentId },
+        include: { homeTeam: true, awayTeam: true },
+        orderBy: { startsAt: "asc" },
+      });
+    } catch (err) {
+      console.error("[predictions] championat stale sync failed", err);
+    }
+  }
 
   const predictions = await prisma.prediction.findMany({
     where: { gameId, userId },
@@ -167,8 +178,10 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
       locked: isMatchLockedForPredictions(match),
       postponed: isMatchPostponed(match),
       inProgress: isMatchInProgress(match),
+      staleAwaitingResult: isMatchStaleAwaitingResult(match),
       points:
         saved?.scores.reduce((sum, score) => sum + score.points, 0) ?? 0,
+      scoreReason: saved?.scores[0]?.reason ?? null,
     };
   });
 

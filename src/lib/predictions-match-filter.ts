@@ -2,6 +2,7 @@ import { MatchStatus } from "@/generated/prisma/client";
 import {
   isMatchInProgress,
   isMatchPostponed,
+  isMatchStaleAwaitingResult,
   type MatchPredictionStateInput,
 } from "@/lib/match-prediction-state";
 
@@ -68,19 +69,22 @@ export function matchPredictionsFilter(
 
   if (filter === "postponed") return postponed;
 
-  // Перенесённые только на своей вкладке — не в общей массе
-  if (postponed) return false;
-
   if (filter === "all") return true;
+
+  // На остальных вкладках перенесённые только отдельно
+  if (postponed) return false;
   if (filter === "finished") {
-    return match.status === MatchStatus.FINISHED;
+    return (
+      match.status === MatchStatus.FINISHED || isMatchStaleAwaitingResult(match)
+    );
   }
 
-  // Предстоящие: будущие + уже идущие (прогноз закрыт); не завершённые и не перенесённые
+  // Предстоящие: будущие + реально идущие; не зависшие «LIVE» с прошлой недели
   if (filter === "upcoming") {
     if (match.status === MatchStatus.FINISHED) return false;
     if (match.status === MatchStatus.CANCELLED) return false;
     if (isMatchPostponed(match)) return false;
+    if (isMatchStaleAwaitingResult(match)) return false;
     return true;
   }
 

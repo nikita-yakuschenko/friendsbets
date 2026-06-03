@@ -29,8 +29,12 @@ function parseLiveScoreFromMatchPage(html: string): {
     };
   }
 
-  if (/<title>[^<]*(?:трансляц|онлайн)/i.test(html)) {
-    const titleScore = html.match(/<title>[^<]*счет\s+(\d+)\s*:\s*(\d+)/i);
+  const titleBlock = html.match(/<title>[^<]*/i)?.[0] ?? "";
+  if (
+    /(?:трансляц|онлайн)/i.test(titleBlock) &&
+    /сч[её]т\s+(\d+)\s*:\s*(\d+)/i.test(titleBlock)
+  ) {
+    const titleScore = titleBlock.match(/сч[её]т\s+(\d+)\s*:\s*(\d+)/i);
     if (titleScore) {
       return {
         homeScore: Number(titleScore[1]),

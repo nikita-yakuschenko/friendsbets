@@ -115,11 +115,13 @@ export function LiveMatchCard({
   }, [matchId, router]);
 
   useEffect(() => {
-    void fetchLive();
-    const interval = window.setInterval(() => void fetchLive(), POLL_MS);
-    const onFocus = () => void fetchLive();
+    const run = () => void fetchLive();
+    const initial = window.setTimeout(run, 0);
+    const interval = window.setInterval(run, POLL_MS);
+    const onFocus = () => run();
     window.addEventListener("focus", onFocus);
     return () => {
+      window.clearTimeout(initial);
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };

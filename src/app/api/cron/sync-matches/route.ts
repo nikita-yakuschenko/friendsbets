@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { runScheduledChampionatMatchSyncs } from "@/lib/football-api/championat/sync-scheduled-championat-matches";
 import { syncMatches } from "@/lib/football-api/sync";
 
 function isAuthorized(request: Request): boolean {
@@ -18,8 +19,9 @@ export async function GET(request: Request) {
   }
 
   try {
+    const scheduled = await runScheduledChampionatMatchSyncs();
     const result = await syncMatches();
-    return NextResponse.json({ ok: true, ...result });
+    return NextResponse.json({ ok: true, scheduled, ...result });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Championat sync failed";

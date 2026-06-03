@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { GAME_ACCESS_MODE } from "@/lib/game-access-mode";
 import { GAME_JOIN_REQUEST_STATUS } from "@/lib/notification-types";
 import { JoinGamePreviewCard } from "@/components/game/join-game-preview-card";
@@ -24,7 +24,7 @@ export function JoinGameForm({
   defaultInviteCode?: string;
   initialPreview?: GameJoinPreview | null;
 }) {
-  const [preview, setPreview] = useState<GameJoinPreview | null>(initialPreview);
+  const [dismissed, setDismissed] = useState(false);
   const [inviteInput, setInviteInput] = useState(defaultInviteCode);
 
   const [lookupState, lookupAction, lookupPending] = useActionState<
@@ -42,29 +42,34 @@ export function JoinGameForm({
     FormData
   >(requestJoinGameAction, undefined);
 
+  useEffect(() => {
+    if (!lookupState?.preview) return;
+    const id = window.setTimeout(() => {
+      setDismissed(false);
+      setInviteInput(lookupState.preview!.inviteCode);
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [lookupState?.preview]);
+
+  const basePreview = dismissed ? null : (lookupState?.preview ?? initialPreview);
+  const preview = useMemo(() => {
+    if (!basePreview) return null;
+    if (requestState?.success) {
+      return {
+        ...basePreview,
+        joinRequestStatus: GAME_JOIN_REQUEST_STATUS.PENDING,
+      };
+    }
+    return basePreview;
+  }, [basePreview, requestState?.success]);
+
   const lookupError = lookupState?.error;
   const joinError = joinState?.error;
   const requestError = requestState?.error;
   const requestSuccess = requestState?.success ? requestState.message : undefined;
 
-  useEffect(() => {
-    if (lookupState?.preview) {
-      setPreview(lookupState.preview);
-      setInviteInput(lookupState.preview.inviteCode);
-    }
-  }, [lookupState]);
-
-  useEffect(() => {
-    if (!requestState?.success) return;
-    setPreview((current) =>
-      current
-        ? { ...current, joinRequestStatus: GAME_JOIN_REQUEST_STATUS.PENDING }
-        : current,
-    );
-  }, [requestState?.success]);
-
   const resetSearch = () => {
-    setPreview(null);
+    setDismissed(true);
     setInviteInput("");
   };
 
@@ -153,4 +158,4 @@ export function JoinGameForm({
       )}
     </div>
   );
-}
+};

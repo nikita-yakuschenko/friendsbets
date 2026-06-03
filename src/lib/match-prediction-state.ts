@@ -1,5 +1,8 @@
 import { MatchStatus } from "@/generated/prisma/client";
 
+/** Основное + доп. время + перерыв + запас на задержку синка Championat. */
+export const MATCH_LIVE_TRACKING_MAX_MS = 3 * 60 * 60 * 1000;
+
 export type MatchPredictionStateInput = {
   status: MatchStatus | string;
   startsAt: Date;
@@ -15,11 +18,34 @@ export function isMatchPostponed(match: MatchPredictionStateInput): boolean {
 export function isMatchLockedForPredictions(
   match: MatchPredictionStateInput,
 ): boolean {
-  if (isMatchPostponed(match)) return true;
+  if (isMatchPostponed(match)) return false;
   if (match.status === MatchStatus.FINISHED) return true;
   if (match.status === MatchStatus.CANCELLED) return true;
-  if (match.status === MatchStatus.LIVE) return true;
+  if (match.status === MatchStatus.LIVE) {
+    return isMatchWithinLiveTrackingWindow(match);
+  }
   return match.startsAt.getTime() <= Date.now();
+}
+
+/** Старт был не позже MAX_MS назад — иначе это не «лайв», а зависший статус в БД. */
+export function isMatchWithinLiveTrackingWindow(
+  match: MatchPredictionStateInput,
+): boolean {
+  const kickoff = match.startsAt.getTime();
+  const now = Date.now();
+  if (kickoff > now) return false;
+  return now - kickoff <= MATCH_LIVE_TRACKING_MAX_MS;
+}
+
+/** В БД ещё не FINISHED, но по времени матч давно должен был закончиться. */
+export function isMatchStaleAwaitingResult(
+  match: MatchPredictionStateInput,
+): boolean {
+  if (match.status === MatchStatus.FINISHED) return false;
+  if (match.status === MatchStatus.CANCELLED) return false;
+  if (isMatchPostponed(match)) return false;
+  if (match.startsAt.getTime() > Date.now()) return false;
+  return !isMatchWithinLiveTrackingWindow(match);
 }
 
 /** Уже стартовал, но ещё не завершён (вкладка «Предстоящие», прогноз закрыт). */
@@ -27,6 +53,7 @@ export function isMatchInProgress(match: MatchPredictionStateInput): boolean {
   if (match.status === MatchStatus.FINISHED) return false;
   if (match.status === MatchStatus.CANCELLED) return false;
   if (isMatchPostponed(match)) return false;
+  if (!isMatchWithinLiveTrackingWindow(match)) return false;
   if (match.status === MatchStatus.LIVE) return true;
   if (match.startsAt.getTime() > Date.now()) return false;
   // Уже должен был начаться; в БД ещё SCHEDULED, пока тянется синк с Championat

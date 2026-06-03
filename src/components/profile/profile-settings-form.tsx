@@ -53,19 +53,26 @@ export function ProfileSettingsForm({ user }: { user: ProfileUser }) {
     [name, user.name, hasNewAvatarFile, removeAvatar],
   );
 
+  const prevProfileStateRef = useRef<typeof state>(undefined);
   useEffect(() => {
-    if (state?.success) {
-      toast.success("Профиль сохранён");
-      setRemoveAvatar(false);
-      setAvatarFile(null);
-      setSelectedFileName(null);
-      setPreviewUrl((prev) => {
-        revokePreview(prev);
-        return null;
-      });
-      router.refresh();
-    }
-    if (state?.error) toast.error(state.error);
+    if (state === prevProfileStateRef.current) return;
+    prevProfileStateRef.current = state;
+    const id = window.setTimeout(() => {
+      if (state?.success) {
+        setRemoveAvatar(false);
+        setAvatarFile(null);
+        setSelectedFileName(null);
+        setPreviewUrl((prev) => {
+          revokePreview(prev);
+          return null;
+        });
+        toast.success("Профиль сохранён");
+        router.refresh();
+      } else if (state?.error) {
+        toast.error(state.error);
+      }
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [state, router]);
 
   function clearAvatarSelection() {

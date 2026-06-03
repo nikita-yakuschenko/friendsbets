@@ -231,6 +231,9 @@ model Match {
   homePenaltyScore  Int?
   awayPenaltyScore  Int?
   winnerTeamId      String?
+  championatTrackActive Boolean   @default(true)
+  championatLastSyncAt  DateTime?
+  championatFinishedAt  DateTime?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 

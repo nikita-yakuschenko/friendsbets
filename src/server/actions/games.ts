@@ -13,7 +13,9 @@ import { isSuperadmin } from "@/lib/roles";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { computeLivePredictionStats } from "@/lib/live-match-stats";
+import { MATCH_LIVE_TRACKING_MAX_MS } from "@/lib/match-prediction-state";
 import { calculatePredictionScore } from "@/lib/scoring";
+import { persistMatchPredictionScores } from "@/lib/scoring/recalculate-match-scores";
 import { getLeaderboardColumns } from "@/lib/scoring/catalog";
 import type { ScoreTier } from "@/lib/scoring/rules";
 import type { ActionResult } from "@/server/actions/auth";
@@ -243,6 +245,7 @@ export async function getLiveMatches(routeParam: string) {
   if (!game) return [];
 
   const now = new Date();
+  const liveSince = new Date(now.getTime() - MATCH_LIVE_TRACKING_MAX_MS);
 
   const [matches, participants] = await Promise.all([
     prisma.match.findMany({
@@ -251,7 +254,7 @@ export async function getLiveMatches(routeParam: string) {
         status: {
           in: [MatchStatus.LIVE],
         },
-        startsAt: { lte: now },
+        startsAt: { gte: liveSince, lte: now },
       },
       include: {
         homeTeam: true,
@@ -343,30 +346,7 @@ export async function recalculateMatchScoresAction(
     return { error: "Матч ещё не завершён." };
   }
 
-  const predictions = await prisma.prediction.findMany({
-    where: { gameId, matchId },
-  });
-
-  await prisma.$transaction(async (tx) => {
-    await tx.predictionScore.deleteMany({
-      where: { predictionId: { in: predictions.map((p) => p.id) } },
-    });
-
-    for (const prediction of predictions) {
-      const result = calculatePredictionScore(
-        prediction,
-        match,
-        game.scoringRule,
-      );
-      await tx.predictionScore.create({
-        data: {
-          predictionId: prediction.id,
-          points: result.points,
-          reason: result.reason,
-        },
-      });
-    }
-  });
+  await persistMatchPredictionScores(gameId, matchId);
 
   return { success: true };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { LiveBadge } from "@/components/game/live-badge";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { TeamLabel } from "@/components/team/team-label";
+import { getFlagImageSrcSet, getFlagImageUrl } from "@/lib/teams";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 import { savePredictionAction } from "@/server/actions/predictions";
@@ -43,8 +44,10 @@ type MatchCardProps = {
   locked: boolean;
   postponed: boolean;
   inProgress?: boolean;
+  staleAwaitingResult?: boolean;
   liveHref?: string;
   points: number;
+  scoreReason?: string | null;
 };
 
 function MatchMeta({
@@ -88,6 +91,7 @@ function ScoreRow({
   liveScores?: { home: number | null; away: number | null };
 }) {
   const useLive = Boolean(liveScores) && !editing;
+
   const homeValue = useLive
     ? liveScores!.home ?? "—"
     : prediction
@@ -176,6 +180,45 @@ function ScoreRow({
   );
 }
 
+function PredictionTeamFlag({
+  countryCode,
+}: {
+  countryCode?: string | null;
+}) {
+  const flagUrl = getFlagImageUrl(countryCode ?? null);
+  if (!flagUrl) return null;
+
+  return (
+    <img
+      src={flagUrl}
+      srcSet={getFlagImageSrcSet(countryCode ?? null) ?? undefined}
+      width={16}
+      height={12}
+      alt=""
+      aria-hidden
+      className="h-3 w-4 shrink-0 rounded-sm object-cover"
+      loading="lazy"
+      decoding="async"
+    />
+  );
+}
+
+const SCORING_REASON_WIN_LABELS: Record<string, string> = {
+  "Точный счёт": "угадан точный счёт",
+  "Угадан исход": "угадан исход",
+  "Исход и разница мячей": "угаданы исход и разница мячей",
+  "Исход и голы одной команды": "угаданы исход и голы одной команды",
+  "Голы одной команды": "угаданы голы одной команды",
+};
+
+function scoringReasonWinLabel(reason: string | null): string {
+  if (!reason) return "начислены очки";
+  return (
+    SCORING_REASON_WIN_LABELS[reason] ??
+    reason.charAt(0).toLowerCase() + reason.slice(1)
+  );
+}
+
 function formatPointsLabel(points: number): string {
   const n = Math.abs(points);
   const mod10 = n % 10;
@@ -186,28 +229,73 @@ function formatPointsLabel(points: number): string {
   return `${points} очков`;
 }
 
-function FinishedMatchSummary({
+function FinishedPredictionOutcome({
   match,
+  prediction,
   points,
+  scoreReason,
 }: {
   match: MatchCardProps["match"];
+  prediction: MatchCardProps["prediction"];
   points: number;
+  scoreReason: string | null;
 }) {
-  const hasResult = match.homeScore !== null && match.awayScore !== null;
+  const won = points > 0;
+
+  const pillClass = cn(
+    "inline-flex w-full max-w-sm flex-col items-center gap-1 rounded-lg border-[0.5px] bg-brand-bg px-5 py-2 text-center text-[11px] leading-snug shadow-[0_4px_16px_rgba(0,0,0,0.3)] sm:max-w-md sm:text-xs",
+    won ? "border-brand-lime/80" : "border-brand-red/80",
+  );
+
+  if (!prediction) {
+    return (
+      <div className={pillClass}>
+        <span className="text-brand-muted">Прогноз не сделан</span>
+        <span className="text-brand-muted">Очки не начислены</span>
+      </div>
+    );
+  }
+
+  const predictionScore = (
+    <span className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1 tabular-nums text-white">
+      <span className="inline-flex items-center justify-end gap-0.5 text-right">
+        <span className="truncate">{match.homeTeam.name}</span>
+        <PredictionTeamFlag countryCode={match.homeTeam.countryCode} />
+      </span>
+      <span className="shrink-0 px-0.5">
+        {prediction.homeScore}:{prediction.awayScore}
+      </span>
+      <span className="inline-flex items-center justify-start gap-0.5 text-left">
+        <PredictionTeamFlag countryCode={match.awayTeam.countryCode} />
+        <span className="truncate">{match.awayTeam.name}</span>
+      </span>
+    </span>
+  );
+
+  if (won) {
+    const ruleLabel = scoringReasonWinLabel(scoreReason);
+
+    return (
+      <div className={pillClass}>
+        <span className="text-brand-muted">Ваш прогноз</span>
+        {predictionScore}
+        <span className="text-brand-muted">
+          Прогноз совпал по правилу —{" "}
+          <span className="text-white">{ruleLabel}</span>
+        </span>
+        <span className="font-medium text-brand-lime">
+          Начислено: {formatPointsLabel(points)}
+        </span>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col items-center gap-1 text-center text-sm">
-      {hasResult ? (
-        <p className="text-brand-muted">
-          Исход:{" "}
-          <span className="font-semibold tabular-nums text-white">
-            {match.homeScore}:{match.awayScore}
-          </span>
-        </p>
-      ) : (
-        <p className="text-brand-muted">Исход не записан</p>
-      )}
-      <p className="text-brand-lime">Начислено: {formatPointsLabel(points)}</p>
+    <div className={pillClass}>
+      <span className="text-brand-muted">Ваш прогноз</span>
+      {predictionScore}
+      <span className="text-white">Ставка не зашла</span>
+      <span className="text-brand-muted">Очки не начислены</span>
     </div>
   );
 }
@@ -220,14 +308,15 @@ export function MatchPredictionCard({
   locked,
   postponed,
   inProgress = false,
+  staleAwaitingResult = false,
   liveHref,
   points,
+  scoreReason = null,
 }: MatchCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({ home: false, away: false });
   const [liveHome, setLiveHome] = useState<number | null>(match.homeScore);
   const [liveAway, setLiveAway] = useState<number | null>(match.awayScore);
-  const [livePhase, setLivePhase] = useState<ChampionatLivePhase>("live");
   const [liveStatus, setLiveStatus] = useState<ChampionatLiveStatus>({
     phase: "live",
     rawText: "",
@@ -254,9 +343,8 @@ export function MatchPredictionCard({
       };
       if (data.liveStatus) {
         setLiveStatus(data.liveStatus);
-        setLivePhase(data.liveStatus.phase);
       } else if (data.livePhase) {
-        setLivePhase(data.livePhase);
+        setLiveStatus((prev) => ({ ...prev, phase: data.livePhase! }));
       }
       if (data.homeScore != null && data.awayScore != null) {
         setLiveHome(data.homeScore);
@@ -269,9 +357,13 @@ export function MatchPredictionCard({
 
   useEffect(() => {
     if (!inProgress) return;
-    void fetchLiveScore();
-    const interval = window.setInterval(() => void fetchLiveScore(), LIVE_POLL_MS);
-    return () => window.clearInterval(interval);
+    const run = () => void fetchLiveScore();
+    const initial = window.setTimeout(run, 0);
+    const interval = window.setInterval(run, LIVE_POLL_MS);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+    };
   }, [inProgress, fetchLiveScore]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -307,63 +399,83 @@ export function MatchPredictionCard({
     clearFieldErrors();
   }
 
+  const prevActionStateRef = useRef<typeof state>(undefined);
   useEffect(() => {
-    if (state?.success) {
-      toast.success("Прогноз сохранён");
-      clearFieldErrors();
-      setIsEditing(false);
-    }
-    if (state?.error) {
-      toast.error(state.error);
-    }
+    if (state === prevActionStateRef.current) return;
+    prevActionStateRef.current = state;
+    const id = window.setTimeout(() => {
+      if (state?.success) {
+        setFieldErrors({ home: false, away: false });
+        setIsEditing(false);
+        toast.success("Прогноз сохранён");
+      } else if (state?.error) {
+        toast.error(state.error);
+      }
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [state]);
 
-  const isFinished = match.status === "FINISHED";
+  const isFinished =
+    match.status === "FINISHED" || staleAwaitingResult;
   const isPostponed = postponed || match.status === "POSTPONED";
-  const editable = canPredict && !locked && !isFinished && !isPostponed;
-  const awaitingTeams = !canPredict && !locked && !isFinished && !isPostponed;
+  const editable = canPredict && !locked && !isFinished;
+  const awaitingTeams =
+    !canPredict && !locked && !isFinished && !isPostponed;
+
+  const predictionBadgeVariant = prediction ? "default" : "destructive";
+  const predictionBadgeText = prediction
+    ? "Прогноз принят"
+    : "Прогноз не сделан";
 
   const statusBadge = isFinished
     ? "secondary"
-    : isPostponed
+    : awaitingTeams
       ? "secondary"
-      : awaitingTeams
-        ? "secondary"
-        : locked
-          ? "warning"
-          : prediction
-            ? "default"
-            : "destructive";
+      : locked
+        ? "warning"
+        : predictionBadgeVariant;
 
   const statusText = isFinished
-    ? "Матч завершен"
-    : isPostponed
-      ? "Матч перенесён"
-      : awaitingTeams
-        ? "Команды неизвестны"
-        : locked
-          ? "Матч начался"
-          : prediction
-            ? "Прогноз принят"
-            : "Прогноз не сделан";
+    ? staleAwaitingResult && match.status !== "FINISHED"
+      ? match.homeScore !== null && match.awayScore !== null
+        ? "Матч завершен"
+        : "Ожидаем результат"
+      : "Матч завершен"
+    : awaitingTeams
+      ? "Команды неизвестны"
+      : locked
+        ? "Матч начался"
+        : predictionBadgeText;
 
   const liveScores = inProgress
     ? { home: liveHome, away: liveAway }
-    : undefined;
+    : isFinished &&
+        match.status === "FINISHED" &&
+        match.homeScore !== null &&
+        match.awayScore !== null
+      ? { home: match.homeScore, away: match.awayScore }
+      : undefined;
 
   const cardInner = (
     <>
       <CardHeader
         className={cn(
-          "flex px-3 pb-0 pt-3 sm:px-4",
-          inProgress ? "justify-start" : "justify-end",
+          "flex items-center px-3 pb-0 pt-3 sm:px-4",
+          inProgress && "justify-start",
+          isPostponed && "justify-between",
+          !inProgress && !isPostponed && "justify-end",
         )}
       >
         {inProgress ? (
           <LiveBadge status={liveStatus} />
-        ) : (
-          <Badge variant={statusBadge}>{statusText}</Badge>
-        )}
+        ) : isPostponed ? (
+          <Badge variant="secondary">Матч перенесён</Badge>
+        ) : null}
+        {!inProgress ? (
+          <Badge variant={isPostponed ? predictionBadgeVariant : statusBadge}>
+            {isPostponed ? predictionBadgeText : statusText}
+          </Badge>
+        ) : null}
       </CardHeader>
 
       <CardContent className="min-w-0 space-y-3 px-3 pb-4 pt-1 sm:px-4">
@@ -450,7 +562,16 @@ export function MatchPredictionCard({
                 Прогноз не сделан
               </p>
             )}
-            {isFinished && <FinishedMatchSummary match={match} points={points} />}
+            {isFinished && match.status === "FINISHED" ? (
+              <div className="flex justify-center border-t border-brand-neutral/50 pt-3">
+                <FinishedPredictionOutcome
+                  match={match}
+                  prediction={prediction}
+                  points={points}
+                  scoreReason={scoreReason}
+                />
+              </div>
+            ) : null}
           </div>
         )}
       </CardContent>

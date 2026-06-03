@@ -46,9 +46,6 @@ export function LiveMatchHomePreview({
       : new Date(match.startsAt);
   const [homeScore, setHomeScore] = useState(match.homeScore);
   const [awayScore, setAwayScore] = useState(match.awayScore);
-  const [livePhase, setLivePhase] = useState<ChampionatLivePhase>(() =>
-    match.status === "FINISHED" ? "finished" : "live",
-  );
   const [liveStatus, setLiveStatus] = useState<ChampionatLiveStatus>(() => ({
     phase: match.status === "FINISHED" ? "finished" : "live",
     rawText: "",
@@ -68,9 +65,8 @@ export function LiveMatchHomePreview({
       };
       if (data.liveStatus) {
         setLiveStatus(data.liveStatus);
-        setLivePhase(data.liveStatus.phase);
       } else if (data.livePhase) {
-        setLivePhase(data.livePhase);
+        setLiveStatus((prev) => ({ ...prev, phase: data.livePhase! }));
       }
       if (data.homeScore != null && data.awayScore != null) {
         setHomeScore(data.homeScore);
@@ -82,9 +78,13 @@ export function LiveMatchHomePreview({
   }, [matchId]);
 
   useEffect(() => {
-    void fetchPhase();
-    const interval = window.setInterval(() => void fetchPhase(), POLL_MS);
-    return () => window.clearInterval(interval);
+    const run = () => void fetchPhase();
+    const initial = window.setTimeout(run, 0);
+    const interval = window.setInterval(run, POLL_MS);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+    };
   }, [fetchPhase]);
 
   const hasLiveScore = homeScore != null && awayScore != null;
@@ -98,22 +98,8 @@ export function LiveMatchHomePreview({
           isHalftime ? "border-brand-neutral/50" : "border-brand-lime/25",
         )}
       >
-        <CardContent className="relative px-4 py-3">
-          <div className="relative z-10 mx-auto mb-3 flex w-full max-w-md justify-center">
-            <FloatingPredictionNotice
-              hasPrediction={hasPrediction}
-              prediction={prediction}
-              match={{
-                ...match,
-                startsAt,
-                homeScore,
-                awayScore,
-              }}
-              predictionsHref={predictionsHref}
-            />
-          </div>
-
-          <div className="relative z-0 space-y-3">
+        <CardContent className="relative flex flex-col gap-3 px-4 py-3">
+          <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <LiveBadge status={liveStatus} />
               {match.stage ? (
@@ -153,6 +139,18 @@ export function LiveMatchHomePreview({
               <p>{formatDateTimeMoscow(startsAt)}</p>
               {venue ? <p>{venue}</p> : null}
             </div>
+          </div>
+
+          <div className="mx-auto flex w-full max-w-md justify-center border-t border-brand-neutral/50 pt-3">
+            <FloatingPredictionNotice
+              hasPrediction={hasPrediction}
+              prediction={prediction}
+              match={{
+                ...match,
+                startsAt,
+              }}
+              predictionsHref={predictionsHref}
+            />
           </div>
         </CardContent>
       </Card>

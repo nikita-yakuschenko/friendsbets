@@ -1,7 +1,8 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# FriendsBets — локальные артефакты, секреты и кэши (исходники и миграции — в Git)
+# https://help.github.com/articles/ignoring-files/
 
-# dependencies
-/node_modules
+# --- Dependencies ---
+/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -10,42 +11,116 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# --- Next.js / сборка ---
 /.next/
 /out/
-
-# production
 /build
+/dist
 
-# uploaded avatars
-/public/avatars/*
-!/public/avatars/.gitkeep
+# --- Deploy / monorepo cache ---
+.vercel/
+.netlify/
 
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files
+# --- Environment (шаблоны с ! остаются в репозитории) ---
 .env
 .env.local
 .env.*.local
+.env.development
+.env.production
+.env.test
+.env.test.local
 !.env.example
-deploy.env.example
+deploy.env
+deploy.env.local
 
-# vercel
-.vercel
+# --- Logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# typescript
+# --- Testing: артефакты, отчёты, локальная инфраструктура ---
+/coverage/
+htmlcov/
+.nyc_output/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+vitest.config.ts
+playwright.config.ts
+.env.test.example
+/tests/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+
+# Внутренняя документация по тестам / coverage
+/docs/TESTING.md
+/docs/TESTING_REPORT.md
+
+# --- Tooling cache ---
+.cache/
+.vitest/
+.turbo/
+
+# --- TypeScript / linters ---
 *.tsbuildinfo
+.eslintcache
 next-env.d.ts
 
+# --- OS ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- AI / Cursor / agents (не публиковать в репозиторий) ---
+AGENTS.md
+CLAUDE.md
+CLAUDE.local.md
+.cursorrules
+.cursorignore
+.cursor/
+.agent/
+**/.cursor/
+agent-transcripts/
+**/agent-transcripts/
+*.mdc
+
+# --- IDE ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# --- Local database / dumps (не Prisma migrations: prisma/migrations/**/*.sql) ---
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.dump
+*.backup
+
+# --- Uploads / local storage ---
+/uploads/
+/public/uploads/
+/storage/
+/tmp/
+/temp/
+
+# User avatars (генерируются на диск / volume; в Git только .gitkeep)
+/public/avatars/*
+!/public/avatars/.gitkeep
+
+# --- Docker (локальные override; compose и Dockerfile — в Git) ---
+docker-compose.override.yml
+.docker/
+
+# --- TLS (локальные ключи) ---
+*.pem
+
+# --- Prisma Client (генерация: npm run postinstall / db:generate) ---
 /src/generated/prisma

@@ -57,7 +57,7 @@ export function FloatingPredictionNotice({
   predictionsHref?: string;
 }) {
   const pillClass = cn(
-    "inline-flex w-full max-w-sm flex-col items-center gap-0.5 rounded-2xl border-[0.5px] bg-brand-bg px-5 py-1.5 text-[11px] leading-tight font-normal shadow-[0_4px_16px_rgba(0,0,0,0.3)] transition-colors sm:max-w-md",
+    "inline-flex w-full max-w-sm flex-col items-center gap-0.5 rounded-lg border-[0.5px] bg-brand-bg px-5 py-1.5 text-[11px] leading-tight font-normal shadow-[0_4px_16px_rgba(0,0,0,0.3)] transition-colors sm:max-w-md",
     hasPrediction
       ? "border-brand-lime/80 text-brand-muted"
       : "border-brand-red/80 text-brand-muted hover:bg-brand-red/5",
@@ -115,17 +115,8 @@ export function NextMatchPreview({
       </h2>
 
       <Card className="relative overflow-hidden p-0">
-        <CardContent className="relative px-4 py-3">
-          <div className="relative z-10 mx-auto mb-3 flex w-full max-w-md justify-center">
-            <FloatingPredictionNotice
-              hasPrediction={hasPrediction}
-              prediction={prediction}
-              match={match}
-              predictionsHref={predictionsHref}
-            />
-          </div>
-
-          <div className="relative z-0 mx-auto flex w-full max-w-md flex-col items-center gap-1.5 text-center">
+        <CardContent className="relative flex flex-col gap-3 px-4 py-3">
+          <div className="mx-auto flex w-full max-w-md flex-col items-center gap-1.5 text-center">
             <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 text-lg font-semibold leading-snug sm:gap-x-3">
               <div className="flex justify-end">
                 <TeamLabel
@@ -151,6 +142,15 @@ export function NextMatchPreview({
               <p className="max-w-full text-sm text-brand-muted">{venue}</p>
             ) : null}
             {showCountdown ? <MatchStartCountdown startsAt={match.startsAt} /> : null}
+          </div>
+
+          <div className="mx-auto flex w-full max-w-md justify-center border-t border-brand-neutral/50 pt-3">
+            <FloatingPredictionNotice
+              hasPrediction={hasPrediction}
+              prediction={prediction}
+              match={match}
+              predictionsHref={predictionsHref}
+            />
           </div>
         </CardContent>
       </Card>

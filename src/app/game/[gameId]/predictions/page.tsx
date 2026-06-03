@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { gamePath } from "@/lib/game-path";
 import { ContentContainer } from "@/components/layout/content-container";
@@ -18,7 +17,10 @@ import {
 } from "@/lib/predictions-match-filter";
 import {
   buildPredictionStageGroups,
+  partitionAllPredictionItems,
   partitionUpcomingPredictionItems,
+  sortFinishedPredictionItems,
+  sortPostponedPredictionItems,
   type PredictionMatchItem,
 } from "@/lib/predictions-list";
 import { getPredictionsPageData } from "@/server/actions/predictions";
@@ -67,14 +69,50 @@ export default async function PredictionsPage({
   );
   const liveHref = gamePath(data.game.inviteCode, "live");
 
-  const { inProgress: inProgressItems, upcoming: upcomingOnlyItems } =
-    activeFilter === "upcoming"
-      ? partitionUpcomingPredictionItems(filteredItems)
-      : { inProgress: [] as PredictionMatchItem[], upcoming: filteredItems };
+  let inProgressItems: PredictionMatchItem[] = [];
+  let upcomingOnlyItems: PredictionMatchItem[] = [];
+  let finishedOnlyItems: PredictionMatchItem[] = [];
+  let postponedOnlyItems: PredictionMatchItem[] = [];
+
+  if (activeFilter === "upcoming") {
+    const part = partitionUpcomingPredictionItems(filteredItems);
+    inProgressItems = part.inProgress;
+    upcomingOnlyItems = part.upcoming;
+  } else if (activeFilter === "all") {
+    const part = partitionAllPredictionItems(filteredItems);
+    inProgressItems = part.inProgress;
+    upcomingOnlyItems = part.upcoming;
+    finishedOnlyItems = part.finished;
+    postponedOnlyItems = part.postponed;
+  } else if (activeFilter === "finished") {
+    finishedOnlyItems = sortFinishedPredictionItems(filteredItems);
+  } else if (activeFilter === "postponed") {
+    postponedOnlyItems = sortPostponedPredictionItems(filteredItems);
+  }
+
+  const stageGroupItems =
+    activeFilter === "finished"
+      ? finishedOnlyItems
+      : activeFilter === "postponed"
+        ? postponedOnlyItems
+      : activeFilter === "upcoming" || activeFilter === "all"
+        ? upcomingOnlyItems
+        : filteredItems;
 
   const stageGroups = buildPredictionStageGroups(
-    activeFilter === "upcoming" ? upcomingOnlyItems : filteredItems,
+    stageGroupItems,
+    activeFilter === "finished" ? "finished" : "upcoming",
   );
+
+  const finishedStageGroups =
+    activeFilter === "all"
+      ? buildPredictionStageGroups(finishedOnlyItems, "finished")
+      : [];
+
+  const postponedStageGroups =
+    activeFilter === "all"
+      ? buildPredictionStageGroups(postponedOnlyItems, "upcoming")
+      : [];
 
   return (
     <ContentContainer>
@@ -89,24 +127,10 @@ export default async function PredictionsPage({
         counts={counts}
       />
 
-      {activeFilter === "upcoming" && counts.postponed > 0 ? (
-        <div className="mb-4 space-y-2 text-sm text-brand-muted">
-          {counts.postponed > 0 ? (
-            <p>
-              Перенесённых матчей:{" "}
-              <span className="font-medium text-white">{counts.postponed}</span>.{" "}
-              <Link
-                href={`${gamePath(data.game.inviteCode, "predictions")}?view=postponed`}
-                className="text-brand-lime underline-offset-2 hover:underline"
-              >
-                Открыть вкладку «Перенесённые»
-              </Link>
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
-      {inProgressItems.length === 0 && stageGroups.length === 0 ? (
+      {inProgressItems.length === 0 &&
+      stageGroups.length === 0 &&
+      finishedStageGroups.length === 0 &&
+      postponedStageGroups.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-brand-muted">
             {resolvePredictionsEmptyMessage(activeFilter, data.items)}
@@ -126,8 +150,10 @@ export default async function PredictionsPage({
                   locked={item.locked}
                   postponed={item.postponed}
                   inProgress={item.inProgress}
+                  staleAwaitingResult={item.staleAwaitingResult}
                   liveHref={liveHref}
                   points={item.points}
+                  scoreReason={item.scoreReason}
                 />
               ))}
             </div>
@@ -148,8 +174,60 @@ export default async function PredictionsPage({
                     locked={item.locked}
                     postponed={item.postponed}
                     inProgress={item.inProgress}
+                    staleAwaitingResult={item.staleAwaitingResult}
                     liveHref={liveHref}
                     points={item.points}
+                    scoreReason={item.scoreReason}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+          {finishedStageGroups.map((group) => (
+            <section key={`finished-${group.id}`} className="min-w-0 space-y-4">
+              <h2 className="text-sm font-medium uppercase tracking-wide text-brand-muted">
+                {group.stage}
+              </h2>
+              <div className="min-w-0 space-y-4">
+                {group.items.map((item) => (
+                  <MatchPredictionCard
+                    key={item.match.id}
+                    gameId={data.game.id}
+                    match={item.match}
+                    canPredict={item.canPredict}
+                    prediction={item.prediction}
+                    locked={item.locked}
+                    postponed={item.postponed}
+                    inProgress={item.inProgress}
+                    staleAwaitingResult={item.staleAwaitingResult}
+                    liveHref={liveHref}
+                    points={item.points}
+                    scoreReason={item.scoreReason}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+          {postponedStageGroups.map((group) => (
+            <section key={`postponed-${group.id}`} className="min-w-0 space-y-4">
+              <h2 className="text-sm font-medium uppercase tracking-wide text-brand-muted">
+                {group.stage} · перенесённые
+              </h2>
+              <div className="min-w-0 space-y-4">
+                {group.items.map((item) => (
+                  <MatchPredictionCard
+                    key={item.match.id}
+                    gameId={data.game.id}
+                    match={item.match}
+                    canPredict={item.canPredict}
+                    prediction={item.prediction}
+                    locked={item.locked}
+                    postponed={item.postponed}
+                    inProgress={item.inProgress}
+                    staleAwaitingResult={item.staleAwaitingResult}
+                    liveHref={liveHref}
+                    points={item.points}
+                    scoreReason={item.scoreReason}
                   />
                 ))}
               </div>

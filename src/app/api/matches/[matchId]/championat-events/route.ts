@@ -1,7 +1,7 @@
-import { MatchStatus } from "@/generated/prisma/client";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { applyChampionatSnapshotToMatch } from "@/lib/football-api/championat/apply-championat-snapshot";
 import { fetchChampionatMatchLiveSnapshot } from "@/lib/football-api/championat/match-live-snapshot";
 import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
@@ -21,11 +21,15 @@ export async function GET(
     where: { id: matchId },
     select: {
       id: true,
-      externalId: true,
       tournamentId: true,
+      externalId: true,
+      startsAt: true,
       status: true,
       homeScore: true,
       awayScore: true,
+      homeTeamId: true,
+      awayTeamId: true,
+      championatFinishedAt: true,
       homeTeam: { select: { externalId: true } },
       awayTeam: { select: { externalId: true } },
     },
@@ -69,48 +73,22 @@ export async function GET(
       sportSlug: source.sportSlug,
     });
 
-    const updateData: {
-      homeScore?: number;
-      awayScore?: number;
-      status?: MatchStatus;
-    } = {};
+    const applyResult = await applyChampionatSnapshotToMatch(match, snapshot);
 
-    if (
-      snapshot.homeScore !== undefined &&
-      snapshot.awayScore !== undefined &&
-      (snapshot.homeScore !== match.homeScore ||
-        snapshot.awayScore !== match.awayScore)
-    ) {
-      updateData.homeScore = snapshot.homeScore;
-      updateData.awayScore = snapshot.awayScore;
-    }
+    await prisma.match.update({
+      where: { id: matchId },
+      data: { championatLastSyncAt: new Date() },
+    });
 
-    const statusFromPhase =
-      snapshot.status ??
-      (snapshot.liveStatus.phase === "finished"
-        ? MatchStatus.FINISHED
-        : snapshot.liveStatus.phase !== "scheduled"
-          ? MatchStatus.LIVE
-          : undefined);
+    const refreshed = applyResult.updated
+      ? await prisma.match.findUnique({
+          where: { id: matchId },
+          select: { homeScore: true, awayScore: true },
+        })
+      : null;
 
-    if (statusFromPhase && statusFromPhase !== match.status) {
-      updateData.status = statusFromPhase;
-    } else if (
-      updateData.homeScore !== undefined &&
-      match.status === MatchStatus.SCHEDULED
-    ) {
-      updateData.status = MatchStatus.LIVE;
-    }
-
-    if (Object.keys(updateData).length > 0) {
-      await prisma.match.update({
-        where: { id: matchId },
-        data: updateData,
-      });
-    }
-
-    const homeScore = updateData.homeScore ?? match.homeScore;
-    const awayScore = updateData.awayScore ?? match.awayScore;
+    const homeScore = refreshed?.homeScore ?? match.homeScore;
+    const awayScore = refreshed?.awayScore ?? match.awayScore;
 
     return NextResponse.json({
       events: snapshot.events,
