@@ -14,7 +14,8 @@ function filterTournaments(rows: MyTournamentRow[], query: string) {
   return rows.filter(
     (row) =>
       row.title.toLowerCase().includes(q) ||
-      row.inviteCode.toLowerCase().includes(q),
+      row.inviteCode.toLowerCase().includes(q) ||
+      (row.sourceLabel?.toLowerCase().includes(q) ?? false),
   );
 }
 
@@ -36,7 +37,7 @@ export function MyTournamentsDataTable({ data }: { data: MyTournamentRow[] }) {
   return (
     <div className="space-y-4">
       <Input
-        placeholder="Поиск по названию или коду приглашения…"
+        placeholder="Поиск по названию, шаблону или коду…"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         className="w-full md:max-w-sm"

@@ -16,6 +16,10 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { buildRegisterInviteUrl } from "@/lib/game-invite";
+import {
+  buildTournamentSourceLabelMap,
+  resolveSourceLabelForGame,
+} from "@/lib/tournament-source-label";
 import { NoGamesPrompt } from "@/components/game/no-games-prompt";
 import { MyTournamentsDataTable } from "@/components/my-tournaments/my-tournaments-data-table";
 import { TournamentsAddMenu } from "@/components/my-tournaments/tournaments-add-menu";
@@ -49,6 +53,10 @@ export default async function HomePage() {
   );
   const multipleTournaments = memberships.length > 1;
 
+  const sourceLabelByExternalId = await buildTournamentSourceLabelMap(
+    memberships.map((m) => m.game.tournament.externalId),
+  );
+
   const tournamentRows: MyTournamentRow[] = memberships.map(({ game, role }) => {
     const organizers = formatGameOrganizersLine(getGameOrganizerDisplayNames(game));
     const organizerCount = game.participants.length;
@@ -59,6 +67,11 @@ export default async function HomePage() {
     return {
       id: game.id,
       title: game.title,
+      sourceLabel: resolveSourceLabelForGame(
+        game.title,
+        game.tournament.externalId,
+        sourceLabelByExternalId,
+      ),
       organizerLabel: organizers.label,
       organizerNames: organizers.text,
       inviteCode: game.inviteCode,

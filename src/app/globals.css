@@ -335,7 +335,8 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 }
 
-.live-pulse-dot {
+.live-pulse-dot,
+.live-pulse-icon {
   animation: live-pulse 1.6s ease-in-out infinite;
 }
 

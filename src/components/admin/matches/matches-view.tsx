@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AdminMatchCard } from "@/components/admin/matches/admin-match-card";
+import { SyncTemplateChampionatButton } from "@/components/admin/matches/sync-template-championat-button";
 import type { AdminMatchRow } from "@/components/admin/matches/types";
 import { ADMIN_LIST_EMPTY_CLASS } from "@/components/admin/admin-detail-row";
 import { FormSelect } from "@/components/ui/form-select";
@@ -64,6 +65,16 @@ export function AdminMatchesView({
         </p>
       ) : (
         <>
+          <div className="flex flex-wrap items-center gap-3">
+            <SyncTemplateChampionatButton
+              templateId={selectedTemplateId}
+              templateTitle={selectedTemplate?.title ?? "Шаблон"}
+            />
+            <p className="text-xs text-brand-muted">
+              При обрыве сети (ECONNRESET) нажмите ещё раз — запросы повторяются
+              автоматически.
+            </p>
+          </div>
           <p className="text-xs text-brand-muted">
             {filtered.length}{" "}
             {filtered.length === 1 ? "матч" : "матчей"}

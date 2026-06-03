@@ -10,8 +10,7 @@ import {
 } from "@/lib/football-api/championat/constants";
 import { resolveTeamCountryCode } from "@/lib/football-api/championat/team-country-codes";
 
-const FETCH_USER_AGENT =
-  "FriendsBets/1.0 (+https://github.com/friendsbets; match sync)";
+import { fetchChampionatHtml } from "@/lib/football-api/championat/fetch-html";
 
 type ParsedSide = {
   teamId?: string;
@@ -261,20 +260,6 @@ export function parseChampionatCalendarHtml(html: string): ExternalMatch[] {
 export async function fetchChampionatCalendar(
   url: string,
 ): Promise<ExternalMatch[]> {
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": FETCH_USER_AGENT,
-      Accept: "text/html,application/xhtml+xml",
-    },
-    next: { revalidate: 0 },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Championat calendar request failed: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  const html = await response.text();
+  const html = await fetchChampionatHtml(url, { timeoutMs: 20_000 });
   return parseChampionatCalendarHtml(html);
 }

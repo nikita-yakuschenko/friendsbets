@@ -6,6 +6,8 @@ export type TournamentPickOption = {
 export type MyTournamentRow = {
   id: string;
   title: string;
+  /** Шаблон или турнир Championat, если отличается от своего названия игры */
+  sourceLabel: string | null;
   organizerLabel: "Организатор" | "Организаторы";
   organizerNames: string;
   inviteCode: string;

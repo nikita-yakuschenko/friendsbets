@@ -3,8 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { gamePath } from "@/lib/game-path";
-import { GameAccessMode, GameJoinRequestStatus } from "@/generated/prisma/client";
-import { GAME_ACCESS_MODE_LABELS } from "@/lib/game-access-mode";
+import { GAME_ACCESS_MODE, GAME_ACCESS_MODE_LABELS } from "@/lib/game-access-mode";
+import { GAME_JOIN_REQUEST_STATUS } from "@/lib/notification-types";
 import type { GameJoinPreview } from "@/lib/join-game-preview";
 
 export function JoinGamePreviewCard({
@@ -66,11 +66,11 @@ export function JoinGamePreviewCard({
               Перейти в турнир
             </Link>
           </div>
-        ) : preview.accessMode === GameAccessMode.REQUEST ? (
+        ) : preview.accessMode === GAME_ACCESS_MODE.REQUEST ? (
           <p className="text-sm text-brand-muted">
-            {preview.joinRequestStatus === GameJoinRequestStatus.PENDING
+            {preview.joinRequestStatus === GAME_JOIN_REQUEST_STATUS.PENDING
               ? "Заявка отправлена. Дождитесь решения организатора."
-              : preview.joinRequestStatus === GameJoinRequestStatus.REJECTED
+              : preview.joinRequestStatus === GAME_JOIN_REQUEST_STATUS.REJECTED
                 ? "Заявка отклонена. Можно отправить заявку снова."
                 : "Вступление по заявке: отправьте запрос организатору."}
           </p>

@@ -7,13 +7,9 @@ export type MatchPredictionStateInput = {
   awayScore: number | null;
 };
 
-/** Перенос в БД или «застрявший» SCHEDULED после старта без счёта. */
+/** Только явный перенос с Championat (статус POSTPONED в БД). */
 export function isMatchPostponed(match: MatchPredictionStateInput): boolean {
-  if (match.status === MatchStatus.POSTPONED) return true;
-  if (match.status !== MatchStatus.SCHEDULED) return false;
-  if (match.startsAt.getTime() > Date.now()) return false;
-  if (match.homeScore != null || match.awayScore != null) return false;
-  return true;
+  return match.status === MatchStatus.POSTPONED;
 }
 
 export function isMatchLockedForPredictions(
@@ -30,13 +26,9 @@ export function isMatchLockedForPredictions(
 export function isMatchInProgress(match: MatchPredictionStateInput): boolean {
   if (match.status === MatchStatus.FINISHED) return false;
   if (match.status === MatchStatus.CANCELLED) return false;
-  if (match.status === MatchStatus.POSTPONED || isMatchPostponed(match)) {
-    return false;
-  }
+  if (isMatchPostponed(match)) return false;
   if (match.status === MatchStatus.LIVE) return true;
   if (match.startsAt.getTime() > Date.now()) return false;
-  return (
-    match.status === MatchStatus.SCHEDULED &&
-    (match.homeScore != null || match.awayScore != null)
-  );
+  // Уже должен был начаться; в БД ещё SCHEDULED, пока тянется синк с Championat
+  return match.status === MatchStatus.SCHEDULED;
 }

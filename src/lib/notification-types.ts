@@ -1,0 +1,19 @@
+/** Значения enum из Prisma — без импорта клиента в браузер. */
+
+export const USER_NOTIFICATION_KIND = {
+  JOIN_REQUEST_RECEIVED: "JOIN_REQUEST_RECEIVED",
+  JOIN_REQUEST_APPROVED: "JOIN_REQUEST_APPROVED",
+  JOIN_REQUEST_REJECTED: "JOIN_REQUEST_REJECTED",
+} as const;
+
+export type UserNotificationKindValue =
+  (typeof USER_NOTIFICATION_KIND)[keyof typeof USER_NOTIFICATION_KIND];
+
+export const GAME_JOIN_REQUEST_STATUS = {
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+} as const;
+
+export type GameJoinRequestStatusValue =
+  (typeof GAME_JOIN_REQUEST_STATUS)[keyof typeof GAME_JOIN_REQUEST_STATUS];

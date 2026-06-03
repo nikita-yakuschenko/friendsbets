@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { DesktopSidebar } from "@/components/layout/desktop-sidebar";
 import { ShellDesktopPageTitle } from "@/components/layout/shell-desktop-page-title";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { NotificationUnreadProvider } from "@/components/notifications/notification-unread-provider";
+import { countUnreadNotifications } from "@/lib/notifications";
 import { shellHeaderHeightClass } from "@/components/layout/shell-header";
 import { resolveActiveGameInviteCode } from "@/lib/active-game";
 import { getUserGamesState } from "@/lib/game-access";
@@ -60,6 +62,9 @@ export async function AppShell({
 
   const showGameNav = hasGamesOrOversight ?? hasGames;
   const showMobileNav = Boolean(user);
+  const unreadNotifications = user
+    ? await countUnreadNotifications(user.id)
+    : 0;
 
   return (
     <div className="relative h-dvh overflow-hidden bg-brand-bg text-white">
@@ -68,6 +73,10 @@ export async function AppShell({
         aria-hidden="true"
       />
 
+      <NotificationUnreadProvider
+        initialCount={unreadNotifications}
+        enabled={Boolean(user)}
+      >
       <div className="relative flex h-full min-h-0 min-w-0 max-w-full">
         {user ? (
           <DesktopSidebar
@@ -155,6 +164,7 @@ export async function AppShell({
           hasGames={showGameNav}
         />
       ) : null}
+      </NotificationUnreadProvider>
     </div>
   );
 }

@@ -13,9 +13,13 @@ import {
   IconUserPlus,
   IconCirclePlus,
   IconClipboardList,
+  IconBell,
+  IconDots,
 } from "@tabler/icons-react";
 import { BrandLogo } from "@/components/brand/logo";
 import { LiveNavLabel } from "@/components/layout/live-nav-label";
+import { useNotificationUnread } from "@/components/notifications/notification-unread-provider";
+import { NavBadge } from "@/components/ui/nav-badge";
 import { Button } from "@/components/ui/button";
 import { gamePath } from "@/lib/game-path";
 import { gamePlatformViewPath } from "@/lib/game-platform-view";
@@ -56,6 +60,7 @@ export function DesktopSidebar({
   gameOversightMode?: boolean;
 }) {
   const pathname = usePathname();
+  const { unreadCount } = useNotificationUnread();
   const inviteFromPath = pathname.match(/^\/game\/([^/]+)/)?.[1];
   const activeInviteCode = hasGames ? (gameInviteCode ?? inviteFromPath) : undefined;
   const gameLinks = buildGameLinks(gameOversightMode);
@@ -122,6 +127,30 @@ export function DesktopSidebar({
                 </Link>
               );
             })}
+            <Link
+              href={gameHref("more")}
+              className={navLinkClass(
+                pathname.replace(/\/$/, "") === gameHref("more").replace(/\/$/, ""),
+              )}
+            >
+              <span className="relative inline-flex shrink-0">
+                <IconDots className="h-4 w-4" stroke={1.75} />
+                {unreadCount > 0 ? <NavBadge count={unreadCount} /> : null}
+              </span>
+              Ещё
+            </Link>
+            <Link
+              href={gameHref("more/notifications")}
+              className={navLinkClass(
+                /\/more\/notifications\/?$/.test(pathname),
+              )}
+            >
+              <span className="relative inline-flex shrink-0">
+                <IconBell className="h-4 w-4" stroke={1.75} />
+                {unreadCount > 0 ? <NavBadge count={unreadCount} /> : null}
+              </span>
+              Уведомления
+            </Link>
           </>
         ) : null}
 

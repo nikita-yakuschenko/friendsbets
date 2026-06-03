@@ -1,26 +1,26 @@
-import { Badge } from "@/components/ui/badge";
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
+import { LiveBadge } from "@/components/game/live-badge";
+import type {
+  ChampionatLivePhase,
+  ChampionatLiveStatus,
+} from "@/lib/football-api/championat/match-live-status";
+import { LiveMatchCardTabs } from "@/components/game/live-match-card-tabs";
+import type { LiveMatchPredictionsPanelProps } from "@/components/game/live-match-predictions-panel";
 import { TeamLabel } from "@/components/team/team-label";
-import type { LivePredictionStats } from "@/lib/live-match-stats";
+import type { ChampionatMatchEvent } from "@/lib/football-api/championat/match-protocol-types";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 
-type FriendPrediction =
-  | {
-      userId: string;
-      displayName: string;
-      homeScore: number;
-      awayScore: number;
-    }
-  | {
-      userId: string;
-      displayName: string;
-      hasPrediction: true;
-    };
+const POLL_MS = 30_000;
 
-type LiveMatchCardProps = {
+export type LiveMatchCardProps = {
+  matchId: string;
   match: {
-    startsAt: Date;
+    startsAt: Date | string;
     status: string;
     stage: string | null;
     venueName: string | null;
@@ -32,121 +32,114 @@ type LiveMatchCardProps = {
     homeTeam: { name: string; countryCode: string | null };
     awayTeam: { name: string; countryCode: string | null };
   };
-  myPrediction?: {
-    homeScore: number;
-    awayScore: number;
-  } | null;
-  friendPredictions: FriendPrediction[];
-  stats: LivePredictionStats | null;
-  /** Режим суперадмина: только факт прогноза, без чужих счётов */
-  hideFriendScores?: boolean;
-};
+} & LiveMatchPredictionsPanelProps;
 
-function LiveBadge({ status }: { status: string }) {
-  const isLive = status === "LIVE";
-
-  return (
-    <Badge
-      variant="destructive"
-      className={cn(
-        "gap-1.5 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
-        "border-brand-red/40 bg-brand-red/10 text-brand-red",
-      )}
-    >
-      <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-red live-pulse-dot" />
-      {isLive ? "В эфире" : "Идёт матч"}
-    </Badge>
-  );
-}
-
-function LiveStats({ stats }: { stats: LivePredictionStats }) {
-  return (
-    <div className="rounded-xl bg-brand-bg px-3 py-3">
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-brand-muted">
-        Статистика прогнозов
-      </p>
-      <div className="space-y-2 text-sm text-brand-muted">
-        <p>
-          <span className="text-white">{stats.total}</span>{" "}
-          {stats.total === 1 ? "прогноз" : stats.total < 5 ? "прогноза" : "прогнозов"}
-          {stats.mostCommonScore ? (
-            <>
-              {" · чаще всего "}
-              <span className="font-semibold tabular-nums text-white">
-                {stats.mostCommonScore.replace(":", " : ")}
-              </span>
-              {stats.mostCommonCount > 1 ? ` (${stats.mostCommonCount})` : null}
-            </>
-          ) : null}
-        </p>
-        <p className="tabular-nums">
-          П1{" "}
-          <span className="font-semibold text-white">{stats.homeWin}</span>
-          {" · "}
-          X <span className="font-semibold text-white">{stats.draw}</span>
-          {" · "}
-          П2 <span className="font-semibold text-white">{stats.awayWin}</span>
-        </p>
-        {stats.exactAtCurrentScore != null && stats.exactAtCurrentScore > 0 ? (
-          <p>
-            Точный счёт сейчас у{" "}
-            <span className="font-semibold text-brand-lime">
-              {stats.exactAtCurrentScore}
-            </span>
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function PredictionRow({
-  name,
-  homeScore,
-  awayScore,
-  highlight = false,
-}: {
-  name: string;
-  homeScore: number;
-  awayScore: number;
-  highlight?: boolean;
-}) {
-  return (
-    <li
-      className={cn(
-        "flex items-center justify-between gap-3 rounded-xl px-3 py-2",
-        highlight ? "bg-brand-lime/10" : "bg-brand-bg",
-      )}
-    >
-      <span className={cn("min-w-0 break-words", highlight && "text-brand-lime")}>
-        {name}
-      </span>
-      <span className="shrink-0 font-semibold tabular-nums text-white">
-        {homeScore} : {awayScore}
-      </span>
-    </li>
-  );
-}
+export { LiveBadge } from "@/components/game/live-badge";
 
 export function LiveMatchCard({
+  matchId,
   match,
   myPrediction,
   friendPredictions,
   stats,
   hideFriendScores = false,
 }: LiveMatchCardProps) {
+  const router = useRouter();
   const venue = formatMatchVenue(match.venueName, match.venueCity);
-  const homeScore = match.homeScore ?? 0;
-  const awayScore = match.awayScore ?? 0;
+  const startsAt =
+    match.startsAt instanceof Date
+      ? match.startsAt
+      : new Date(match.startsAt);
+
+  const [homeScore, setHomeScore] = useState<number | null>(match.homeScore);
+  const [awayScore, setAwayScore] = useState<number | null>(match.awayScore);
+  const [events, setEvents] = useState<ChampionatMatchEvent[]>([]);
+  const [livePhase, setLivePhase] = useState<ChampionatLivePhase>(() =>
+    match.status === "FINISHED" ? "finished" : "live",
+  );
+  const [liveStatus, setLiveStatus] = useState<ChampionatLiveStatus>(() => ({
+    phase: match.status === "FINISHED" ? "finished" : "live",
+    rawText: "",
+  }));
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+  const scoreRef = useRef({ home: match.homeScore, away: match.awayScore });
+
+  useEffect(() => {
+    scoreRef.current = { home: homeScore, away: awayScore };
+  }, [homeScore, awayScore]);
+
+  const fetchLive = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/matches/${matchId}/championat-events`, {
+        cache: "no-store",
+      });
+      const data = (await res.json()) as {
+        events?: ChampionatMatchEvent[];
+        homeScore?: number | null;
+        awayScore?: number | null;
+        livePhase?: ChampionatLivePhase;
+        liveStatus?: ChampionatLiveStatus;
+        error?: string;
+      };
+
+      if (!res.ok) {
+        setEventsError(data.error ?? "Не удалось обновить события.");
+        return;
+      }
+
+      setEventsError(null);
+      if (data.events) setEvents(data.events);
+      if (data.liveStatus) {
+        setLiveStatus(data.liveStatus);
+        setLivePhase(data.liveStatus.phase);
+      } else if (data.livePhase) {
+        setLivePhase(data.livePhase);
+      }
+
+      const nextHome = data.homeScore ?? null;
+      const nextAway = data.awayScore ?? null;
+      if (nextHome === null || nextAway === null) return;
+
+      const { home: prevHome, away: prevAway } = scoreRef.current;
+      if (nextHome === prevHome && nextAway === prevAway) return;
+
+      setHomeScore(nextHome);
+      setAwayScore(nextAway);
+      router.refresh();
+    } catch {
+      setEventsError("Не удалось обновить события.");
+    } finally {
+      setEventsLoading(false);
+    }
+  }, [matchId, router]);
+
+  useEffect(() => {
+    void fetchLive();
+    const interval = window.setInterval(() => void fetchLive(), POLL_MS);
+    const onFocus = () => void fetchLive();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [fetchLive]);
+
   const hasPenalties =
     match.homePenaltyScore != null && match.awayPenaltyScore != null;
-  const hasLiveScore = match.homeScore != null && match.awayScore != null;
+  const hasLiveScore = homeScore !== null && awayScore !== null;
+  const isHalftime = liveStatus.phase === "halftime";
 
   return (
-    <Card className="overflow-hidden border-brand-red/20 p-0">
+    <Card
+      className={cn(
+        "overflow-hidden p-0",
+        isHalftime ? "border-brand-neutral/50" : "border-brand-lime/25",
+      )}
+    >
       <CardContent className="px-4 py-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <LiveBadge status={match.status} />
+          <LiveBadge status={liveStatus} />
           {match.stage ? (
             <p className="text-sm text-brand-muted">{match.stage}</p>
           ) : null}
@@ -188,67 +181,25 @@ export function LiveMatchCard({
         </div>
 
         <div className="mt-3 space-y-1 text-center text-sm text-brand-muted">
-          <p>{formatDateTimeMoscow(match.startsAt)}</p>
+          <p>{formatDateTimeMoscow(startsAt)}</p>
           {venue ? <p>{venue}</p> : null}
         </div>
 
-        {stats ? (
-          <div className="mt-4">
-            <LiveStats stats={stats} />
-          </div>
-        ) : null}
-
-        <div className="mt-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-brand-muted">
-            Ваш прогноз
-          </p>
-          {myPrediction ? (
-            <PredictionRow
-              name="Вы"
-              homeScore={myPrediction.homeScore}
-              awayScore={myPrediction.awayScore}
-              highlight
-            />
-          ) : (
-            <p className="rounded-xl bg-brand-bg px-3 py-2 text-sm text-brand-muted">
-              Прогноз не сделан
-            </p>
-          )}
-        </div>
-
-        <div className="mt-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-brand-muted">
-            {hideFriendScores ? "Участники с прогнозом" : "Прогнозы друзей"}
-          </p>
-          {friendPredictions.length === 0 ? (
-            <p className="rounded-xl bg-brand-bg px-3 py-2 text-sm text-brand-muted">
-              {hideFriendScores
-                ? "Пока никто не поставил"
-                : "Пока никто из друзей не поставил"}
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {friendPredictions.map((prediction) =>
-                hideFriendScores || "hasPrediction" in prediction ? (
-                  <li
-                    key={prediction.userId}
-                    className="flex items-center justify-between gap-3 rounded-xl bg-brand-bg px-3 py-2 text-sm"
-                  >
-                    <span className="text-white">{prediction.displayName}</span>
-                    <span className="shrink-0 text-brand-lime">Сделан</span>
-                  </li>
-                ) : (
-                  <PredictionRow
-                    key={prediction.userId}
-                    name={prediction.displayName}
-                    homeScore={prediction.homeScore}
-                    awayScore={prediction.awayScore}
-                  />
-                ),
-              )}
-            </ul>
-          )}
-        </div>
+        <LiveMatchCardTabs
+          predictions={{
+            myPrediction,
+            friendPredictions,
+            stats,
+            hideFriendScores,
+          }}
+          events={events}
+          livePhase={livePhase}
+          matchStatus={match.status}
+          eventsLoading={eventsLoading}
+          eventsError={eventsError}
+          homeTeamName={match.homeTeam.name}
+          awayTeamName={match.awayTeam.name}
+        />
       </CardContent>
     </Card>
   );

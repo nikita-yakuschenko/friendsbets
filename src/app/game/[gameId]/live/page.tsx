@@ -45,6 +45,7 @@ export default async function LivePage({
             {items.map(({ match, friendPredictions, stats }) => (
               <LiveMatchCard
                 key={match.id}
+                matchId={match.id}
                 match={match}
                 friendPredictions={friendPredictions}
                 stats={stats}
@@ -71,25 +72,28 @@ export default async function LivePage({
     <ContentContainer>
       <PageHeader title="Лайв" />
 
-      <div className="mb-4">
-        {nextMatch ? (
-          <NextMatchPreview
-            match={nextMatch}
-            hasPrediction={nextMatchHasPrediction}
-            prediction={nextMatchPrediction}
-            predictionsHref={gamePath(game.inviteCode, "predictions")}
-            showCountdown
-          />
-        ) : (
-          <NextMatchEmpty />
-        )}
-      </div>
+      {items.length === 0 ? (
+        <div className="mb-4">
+          {nextMatch ? (
+            <NextMatchPreview
+              match={nextMatch}
+              hasPrediction={nextMatchHasPrediction}
+              prediction={nextMatchPrediction}
+              predictionsHref={gamePath(game.inviteCode, "predictions")}
+              showCountdown
+            />
+          ) : (
+            <NextMatchEmpty />
+          )}
+        </div>
+      ) : null}
 
       {items.length > 0 ? (
         <div className="space-y-4">
           {items.map(({ match, myPrediction, friendPredictions, stats }) => (
             <LiveMatchCard
               key={match.id}
+              matchId={match.id}
               match={match}
               myPrediction={myPrediction}
               friendPredictions={friendPredictions}

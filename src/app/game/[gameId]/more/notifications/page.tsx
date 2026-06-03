@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { NotificationList } from "@/components/notifications/notification-list";
+import { PageBackButton } from "@/components/layout/page-back-button";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { getSession } from "@/lib/auth";
@@ -33,16 +33,11 @@ export default async function GameNotificationsPage({
       <PageHeader
         title="Уведомления"
         description="Заявки на вступление и ответы организаторов."
+        action={
+          <PageBackButton fallbackHref={gamePath(routeParam, "more")} />
+        }
       />
       <NotificationList items={items} />
-      <p className="mt-6 text-center text-sm">
-        <Link
-          href={gamePath(routeParam, "more")}
-          className="text-brand-muted hover:text-white"
-        >
-          ← Назад в «Ещё»
-        </Link>
-      </p>
     </ContentContainer>
   );
 }

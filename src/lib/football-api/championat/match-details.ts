@@ -3,14 +3,45 @@ import { CHAMPIONAT_WORLD_CUP_2026 } from "@/lib/football-api/championat/constan
 import { parseChampionatMatchStatusFromHtml } from "@/lib/football-api/championat/match-status";
 import { normalizeVenueCityParts } from "@/lib/venue";
 
-const FETCH_USER_AGENT =
-  "FriendsBets/1.0 (+https://github.com/friendsbets; match sync)";
+import { fetchChampionatHtml } from "@/lib/football-api/championat/fetch-html";
 
 export type ChampionatMatchDetails = {
   venueName?: string;
   venueCity?: string;
   status?: MatchStatus;
+  homeScore?: number;
+  awayScore?: number;
 };
+
+function parseLiveScoreFromMatchPage(html: string): {
+  homeScore?: number;
+  awayScore?: number;
+  impliesLive: boolean;
+} {
+  const halfBlock = html.match(
+    /(?:1-?й|2-?й)\s+тайм[\s\S]{0,160}?(\d+)\s*:\s*(\d+)/i,
+  );
+  if (halfBlock) {
+    return {
+      homeScore: Number(halfBlock[1]),
+      awayScore: Number(halfBlock[2]),
+      impliesLive: true,
+    };
+  }
+
+  if (/<title>[^<]*(?:трансляц|онлайн)/i.test(html)) {
+    const titleScore = html.match(/<title>[^<]*счет\s+(\d+)\s*:\s*(\d+)/i);
+    if (titleScore) {
+      return {
+        homeScore: Number(titleScore[1]),
+        awayScore: Number(titleScore[2]),
+        impliesLive: true,
+      };
+    }
+  }
+
+  return { impliesLive: false };
+}
 
 function normalizeWhitespace(value: string): string {
   return value.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
@@ -23,10 +54,19 @@ export function parseChampionatMatchPageHtml(
     /Стадион:\s*<a[^>]*>([^<]+)<\/a>\s*\(\s*([^)]+)\s*\)/i,
   );
 
-  const status = parseChampionatMatchStatusFromHtml(html);
+  const liveScore = parseLiveScoreFromMatchPage(html);
+  let status = parseChampionatMatchStatusFromHtml(html);
+  if (!status && liveScore.impliesLive) {
+    status = MatchStatus.LIVE;
+  }
+
+  const scoreFields =
+    liveScore.homeScore !== undefined && liveScore.awayScore !== undefined
+      ? { homeScore: liveScore.homeScore, awayScore: liveScore.awayScore }
+      : {};
 
   if (!stadiumBlock) {
-    return status ? { status } : {};
+    return { ...scoreFields, ...(status ? { status } : {}) };
   }
 
   const venueName = normalizeWhitespace(stadiumBlock[1] ?? "");
@@ -40,6 +80,7 @@ export function parseChampionatMatchPageHtml(
     venueName: venueName || undefined,
     venueCity: venueCity || undefined,
     status,
+    ...scoreFields,
   };
 }
 
@@ -72,19 +113,6 @@ export async function fetchChampionatMatchDetails(
     options?.sportSlug,
   );
 
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": FETCH_USER_AGENT,
-      Accept: "text/html,application/xhtml+xml",
-    },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Championat match request failed (${matchId}): ${response.status}`,
-    );
-  }
-
-  return parseChampionatMatchPageHtml(await response.text());
+  const html = await fetchChampionatHtml(url);
+  return parseChampionatMatchPageHtml(html);
 }

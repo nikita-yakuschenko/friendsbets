@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MiniLeaderboard } from "@/components/game/mini-leaderboard";
+import { LiveMatchHomePreview } from "@/components/game/live-match-home-preview";
 import { NextMatchEmpty, NextMatchPreview } from "@/components/game/next-match-preview";
 import { StatCard, StatValue } from "@/components/game/stat-card";
 import { ContentContainer } from "@/components/layout/content-container";
@@ -15,7 +16,11 @@ import { getSession } from "@/lib/auth";
 import { GameOversightHome } from "@/components/game/game-oversight-home";
 import { GameOversightShell } from "@/components/game/game-oversight-shell";
 import { PlatformOversightBackButton } from "@/components/game/platform-oversight-back-button";
-import { getGameOverview, getGameOversightOverview } from "@/server/actions/games";
+import {
+  getGameOverview,
+  getGameOversightOverview,
+  getLiveMatches,
+} from "@/server/actions/games";
 
 export default async function GamePage({
   params,
@@ -52,7 +57,10 @@ export default async function GamePage({
     );
   }
 
-  const overview = await getGameOverview(routeParam, session.id);
+  const [overview, liveNow] = await Promise.all([
+    getGameOverview(routeParam, session.id),
+    getLiveMatches(routeParam),
+  ]);
   if (!overview) return notFound();
 
   const {
@@ -84,7 +92,22 @@ export default async function GamePage({
       />
 
       <div className="mb-4">
-        {nextMatch ? (
+        {liveNow.length > 0 ? (
+          <LiveMatchHomePreview
+            matchId={liveNow[0]!.match.id}
+            match={liveNow[0]!.match}
+            hasPrediction={Boolean(liveNow[0]!.myPrediction)}
+            prediction={
+              liveNow[0]!.myPrediction
+                ? {
+                    homeScore: liveNow[0]!.myPrediction.homeScore,
+                    awayScore: liveNow[0]!.myPrediction.awayScore,
+                  }
+                : null
+            }
+            predictionsHref={gamePath(game.inviteCode, "predictions")}
+          />
+        ) : nextMatch ? (
           <NextMatchPreview
             match={nextMatch}
             hasPrediction={nextMatchHasPrediction}

@@ -187,8 +187,9 @@ async function enrichMatchesFromChampionatPages(
       OR: [
         { venueName: null },
         { venueCity: null },
+        { status: MatchStatus.LIVE },
         {
-          status: { in: [MatchStatus.SCHEDULED, MatchStatus.LIVE] },
+          status: MatchStatus.SCHEDULED,
           startsAt: { lte: now },
           homeScore: null,
           awayScore: null,
@@ -215,6 +216,8 @@ async function enrichMatchesFromChampionatPages(
         venueName?: string | null;
         venueCity?: string | null;
         status?: MatchStatus;
+        homeScore?: number;
+        awayScore?: number;
       } = {};
 
       if (details.venueName || details.venueCity) {
@@ -224,6 +227,17 @@ async function enrichMatchesFromChampionatPages(
 
       if (details.status && details.status !== match.status) {
         data.status = details.status;
+      }
+
+      if (
+        details.homeScore !== undefined &&
+        details.awayScore !== undefined
+      ) {
+        data.homeScore = details.homeScore;
+        data.awayScore = details.awayScore;
+        if (!data.status && match.status === MatchStatus.SCHEDULED) {
+          data.status = MatchStatus.LIVE;
+        }
       }
 
       if (Object.keys(data).length === 0) {
@@ -242,8 +256,11 @@ async function enrichMatchesFromChampionatPages(
       if (data.status !== undefined) {
         statusesUpdated += 1;
       }
-    } catch {
-      // Пропускаем матч при временной ошибке Championat.
+    } catch (error) {
+      console.warn(
+        `[championat-sync] match page failed id=${championatMatchId}`,
+        error instanceof Error ? error.message : error,
+      );
     }
 
     await sleep(VENUE_FETCH_DELAY_MS);

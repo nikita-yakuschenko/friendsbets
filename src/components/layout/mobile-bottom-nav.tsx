@@ -16,6 +16,8 @@ import {
   IconLayoutGrid,
 } from "@tabler/icons-react";
 import { LiveNavLabel } from "@/components/layout/live-nav-label";
+import { useNotificationUnread } from "@/components/notifications/notification-unread-provider";
+import { NavBadge } from "@/components/ui/nav-badge";
 import { gamePath } from "@/lib/game-path";
 import { gamePlatformViewPath } from "@/lib/game-platform-view";
 import { isGameHomePath } from "@/lib/shell-page-title";
@@ -38,6 +40,7 @@ export function MobileBottomNav({
   hasGames: boolean;
 }) {
   const pathname = usePathname();
+  const { unreadCount } = useNotificationUnread();
   const gamePathFor = (segment?: string) =>
     gameOversightMode
       ? gamePlatformViewPath(gameInviteCode!, segment)
@@ -95,6 +98,8 @@ export function MobileBottomNav({
                 pathname.replace(/\/$/, "") === hrefBase.replace(/\/$/, "")
               : pathname === hrefBase;
           const Icon = item.icon;
+          const showUnreadBadge =
+            item.label === "Ещё" && unreadCount > 0;
           return (
             <Link
               key={item.href}
@@ -104,7 +109,10 @@ export function MobileBottomNav({
                 active ? "text-brand-lime" : "text-brand-muted",
               )}
             >
-              <Icon className="h-5 w-5" stroke={1.75} />
+              <span className="relative inline-flex">
+                <Icon className="h-5 w-5" stroke={1.75} />
+                {showUnreadBadge ? <NavBadge count={unreadCount} /> : null}
+              </span>
               {item.isLive ? (
                 <LiveNavLabel compact showIcon={false} />
               ) : (

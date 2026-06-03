@@ -10,11 +10,10 @@ import { getSession } from "@/lib/auth";
 import { gamePlatformViewPath, isPlatformViewQuery } from "@/lib/game-platform-view";
 import { requireGameViewByRoute } from "@/lib/game-access";
 import {
-  countInProgressInUpcoming,
   emptyPredictionsFilterCounts,
   matchPredictionsFilter,
   parsePredictionsFilter,
-  PREDICTIONS_FILTER_EMPTY,
+  resolvePredictionsEmptyMessage,
   type PredictionsFilterId,
 } from "@/lib/predictions-match-filter";
 import {
@@ -66,8 +65,6 @@ export default async function PredictionsPage({
   const filteredItems = data.items.filter((item) =>
     matchPredictionsFilter(item.match, activeFilter),
   );
-  const inProgressCount =
-    activeFilter === "upcoming" ? countInProgressInUpcoming(data.items) : 0;
   const liveHref = gamePath(data.game.inviteCode, "live");
 
   const { inProgress: inProgressItems, upcoming: upcomingOnlyItems } =
@@ -92,22 +89,8 @@ export default async function PredictionsPage({
         counts={counts}
       />
 
-      {activeFilter === "upcoming" &&
-      (counts.postponed > 0 || inProgressCount > 0) ? (
+      {activeFilter === "upcoming" && counts.postponed > 0 ? (
         <div className="mb-4 space-y-2 text-sm text-brand-muted">
-          {inProgressCount > 0 ? (
-            <p>
-              Идёт сейчас:{" "}
-              <span className="font-medium text-white">{inProgressCount}</span>{" "}
-              — вверху списка, прогноз закрыт.{" "}
-              <Link
-                href={liveHref}
-                className="text-brand-lime underline-offset-2 hover:underline"
-              >
-                Смотреть в Лайв
-              </Link>
-            </p>
-          ) : null}
           {counts.postponed > 0 ? (
             <p>
               Перенесённых матчей:{" "}
@@ -126,33 +109,28 @@ export default async function PredictionsPage({
       {inProgressItems.length === 0 && stageGroups.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-brand-muted">
-            {PREDICTIONS_FILTER_EMPTY[activeFilter]}
+            {resolvePredictionsEmptyMessage(activeFilter, data.items)}
           </CardContent>
         </Card>
       ) : (
         <div className="min-w-0 space-y-8">
           {inProgressItems.length > 0 ? (
-            <section className="min-w-0 space-y-4">
-              <h2 className="text-sm font-medium uppercase tracking-wide text-brand-lime">
-                Идёт сейчас
-              </h2>
-              <div className="min-w-0 space-y-4">
-                {inProgressItems.map((item) => (
-                  <MatchPredictionCard
-                    key={item.match.id}
-                    gameId={data.game.id}
-                    match={item.match}
-                    canPredict={item.canPredict}
-                    prediction={item.prediction}
-                    locked={item.locked}
-                    postponed={item.postponed}
-                    inProgress={item.inProgress}
-                    liveHref={liveHref}
-                    points={item.points}
-                  />
-                ))}
-              </div>
-            </section>
+            <div className="min-w-0 space-y-4">
+              {inProgressItems.map((item) => (
+                <MatchPredictionCard
+                  key={item.match.id}
+                  gameId={data.game.id}
+                  match={item.match}
+                  canPredict={item.canPredict}
+                  prediction={item.prediction}
+                  locked={item.locked}
+                  postponed={item.postponed}
+                  inProgress={item.inProgress}
+                  liveHref={liveHref}
+                  points={item.points}
+                />
+              ))}
+            </div>
           ) : null}
           {stageGroups.map((group) => (
             <section key={group.id} className="min-w-0 space-y-4">

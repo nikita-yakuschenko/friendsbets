@@ -16,12 +16,19 @@ export function MyTournamentCard({ tournament }: { tournament: MyTournamentRow }
   return (
     <RecordCard>
       <header className="flex items-start justify-between gap-3">
-        <Link
-          href={gamePath(tournament.inviteCode)}
-          className="min-w-0 flex-1 text-base font-medium leading-snug text-white hover:text-brand-lime"
-        >
-          {tournament.title}
-        </Link>
+        <div className="min-w-0 flex-1">
+          <Link
+            href={gamePath(tournament.inviteCode)}
+            className="text-base font-medium leading-snug text-white hover:text-brand-lime"
+          >
+            {tournament.title}
+          </Link>
+          {tournament.sourceLabel ? (
+            <p className="mt-1 text-sm leading-snug text-brand-muted">
+              {tournament.sourceLabel}
+            </p>
+          ) : null}
+        </div>
         {tournament.isActive ? (
           <span className="shrink-0 rounded-md border border-brand-lime/70 bg-brand-lime/10 px-2 py-0.5 text-xs font-medium text-brand-lime">
             Текущий турнир

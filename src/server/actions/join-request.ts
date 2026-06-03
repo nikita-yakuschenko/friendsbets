@@ -111,6 +111,7 @@ export async function requestJoinGameAction(
 }
 
 function revalidateNotificationsPaths(gameInviteCode: string) {
+  revalidatePath("/", "layout");
   revalidatePath(`/game/${gameInviteCode}/more/notifications`);
   revalidatePath(`/game/${gameInviteCode}/more`);
 }

@@ -21,8 +21,11 @@ import {
   recalculateMatchScoresForTournament,
   userCanManageTournament,
 } from "@/lib/template-match-admin";
+import { parseChampionatTournamentUrl } from "@/lib/championat-url";
 import { getChampionatSyncConfig } from "@/lib/football-api/client";
-import { syncMatches } from "@/lib/football-api/sync";
+import { syncChampionatTournament, syncMatches } from "@/lib/football-api/sync";
+import { ensureChampionatTournament } from "@/lib/tournament-setup";
+import { getTournamentTemplateRecord } from "@/lib/tournament-templates";
 import { listTournamentTemplatesForUi } from "@/lib/tournament-templates";
 import { getEmailDeliveryMode, sendEmail } from "@/lib/email";
 import { buildTestEmailContent } from "@/lib/email/templates";
@@ -87,6 +90,66 @@ export async function updateMatchResultAction(
   }
 
   return { success: true };
+}
+
+export async function syncTemplateChampionatAction(
+  templateId: string,
+): Promise<
+  ActionResult & {
+    created?: number;
+    updated?: number;
+    teamsCreated?: number;
+    teamsUpdated?: number;
+    venuesUpdated?: number;
+    total?: number;
+  }
+> {
+  const session = await requireAuth();
+  if (!isSuperadmin(session.role)) {
+    return { error: "Нет доступа." };
+  }
+
+  const template = await getTournamentTemplateRecord(templateId);
+  if (!template) {
+    return { error: "Шаблон не найден." };
+  }
+
+  const parsed = parseChampionatTournamentUrl(template.championatUrl);
+  if (!parsed) {
+    return { error: "В шаблоне неверная ссылка Championat." };
+  }
+
+  try {
+    let tournament = await prisma.tournament.findUnique({
+      where: { externalId: parsed.tournamentExternalId },
+    });
+
+    if (!tournament) {
+      const ensured = await ensureChampionatTournament(parsed);
+      tournament = await prisma.tournament.findUnique({
+        where: { id: ensured.id },
+      });
+    }
+
+    if (!tournament) {
+      return { error: "Не удалось создать турнир в базе." };
+    }
+
+    const result = await syncChampionatTournament(tournament.id, parsed, {
+      enrichVenues: true,
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/", "layout");
+
+    return { success: true, ...result };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Не удалось синхронизировать календарь шаблона.";
+    return { error: message };
+  }
 }
 
 export async function syncChampionatMatchesAction(): Promise<

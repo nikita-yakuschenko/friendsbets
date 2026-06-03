@@ -1,18 +1,29 @@
-import {
-  GameJoinRequestStatus,
-  UserNotificationKind,
-} from "@/generated/prisma/client";
+import { UserNotificationKind } from "@/generated/prisma/client";
 import { getGameOrganizerUserIds } from "@/lib/game-organizer-users";
+import {
+  formatNotificationMessage,
+  notificationHref,
+  type UnreadNotificationPreview,
+} from "@/lib/notification-preview";
+import type {
+  GameJoinRequestStatusValue,
+  UserNotificationKindValue,
+} from "@/lib/notification-types";
 import { prisma } from "@/lib/db";
+
+export type UnreadNotificationSnapshot = {
+  count: number;
+  latest: UnreadNotificationPreview | null;
+};
 
 export type NotificationListItem = {
   id: string;
-  kind: UserNotificationKind;
+  kind: UserNotificationKindValue;
   readAt: string | null;
   createdAt: string;
   joinRequest: {
     id: string;
-    status: GameJoinRequestStatus;
+    status: GameJoinRequestStatusValue;
     game: { id: string; title: string; inviteCode: string };
     user: { id: string; name: string };
   } | null;
@@ -22,6 +33,47 @@ export async function countUnreadNotifications(userId: string): Promise<number> 
   return prisma.userNotification.count({
     where: { userId, readAt: null },
   });
+}
+
+export async function getUnreadNotificationSnapshot(
+  userId: string,
+): Promise<UnreadNotificationSnapshot> {
+  const [count, row] = await Promise.all([
+    countUnreadNotifications(userId),
+    prisma.userNotification.findFirst({
+      where: { userId, readAt: null },
+      orderBy: { createdAt: "desc" },
+      include: {
+        joinRequest: {
+          include: {
+            game: { select: { title: true, inviteCode: true } },
+            user: { select: { name: true } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  if (!row) {
+    return { count, latest: null };
+  }
+
+  const inviteCode = row.joinRequest?.game.inviteCode;
+  const gameTitle = row.joinRequest?.game.title;
+
+  return {
+    count,
+    latest: {
+      id: row.id,
+      kind: row.kind,
+      message: formatNotificationMessage({
+        kind: row.kind,
+        applicantName: row.joinRequest?.user.name,
+        gameTitle,
+      }),
+      href: inviteCode ? notificationHref(inviteCode) : "/",
+    },
+  };
 }
 
 export async function listUserNotifications(

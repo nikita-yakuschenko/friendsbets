@@ -29,6 +29,13 @@ import {
   enrichChampionatTournamentVenues,
   ensureChampionatTournament,
 } from "@/lib/tournament-setup";
+import {
+  parseChampionatTournamentUrl,
+  type ParsedChampionatTournamentUrl,
+} from "@/lib/championat-url";
+import {
+  getTournamentTemplateRecord,
+} from "@/lib/tournament-templates";
 import type { ActionResult } from "@/server/actions/auth";
 
 export async function getCreateGameFormData() {
@@ -89,6 +96,7 @@ export async function createGameAction(
 
   let tournamentId: string;
   let matchCount = 0;
+  let championatBackgroundSync: ParsedChampionatTournamentUrl | null = null;
 
   if (createMode === "template") {
     const templateId = String(formData.get("tournamentTemplateId") ?? "").trim();
@@ -98,6 +106,10 @@ export async function createGameAction(
     }
     tournamentId = linked.tournamentId;
     matchCount = linked.matchCount;
+    const template = await getTournamentTemplateRecord(templateId);
+    championatBackgroundSync = template
+      ? parseChampionatTournamentUrl(template.championatUrl)
+      : null;
     console.info(
       `[create-tournament] template link user=${session.id} matches=${matchCount}`,
     );
@@ -142,7 +154,7 @@ export async function createGameAction(
         `[create-tournament] championat ready matches=${matchCount} tournamentId=${tournamentId}`,
       );
 
-      after(() => enrichChampionatTournamentVenues(tournamentId, parsedUrl));
+      championatBackgroundSync = parsedUrl;
     } catch (error) {
       console.error("[create-tournament] championat failed", error);
       const message =
@@ -184,6 +196,11 @@ export async function createGameAction(
       },
     },
   });
+
+  if (championatBackgroundSync) {
+    const source = championatBackgroundSync;
+    after(() => enrichChampionatTournamentVenues(tournamentId, source));
+  }
 
   console.info(
     `[create-tournament] done slug=${game.slug} invite=${game.inviteCode} matches=${matchCount}`,

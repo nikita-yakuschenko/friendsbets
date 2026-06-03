@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { GameAccessMode, GameJoinRequestStatus } from "@/generated/prisma/client";
+import { GAME_ACCESS_MODE } from "@/lib/game-access-mode";
+import { GAME_JOIN_REQUEST_STATUS } from "@/lib/notification-types";
 import { JoinGamePreviewCard } from "@/components/game/join-game-preview-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -57,7 +58,7 @@ export function JoinGameForm({
     if (!requestState?.success) return;
     setPreview((current) =>
       current
-        ? { ...current, joinRequestStatus: GameJoinRequestStatus.PENDING }
+        ? { ...current, joinRequestStatus: GAME_JOIN_REQUEST_STATUS.PENDING }
         : current,
     );
   }, [requestState?.success]);
@@ -67,9 +68,9 @@ export function JoinGameForm({
     setInviteInput("");
   };
 
-  const isRequestMode = preview?.accessMode === GameAccessMode.REQUEST;
+  const isRequestMode = preview?.accessMode === GAME_ACCESS_MODE.REQUEST;
   const requestPendingStatus =
-    preview?.joinRequestStatus === GameJoinRequestStatus.PENDING;
+    preview?.joinRequestStatus === GAME_JOIN_REQUEST_STATUS.PENDING;
   const canSendRequest =
     isRequestMode &&
     !preview?.alreadyMember &&

@@ -8,8 +8,11 @@ import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { generateRandomInviteCode } from "@/lib/invite-code";
-import { GameAccessMode } from "@/generated/prisma/client";
-import { GAME_ACCESS_MODE_LABELS } from "@/lib/game-access-mode";
+import {
+  GAME_ACCESS_MODE,
+  GAME_ACCESS_MODE_LABELS,
+  type GameAccessModeValue,
+} from "@/lib/game-access-mode";
 import type { CreateGameMode } from "@/lib/tournament-templates";
 import { ScoringRuleDescription } from "@/components/scoring/scoring-rule-description";
 import { cn } from "@/lib/utils";
@@ -55,7 +58,9 @@ export function CreateGameForm({
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [scoringRuleId, setScoringRuleId] = useState(scoringRules[0]?.id ?? "");
   const [inviteCode, setInviteCode] = useState(() => generateRandomInviteCode());
-  const [accessMode, setAccessMode] = useState<GameAccessMode>(GameAccessMode.OPEN);
+  const [accessMode, setAccessMode] = useState<GameAccessModeValue>(
+    GAME_ACCESS_MODE.OPEN,
+  );
 
   const selectedRule = scoringRules.find((rule) => rule.id === scoringRuleId);
   const selectedTemplate = tournamentTemplates.find((t) => t.id === templateId);
@@ -260,31 +265,31 @@ export function CreateGameForm({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setAccessMode(GameAccessMode.OPEN)}
+            onClick={() => setAccessMode(GAME_ACCESS_MODE.OPEN)}
             className={cn(
               "flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors",
-              accessMode === GameAccessMode.OPEN
+              accessMode === GAME_ACCESS_MODE.OPEN
                 ? "border-brand-lime bg-brand-lime/10 text-white"
                 : "border-brand-neutral text-brand-muted hover:border-brand-neutral/80",
             )}
           >
-            {GAME_ACCESS_MODE_LABELS[GameAccessMode.OPEN]}
+            {GAME_ACCESS_MODE_LABELS[GAME_ACCESS_MODE.OPEN]}
           </button>
           <button
             type="button"
-            onClick={() => setAccessMode(GameAccessMode.REQUEST)}
+            onClick={() => setAccessMode(GAME_ACCESS_MODE.REQUEST)}
             className={cn(
               "flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors",
-              accessMode === GameAccessMode.REQUEST
+              accessMode === GAME_ACCESS_MODE.REQUEST
                 ? "border-brand-lime bg-brand-lime/10 text-white"
                 : "border-brand-neutral text-brand-muted hover:border-brand-neutral/80",
             )}
           >
-            {GAME_ACCESS_MODE_LABELS[GameAccessMode.REQUEST]}
+            {GAME_ACCESS_MODE_LABELS[GAME_ACCESS_MODE.REQUEST]}
           </button>
         </div>
         <p className="text-xs text-brand-muted">
-          {accessMode === GameAccessMode.OPEN
+          {accessMode === GAME_ACCESS_MODE.OPEN
             ? "Участники вступают сразу по invite-коду."
             : "Участники отправляют заявку; вы принимаете или отклоняете её в уведомлениях."}
         </p>

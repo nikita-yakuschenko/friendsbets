@@ -45,7 +45,7 @@ function TeamFlag({
   );
 }
 
-function FloatingPredictionNotice({
+export function FloatingPredictionNotice({
   hasPrediction,
   prediction,
   match,

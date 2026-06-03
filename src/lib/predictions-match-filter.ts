@@ -28,6 +28,29 @@ export const PREDICTIONS_FILTER_EMPTY: Record<PredictionsFilterId, string> = {
   all: "Матчей пока нет.",
 };
 
+export function resolvePredictionsEmptyMessage(
+  filter: PredictionsFilterId,
+  items: Array<{ match: MatchPredictionStateInput }>,
+): string {
+  if (filter !== "upcoming") {
+    return PREDICTIONS_FILTER_EMPTY[filter];
+  }
+
+  if (items.length === 0) {
+    return "Календарь не загружен. Организатору: дождитесь синхронизации Championat или обновите шаблон в админке («Матчи и результаты» → «Обновить с Championat»).";
+  }
+
+  const hasUpcoming = items.some((item) =>
+    matchPredictionsFilter(item.match, "upcoming"),
+  );
+
+  if (!hasUpcoming) {
+    return "Все матчи турнира уже завершены или перенесены. Откройте вкладки «Завершённые» или «Все».";
+  }
+
+  return PREDICTIONS_FILTER_EMPTY.upcoming;
+}
+
 export function parsePredictionsFilter(
   raw: string | undefined,
 ): PredictionsFilterId {

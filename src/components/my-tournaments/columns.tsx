@@ -60,7 +60,8 @@ export const myTournamentsColumns: ColumnDef<MyTournamentRow>[] = [
       const game = row.original;
       return (
         game.title.toLowerCase().includes(query) ||
-        game.inviteCode.toLowerCase().includes(query)
+        game.inviteCode.toLowerCase().includes(query) ||
+        (game.sourceLabel?.toLowerCase().includes(query) ?? false)
       );
     },
     cell: ({ row }) => {
@@ -68,6 +69,9 @@ export const myTournamentsColumns: ColumnDef<MyTournamentRow>[] = [
       return (
         <div>
           <div className="font-medium text-white">{game.title}</div>
+          {game.sourceLabel ? (
+            <p className="mt-1 text-sm text-brand-muted">{game.sourceLabel}</p>
+          ) : null}
           {game.isActive ? (
             <span className="mt-1.5 inline-block rounded-md bg-brand-lime/15 px-2 py-0.5 text-xs font-medium text-brand-lime">
               Текущий турнир

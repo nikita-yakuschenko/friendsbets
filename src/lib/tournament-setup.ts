@@ -7,26 +7,13 @@ import {
 } from "@/lib/football-api/sync";
 import { prisma } from "@/lib/db";
 
-const FETCH_USER_AGENT =
-  "FriendsBets/1.0 (+https://github.com/friendsbets; tournament setup)";
-
-const TITLE_FETCH_TIMEOUT_MS = 8_000;
+import { fetchChampionatHtml } from "@/lib/football-api/championat/fetch-html";
 
 async function fetchChampionatTournamentTitle(
   calendarUrl: string,
 ): Promise<string | null> {
   try {
-    const response = await fetch(calendarUrl, {
-      headers: {
-        "User-Agent": FETCH_USER_AGENT,
-        Accept: "text/html,application/xhtml+xml",
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(TITLE_FETCH_TIMEOUT_MS),
-    });
-    if (!response.ok) return null;
-
-    const html = await response.text();
+    const html = await fetchChampionatHtml(calendarUrl, { timeoutMs: 8_000 });
     const h1 = html.match(/<h1[^>]*>([^<]+)</i)?.[1];
     if (!h1) return null;
 

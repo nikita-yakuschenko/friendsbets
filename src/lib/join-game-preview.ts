@@ -1,8 +1,6 @@
-import {
-  GameAccessMode,
-  GameJoinRequestStatus,
-  GameParticipantRole,
-} from "@/generated/prisma/client";
+import { GameParticipantRole } from "@/generated/prisma/client";
+import type { GameAccessModeValue } from "@/lib/game-access-mode";
+import type { GameJoinRequestStatusValue } from "@/lib/notification-types";
 import { findGameByInviteCode } from "@/lib/game-invite";
 import {
   formatGameOrganizersLine,
@@ -22,8 +20,8 @@ export type GameJoinPreview = {
   scoringRuleTitle: string;
   participantsCount: number;
   alreadyMember: boolean;
-  accessMode: GameAccessMode;
-  joinRequestStatus: GameJoinRequestStatus | null;
+  accessMode: GameAccessModeValue;
+  joinRequestStatus: GameJoinRequestStatusValue | null;
 };
 
 export async function resolveGameJoinPreview(

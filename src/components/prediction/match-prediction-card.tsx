@@ -1,9 +1,14 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { LiveBadge } from "@/components/game/live-badge";
 import { Badge } from "@/components/ui/badge";
+import type {
+  ChampionatLivePhase,
+  ChampionatLiveStatus,
+} from "@/lib/football-api/championat/match-live-status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +20,7 @@ import type { ActionResult } from "@/server/actions/auth";
 
 /** Одна ширина для «Сделать прогноз», «Изменить прогноз» и «Сохранить». */
 const matchActionButtonClassName = "w-[14.5rem] max-w-full shrink-0";
+const LIVE_POLL_MS = 30_000;
 
 type MatchCardProps = {
   gameId: string;
@@ -72,16 +78,30 @@ function ScoreRow({
   editing,
   fieldErrors,
   onScoreChange,
+  liveScores,
 }: {
   match: MatchCardProps["match"];
   prediction: MatchCardProps["prediction"];
   editing: boolean;
   fieldErrors?: { home: boolean; away: boolean };
   onScoreChange?: () => void;
+  liveScores?: { home: number | null; away: number | null };
 }) {
-  const homeValue = prediction ? prediction.homeScore : "—";
-  const awayValue = prediction ? prediction.awayScore : "—";
-  const emptyScore = !prediction;
+  const useLive = Boolean(liveScores) && !editing;
+  const homeValue = useLive
+    ? liveScores!.home ?? "—"
+    : prediction
+      ? prediction.homeScore
+      : "—";
+  const awayValue = useLive
+    ? liveScores!.away ?? "—"
+    : prediction
+      ? prediction.awayScore
+      : "—";
+  const emptyScore =
+    useLive
+      ? liveScores!.home === null || liveScores!.away === null
+      : !prediction;
 
   return (
     <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_auto_auto_minmax(0,1fr)] items-center gap-x-1 gap-y-0.5 py-1">
@@ -205,12 +225,54 @@ export function MatchPredictionCard({
 }: MatchCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({ home: false, away: false });
+  const [liveHome, setLiveHome] = useState<number | null>(match.homeScore);
+  const [liveAway, setLiveAway] = useState<number | null>(match.awayScore);
+  const [livePhase, setLivePhase] = useState<ChampionatLivePhase>("live");
+  const [liveStatus, setLiveStatus] = useState<ChampionatLiveStatus>({
+    phase: "live",
+    rawText: "",
+  });
   const [state, formAction, pending] = useActionState<
     ActionResult | undefined,
     FormData
   >(savePredictionAction, undefined);
 
   const clearFieldErrors = () => setFieldErrors({ home: false, away: false });
+
+  const fetchLiveScore = useCallback(async () => {
+    if (!inProgress) return;
+    try {
+      const res = await fetch(`/api/matches/${match.id}/championat-events`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        homeScore?: number | null;
+        awayScore?: number | null;
+        livePhase?: ChampionatLivePhase;
+        liveStatus?: ChampionatLiveStatus;
+      };
+      if (data.liveStatus) {
+        setLiveStatus(data.liveStatus);
+        setLivePhase(data.liveStatus.phase);
+      } else if (data.livePhase) {
+        setLivePhase(data.livePhase);
+      }
+      if (data.homeScore != null && data.awayScore != null) {
+        setLiveHome(data.homeScore);
+        setLiveAway(data.awayScore);
+      }
+    } catch {
+      /* оставляем последний счёт */
+    }
+  }, [inProgress, match.id]);
+
+  useEffect(() => {
+    if (!inProgress) return;
+    void fetchLiveScore();
+    const interval = window.setInterval(() => void fetchLiveScore(), LIVE_POLL_MS);
+    return () => window.clearInterval(interval);
+  }, [inProgress, fetchLiveScore]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
@@ -279,20 +341,29 @@ export function MatchPredictionCard({
       ? "Матч перенесён"
       : awaitingTeams
         ? "Команды неизвестны"
-        : inProgress
-          ? match.status === "LIVE"
-            ? "Идёт сейчас"
-            : "Матч начался"
-          : locked
-            ? "Матч начался"
-            : prediction
-              ? "Прогноз принят"
-              : "Прогноз не сделан";
+        : locked
+          ? "Матч начался"
+          : prediction
+            ? "Прогноз принят"
+            : "Прогноз не сделан";
 
-  return (
-    <Card className="w-full min-w-0 max-w-full overflow-hidden p-0">
-      <CardHeader className="flex justify-end px-3 pb-0 pt-3 sm:px-4">
-        <Badge variant={statusBadge}>{statusText}</Badge>
+  const liveScores = inProgress
+    ? { home: liveHome, away: liveAway }
+    : undefined;
+
+  const cardInner = (
+    <>
+      <CardHeader
+        className={cn(
+          "flex px-3 pb-0 pt-3 sm:px-4",
+          inProgress ? "justify-start" : "justify-end",
+        )}
+      >
+        {inProgress ? (
+          <LiveBadge status={liveStatus} />
+        ) : (
+          <Badge variant={statusBadge}>{statusText}</Badge>
+        )}
       </CardHeader>
 
       <CardContent className="min-w-0 space-y-3 px-3 pb-4 pt-1 sm:px-4">
@@ -351,8 +422,13 @@ export function MatchPredictionCard({
             </div>
           )
         ) : (
-          <div className="space-y-3">
-            <ScoreRow match={match} prediction={prediction} editing={false} />
+            <div className="space-y-3">
+            <ScoreRow
+              match={match}
+              prediction={prediction}
+              editing={false}
+              liveScores={liveScores}
+            />
             <MatchMeta
               startsAt={match.startsAt}
               venueName={match.venueName}
@@ -365,22 +441,43 @@ export function MatchPredictionCard({
               </p>
             )}
             {!prediction && locked && !isFinished && !isPostponed && !awaitingTeams && (
-              <p className="text-center text-sm text-brand-muted">Прогноз не сделан</p>
-            )}
-            {inProgress && liveHref ? (
-              <p className="text-center text-sm">
-                <Link
-                  href={liveHref}
-                  className="font-medium text-brand-lime underline-offset-2 hover:underline"
-                >
-                  Смотреть в Лайв
-                </Link>
+              <p
+                className={cn(
+                  "text-center text-sm",
+                  inProgress ? "font-medium text-brand-red" : "text-brand-muted",
+                )}
+              >
+                Прогноз не сделан
               </p>
-            ) : null}
+            )}
             {isFinished && <FinishedMatchSummary match={match} points={points} />}
           </div>
         )}
       </CardContent>
+    </>
+  );
+
+  if (inProgress && liveHref) {
+    return (
+      <Link
+        href={liveHref}
+        className="block w-full min-w-0 max-w-full rounded-2xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime"
+      >
+        <Card
+          className={cn(
+            "w-full min-w-0 max-w-full overflow-hidden border-brand-lime/25 p-0",
+            liveStatus.phase === "halftime" && "border-brand-neutral/50",
+          )}
+        >
+          {cardInner}
+        </Card>
+      </Link>
+    );
+  }
+
+  return (
+    <Card className="w-full min-w-0 max-w-full overflow-hidden p-0">
+      {cardInner}
     </Card>
   );
 }

@@ -33,11 +33,9 @@ export default async function GameMorePage({
   const items: GameMoreMenuItem[] = [
     {
       href: gamePath(routeParam, "more/notifications"),
-      label:
-        unreadNotifications > 0
-          ? `Уведомления (${unreadNotifications})`
-          : "Уведомления",
+      label: "Уведомления",
       icon: IconBell,
+      badgeCount: unreadNotifications > 0 ? unreadNotifications : undefined,
     },
     {
       href: "/profile",

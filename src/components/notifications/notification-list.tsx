@@ -3,11 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { GameJoinRequestStatus, UserNotificationKind } from "@/generated/prisma/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { gamePath } from "@/lib/game-path";
 import type { NotificationListItem } from "@/lib/notifications";
+import {
+  GAME_JOIN_REQUEST_STATUS,
+  USER_NOTIFICATION_KIND,
+} from "@/lib/notification-types";
+import { useNotificationUnread } from "@/components/notifications/notification-unread-provider";
 import { respondToJoinRequestAction } from "@/server/actions/join-request";
 import Link from "next/link";
 
@@ -28,9 +32,10 @@ function JoinRequestReceivedCard({
   };
 }) {
   const router = useRouter();
+  const { refreshUnread } = useNotificationUnread();
   const [pending, startTransition] = useTransition();
   const { joinRequest } = item;
-  const isPending = joinRequest.status === GameJoinRequestStatus.PENDING;
+  const isPending = joinRequest.status === GAME_JOIN_REQUEST_STATUS.PENDING;
 
   function respond(decision: "approve" | "reject") {
     startTransition(async () => {
@@ -41,6 +46,7 @@ function JoinRequestReceivedCard({
       }
       toast.success(result.message ?? "Готово");
       router.refresh();
+      await refreshUnread();
     });
   }
 
@@ -79,7 +85,7 @@ function JoinRequestReceivedCard({
           </div>
         ) : (
           <p className="text-xs text-brand-muted">
-            {joinRequest.status === GameJoinRequestStatus.APPROVED
+            {joinRequest.status === GAME_JOIN_REQUEST_STATUS.APPROVED
               ? "Заявка принята"
               : "Заявка отклонена"}
           </p>
@@ -123,7 +129,7 @@ export function NotificationList({ items }: { items: NotificationListItem[] }) {
     <ul className="space-y-3">
       {items.map((item) => {
         if (
-          item.kind === UserNotificationKind.JOIN_REQUEST_RECEIVED &&
+          item.kind === USER_NOTIFICATION_KIND.JOIN_REQUEST_RECEIVED &&
           item.joinRequest
         ) {
           return (
@@ -145,7 +151,7 @@ export function NotificationList({ items }: { items: NotificationListItem[] }) {
 
         const { joinRequest } = item;
 
-        if (item.kind === UserNotificationKind.JOIN_REQUEST_APPROVED) {
+        if (item.kind === USER_NOTIFICATION_KIND.JOIN_REQUEST_APPROVED) {
           return (
             <li key={item.id}>
               <NotificationMessageCard item={item}>
@@ -161,7 +167,7 @@ export function NotificationList({ items }: { items: NotificationListItem[] }) {
           );
         }
 
-        if (item.kind === UserNotificationKind.JOIN_REQUEST_REJECTED) {
+        if (item.kind === USER_NOTIFICATION_KIND.JOIN_REQUEST_REJECTED) {
           return (
             <li key={item.id}>
               <NotificationMessageCard item={item}>
