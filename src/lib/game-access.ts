@@ -159,6 +159,12 @@ export async function getUserGames(userId: string) {
         include: {
           tournament: true,
           scoringRule: true,
+          createdBy: { select: { name: true } },
+          participants: {
+            where: { role: GameParticipantRole.ORGANIZER },
+            orderBy: { joinedAt: "asc" },
+            select: { displayName: true },
+          },
           _count: { select: { participants: true } },
         },
       },

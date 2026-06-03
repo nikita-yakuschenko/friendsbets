@@ -8,6 +8,8 @@ import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { generateRandomInviteCode } from "@/lib/invite-code";
+import { GameAccessMode } from "@/generated/prisma/client";
+import { GAME_ACCESS_MODE_LABELS } from "@/lib/game-access-mode";
 import type { CreateGameMode } from "@/lib/tournament-templates";
 import { ScoringRuleDescription } from "@/components/scoring/scoring-rule-description";
 import { cn } from "@/lib/utils";
@@ -53,6 +55,7 @@ export function CreateGameForm({
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [scoringRuleId, setScoringRuleId] = useState(scoringRules[0]?.id ?? "");
   const [inviteCode, setInviteCode] = useState(() => generateRandomInviteCode());
+  const [accessMode, setAccessMode] = useState<GameAccessMode>(GameAccessMode.OPEN);
 
   const selectedRule = scoringRules.find((rule) => rule.id === scoringRuleId);
   const selectedTemplate = tournamentTemplates.find((t) => t.id === templateId);
@@ -72,7 +75,7 @@ export function CreateGameForm({
               </p>
               <p>
                 <Link href="/admin" className="font-semibold text-brand-cyan hover:underline">
-                  Админка платформы
+                  Платформа
                 </Link>
                 {" · "}
                 <button
@@ -115,6 +118,7 @@ export function CreateGameForm({
       )}
 
       <input type="hidden" name="createMode" value={createMode} />
+      <input type="hidden" name="accessMode" value={accessMode} />
 
       <div className="space-y-2">
         <Label htmlFor="title">Название турнира</Label>
@@ -249,6 +253,41 @@ export function CreateGameForm({
             </div>
           </div>
         )}
+      </div>
+
+      <div className="space-y-3">
+        <Label>Доступ в турнир</Label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setAccessMode(GameAccessMode.OPEN)}
+            className={cn(
+              "flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors",
+              accessMode === GameAccessMode.OPEN
+                ? "border-brand-lime bg-brand-lime/10 text-white"
+                : "border-brand-neutral text-brand-muted hover:border-brand-neutral/80",
+            )}
+          >
+            {GAME_ACCESS_MODE_LABELS[GameAccessMode.OPEN]}
+          </button>
+          <button
+            type="button"
+            onClick={() => setAccessMode(GameAccessMode.REQUEST)}
+            className={cn(
+              "flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors",
+              accessMode === GameAccessMode.REQUEST
+                ? "border-brand-lime bg-brand-lime/10 text-white"
+                : "border-brand-neutral text-brand-muted hover:border-brand-neutral/80",
+            )}
+          >
+            {GAME_ACCESS_MODE_LABELS[GameAccessMode.REQUEST]}
+          </button>
+        </div>
+        <p className="text-xs text-brand-muted">
+          {accessMode === GameAccessMode.OPEN
+            ? "Участники вступают сразу по invite-коду."
+            : "Участники отправляют заявку; вы принимаете или отклоняете её в уведомлениях."}
+        </p>
       </div>
 
       <div className="space-y-2">

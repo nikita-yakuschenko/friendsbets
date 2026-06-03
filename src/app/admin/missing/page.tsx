@@ -6,7 +6,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { ADMIN_LIST_EMPTY_CLASS } from "@/components/admin/admin-detail-row";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/roles";
@@ -93,13 +93,11 @@ export default async function AdminMissingPage({
         )}
 
         {items.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-brand-muted">
-              Нет предстоящих матчей или все сделали прогнозы.
-            </CardContent>
-          </Card>
+          <p className={ADMIN_LIST_EMPTY_CLASS}>
+            Нет предстоящих матчей или все сделали прогнозы.
+          </p>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {items.map((item) => (
               <MissingPredictionCard
                 key={item.match.id}

@@ -38,12 +38,7 @@ export default async function AdminPage({
       <AppShell user={session}>
         <ContentContainer>
           <PageHeader
-            title={isPlatformSuperadmin ? "Админка платформы" : "Управление турниром"}
-            description={
-              isPlatformSuperadmin
-                ? "Все турниры, игры, матчи и интеграции сервиса."
-                : "Создайте турнир, чтобы управлять прогнозами и участниками."
-            }
+            title={isPlatformSuperadmin ? "Платформа" : "Управление турниром"}
           />
           <NoGamesPrompt />
         </ContentContainer>
@@ -75,17 +70,21 @@ export default async function AdminPage({
     >
       <ContentContainer>
         <PageHeader
-          title={isPlatformSuperadmin ? "Админка платформы" : "Управление турниром"}
-          description={
-            isPlatformSuperadmin
-              ? "Полный доступ ко всем турнирам, играм, матчам и интеграциям."
-              : "Ваши турниры: участники, матчи и результаты. Интеграции Championat — только у суперадмина."
-          }
+          title={isPlatformSuperadmin ? "Платформа" : "Управление турниром"}
         />
 
         <AdminTabNav activeTab={activeTab} tabs={adminTabs} />
 
-        {activeTab === "users" && users && <AdminUsersPanel users={users} />}
+        {activeTab === "users" && users && (
+          <AdminUsersPanel
+            users={users}
+            games={data.games.map((g) => ({
+              id: g.id,
+              title: g.title,
+              inviteCode: g.inviteCode,
+            }))}
+          />
+        )}
 
         {activeTab === "tournaments" && (
           <AdminTournamentsPanel
@@ -94,10 +93,19 @@ export default async function AdminPage({
           />
         )}
 
-        {activeTab === "games" && <AdminGamesPanel games={data.games} />}
+        {activeTab === "games" && (
+          <AdminGamesPanel
+            games={data.games}
+            platformOversightOpen={isPlatformSuperadmin}
+          />
+        )}
+
 
         {activeTab === "matches" && (
-          <AdminMatchesPanel matches={data.matches} defaultGameId={defaultGame?.id} />
+          <AdminMatchesPanel
+            matches={data.matches}
+            templates={data.templates}
+          />
         )}
 
         {activeTab === "integrations" && integration && (

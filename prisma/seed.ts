@@ -6,6 +6,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { parseChampionatTournamentUrl } from "../src/lib/championat-url";
 import { SYSTEM_TEMPLATE_WC_2026 } from "../src/lib/tournament-template-presets";
 import { ensureChampionatTournament } from "../src/lib/tournament-setup";
+import { getAdminEmail, getAdminPassword } from "../src/lib/admin-credentials";
 import { bootstrapEssentialData, removeLegacyDemoData } from "./seed-data";
 
 const pool = new Pool({
@@ -15,8 +16,8 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@friendsbets.local";
-  const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123456";
+  const adminEmail = getAdminEmail();
+  const adminPassword = getAdminPassword();
   const adminHash = await bcrypt.hash(adminPassword, 12);
 
   await removeLegacyDemoData(prisma);

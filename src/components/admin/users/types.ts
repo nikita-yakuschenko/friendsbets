@@ -6,6 +6,12 @@ export type AdminUserGameRef = {
   inviteCode: string;
 };
 
+export type AdminGameOption = {
+  id: string;
+  title: string;
+  inviteCode: string;
+};
+
 export type AdminUserRow = {
   id: string;
   email: string;

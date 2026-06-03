@@ -3,8 +3,10 @@ import { AdminGamesDataTable } from "@/components/admin/games/games-data-table";
 import type { AdminGameRow } from "@/components/admin/games/types";
 import { AdminPanelActions } from "@/components/admin/admin-panel-actions";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { gamePath } from "@/lib/game-path";
 import { buildRegisterInviteUrl } from "@/lib/game-invite";
+import { gamePlatformViewPath } from "@/lib/game-platform-view";
+import { formatGameOrganizersLine } from "@/lib/game-organizer";
 
 type AdminGame = {
   id: string;
@@ -12,24 +14,47 @@ type AdminGame = {
   inviteCode: string;
   createdAt: Date;
   scoringRule: { title: string };
+  createdBy: { name: string };
+  participants: Array<{ displayName: string }>;
   _count: { participants: number };
 };
 
-function toRows(games: AdminGame[]): AdminGameRow[] {
-  return games.map((game) => ({
-    id: game.id,
-    title: game.title,
-    inviteCode: game.inviteCode,
-    inviteLinkUrl: buildRegisterInviteUrl(game.inviteCode),
-    createdAt: game.createdAt.toISOString(),
-    scoringRuleTitle: game.scoringRule.title,
-    participantsCount: game._count.participants,
-  }));
+function toRows(games: AdminGame[], platformOversightOpen: boolean): AdminGameRow[] {
+  return games.map((game) => {
+    const organizerNames = game.participants
+      .map((p) => p.displayName.trim())
+      .filter(Boolean);
+    const organizers = formatGameOrganizersLine(
+      [...new Set(organizerNames)],
+    );
+
+    return {
+      id: game.id,
+      title: game.title,
+      inviteCode: game.inviteCode,
+      inviteLinkUrl: buildRegisterInviteUrl(game.inviteCode),
+      createdByName: game.createdBy.name,
+      organizerLabel: organizers.label,
+      organizerNames: organizers.text,
+      createdAt: game.createdAt.toISOString(),
+      scoringRuleTitle: game.scoringRule.title,
+      participantsCount: game._count.participants,
+      openHref: platformOversightOpen
+        ? gamePlatformViewPath(game.inviteCode)
+        : gamePath(game.inviteCode),
+    };
+  });
 }
 
-export function AdminGamesPanel({ games }: { games: AdminGame[] }) {
+export function AdminGamesPanel({
+  games,
+  platformOversightOpen = false,
+}: {
+  games: AdminGame[];
+  platformOversightOpen?: boolean;
+}) {
   const defaultGame = games[0];
-  const rows = toRows(games);
+  const rows = toRows(games, platformOversightOpen);
 
   return (
     <div className="space-y-4">
@@ -48,14 +73,7 @@ export function AdminGamesPanel({ games }: { games: AdminGame[] }) {
         ) : null}
       </AdminPanelActions>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Игры</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AdminGamesDataTable data={rows} />
-        </CardContent>
-      </Card>
+      <AdminGamesDataTable data={rows} />
     </div>
   );
 }

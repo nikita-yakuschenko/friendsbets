@@ -1,5 +1,13 @@
-import { GameParticipantRole } from "@/generated/prisma/client";
+import {
+  GameAccessMode,
+  GameJoinRequestStatus,
+  GameParticipantRole,
+} from "@/generated/prisma/client";
 import { findGameByInviteCode } from "@/lib/game-invite";
+import {
+  formatGameOrganizersLine,
+  getGameOrganizerDisplayNames,
+} from "@/lib/game-organizer";
 import { prisma } from "@/lib/db";
 import {
   normalizeInviteCodeInput,
@@ -14,6 +22,8 @@ export type GameJoinPreview = {
   scoringRuleTitle: string;
   participantsCount: number;
   alreadyMember: boolean;
+  accessMode: GameAccessMode;
+  joinRequestStatus: GameJoinRequestStatus | null;
 };
 
 export async function resolveGameJoinPreview(
@@ -35,12 +45,16 @@ export async function resolveGameJoinPreview(
 
   const details = await prisma.game.findUnique({
     where: { id: game.id },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      inviteCode: true,
+      accessMode: true,
       scoringRule: { select: { title: true } },
       createdBy: { select: { name: true } },
       participants: {
         where: { role: GameParticipantRole.ORGANIZER },
-        take: 1,
+        orderBy: { joinedAt: "asc" },
         select: { displayName: true },
       },
       _count: { select: { participants: true } },
@@ -51,15 +65,24 @@ export async function resolveGameJoinPreview(
     return { error: "Турнир с таким invite-кодом не найден. Проверьте код." };
   }
 
-  const existing = await prisma.gameParticipant.findUnique({
-    where: {
-      gameId_userId: { gameId: details.id, userId },
-    },
-    select: { id: true },
-  });
+  const [existing, joinRequest] = await Promise.all([
+    prisma.gameParticipant.findUnique({
+      where: {
+        gameId_userId: { gameId: details.id, userId },
+      },
+      select: { id: true },
+    }),
+    prisma.gameJoinRequest.findUnique({
+      where: {
+        gameId_userId: { gameId: details.id, userId },
+      },
+      select: { status: true },
+    }),
+  ]);
 
-  const organizerName =
-    details.participants[0]?.displayName ?? details.createdBy.name;
+  const organizerName = formatGameOrganizersLine(
+    getGameOrganizerDisplayNames(details),
+  ).text;
 
   return {
     preview: {
@@ -70,6 +93,8 @@ export async function resolveGameJoinPreview(
       scoringRuleTitle: details.scoringRule.title,
       participantsCount: details._count.participants,
       alreadyMember: existing !== null,
+      accessMode: details.accessMode,
+      joinRequestStatus: joinRequest?.status ?? null,
     },
   };
 }

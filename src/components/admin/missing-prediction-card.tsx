@@ -1,8 +1,14 @@
 "use client";
 
 import { CopyReminderButton } from "@/components/admin/copy-reminder-button";
+import {
+  AdminCardDetails,
+  AdminCardFooter,
+  AdminCardTitle,
+  AdminDetailRow,
+  AdminRecordCard,
+} from "@/components/admin/admin-detail-row";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
 
 type MissingCardProps = {
@@ -22,39 +28,47 @@ export function MissingPredictionCard({
   reminderText,
 }: MissingCardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle>
-              {match.homeTeam.name} — {match.awayTeam.name}
-            </CardTitle>
-            <p className="mt-1 text-sm text-brand-muted">
-              {formatDateTime(new Date(match.startsAt))}
-            </p>
-          </div>
-          <Badge variant="warning">
-            через {formatRelativeTime(new Date(match.startsAt))}
-          </Badge>
+    <AdminRecordCard>
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <AdminCardTitle>
+            {match.homeTeam.name} — {match.awayTeam.name}
+          </AdminCardTitle>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {missingParticipants.length === 0 ? (
-          <p className="text-sm text-brand-lime">Все участники сделали прогноз.</p>
-        ) : (
-          <ul className="space-y-2">
-            {missingParticipants.map((participant) => (
-              <li
-                key={participant.displayName}
-                className="rounded-xl bg-brand-bg px-3 py-2 text-sm text-white"
-              >
-                {participant.displayName}
-              </li>
-            ))}
-          </ul>
-        )}
-        <CopyReminderButton text={reminderText} />
-      </CardContent>
-    </Card>
+        <Badge variant="warning" className="shrink-0">
+          через {formatRelativeTime(new Date(match.startsAt))}
+        </Badge>
+      </header>
+
+      <AdminCardDetails>
+        <AdminDetailRow label="Начало">
+          <span className="text-brand-muted tabular-nums">
+            {formatDateTime(new Date(match.startsAt))}
+          </span>
+        </AdminDetailRow>
+        <AdminDetailRow label="Без прогноза">
+          {missingParticipants.length === 0 ? (
+            <span className="text-brand-lime">Все поставили</span>
+          ) : (
+            <ul className="flex flex-wrap gap-1.5">
+              {missingParticipants.map((participant) => (
+                <li
+                  key={participant.displayName}
+                  className="rounded-md border border-brand-neutral/80 bg-brand-surface px-2 py-0.5 text-white"
+                >
+                  {participant.displayName}
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminDetailRow>
+      </AdminCardDetails>
+
+      {missingParticipants.length > 0 ? (
+        <AdminCardFooter>
+          <CopyReminderButton text={reminderText} />
+        </AdminCardFooter>
+      ) : null}
+    </AdminRecordCard>
   );
 }

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { GameOversightBanner } from "@/components/game/game-oversight-banner";
-import { OversightBackLink } from "@/components/game/oversight-back-link";
+import { PlatformOversightBackButton } from "@/components/game/platform-oversight-back-button";
 import { LiveMatchCard } from "@/components/game/live-match-card";
 import { NextMatchEmpty, NextMatchPreview } from "@/components/game/next-match-preview";
 import { ContentContainer } from "@/components/layout/content-container";
@@ -35,12 +35,11 @@ export default async function LivePage({
     return (
       <ContentContainer>
         <PageHeader
-          title="Лайв"
-          action={
-            <OversightBackLink inviteCode={view.access.game.inviteCode} />
-          }
+          title={view.access.game.title}
+          keepTitleOnDesktop
+          action={<PlatformOversightBackButton />}
         />
-        <GameOversightBanner inviteCode={view.access.game.inviteCode} />
+        <GameOversightBanner />
         {items.length > 0 ? (
           <div className="space-y-4">
             {items.map(({ match, friendPredictions, stats }) => (

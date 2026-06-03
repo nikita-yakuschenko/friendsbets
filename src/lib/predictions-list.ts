@@ -1,3 +1,5 @@
+import type { PredictionsFilterId } from "@/lib/predictions-match-filter";
+
 export type PredictionMatchRow = {
   id: string;
   startsAt: Date;
@@ -17,8 +19,45 @@ export type PredictionMatchItem = {
   prediction: { homeScore: number; awayScore: number } | null;
   locked: boolean;
   postponed: boolean;
+  inProgress: boolean;
   points: number;
 };
+
+/** Идущие отдельно сверху страницы; остальные — в группах по турам. */
+export function partitionUpcomingPredictionItems(
+  items: PredictionMatchItem[],
+): {
+  inProgress: PredictionMatchItem[];
+  upcoming: PredictionMatchItem[];
+} {
+  const inProgress: PredictionMatchItem[] = [];
+  const upcoming: PredictionMatchItem[] = [];
+
+  for (const item of items) {
+    if (item.inProgress) inProgress.push(item);
+    else upcoming.push(item);
+  }
+
+  const byStartDesc = (a: PredictionMatchItem, b: PredictionMatchItem) =>
+    new Date(b.match.startsAt).getTime() -
+    new Date(a.match.startsAt).getTime();
+  const byStartAsc = (a: PredictionMatchItem, b: PredictionMatchItem) =>
+    new Date(a.match.startsAt).getTime() -
+    new Date(b.match.startsAt).getTime();
+
+  inProgress.sort(byStartDesc);
+  upcoming.sort(byStartAsc);
+
+  return { inProgress, upcoming };
+}
+
+export function sortPredictionItemsForFilter(
+  items: PredictionMatchItem[],
+  filter: PredictionsFilterId,
+): PredictionMatchItem[] {
+  if (filter !== "upcoming") return items;
+  return partitionUpcomingPredictionItems(items).upcoming;
+}
 
 export function buildPredictionStageGroups(items: PredictionMatchItem[]) {
   const byStage = new Map<string, PredictionMatchItem[]>();

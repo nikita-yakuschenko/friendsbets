@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { GameParticipantRole } from "@/generated/prisma/client";
+import { parseGameAccessModeInput } from "@/lib/game-access-mode";
 import { requireAuth } from "@/lib/auth";
 import {
   linkTournamentFromTemplate,
@@ -69,6 +70,9 @@ export async function createGameAction(
   }
 
   const createMode = String(formData.get("createMode") ?? "template");
+  const accessMode = parseGameAccessModeInput(
+    String(formData.get("accessMode") ?? "OPEN"),
+  );
 
   if (inviteCodeRaw) {
     const formatError = validateInviteCodeFormat(inviteCodeRaw);
@@ -167,6 +171,7 @@ export async function createGameAction(
       title,
       slug,
       inviteCode,
+      accessMode,
       tournamentId,
       scoringRuleId,
       createdById: session.id,

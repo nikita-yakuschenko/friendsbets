@@ -11,16 +11,16 @@ import type { ActionResult } from "@/server/actions/auth";
 
 export function MatchResultForm({
   matchId,
-  gameId,
   homeScore,
   awayScore,
   label,
+  embedded = false,
 }: {
   matchId: string;
-  gameId: string;
   homeScore: number | null;
   awayScore: number | null;
   label: string;
+  embedded?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<
     ActionResult | undefined,
@@ -28,15 +28,17 @@ export function MatchResultForm({
   >(updateMatchResultAction, undefined);
 
   useEffect(() => {
-    if (state?.success) toast.success("Результат сохранён");
+    if (state?.success) toast.success("Результат сохранён для шаблона");
     if (state?.error) toast.error(state.error);
   }, [state]);
 
   return (
-    <form action={formAction} className="space-y-3 rounded-xl border border-brand-neutral bg-brand-bg p-4">
-      <p className="font-medium">{label}</p>
+    <form
+      action={formAction}
+      className={embedded ? "space-y-3" : "space-y-3 rounded-xl border border-brand-neutral bg-brand-bg p-4"}
+    >
+      <p className="text-sm font-medium text-white">{label}</p>
       <input type="hidden" name="matchId" value={matchId} />
-      <input type="hidden" name="gameId" value={gameId} />
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label htmlFor={`home-${matchId}`}>Дом</Label>
@@ -62,7 +64,7 @@ export function MatchResultForm({
         </div>
       </div>
       <Button type="submit" disabled={pending} className="w-full">
-        Сохранить результат
+        {pending ? "Сохраняем…" : "Сохранить результат"}
       </Button>
     </form>
   );

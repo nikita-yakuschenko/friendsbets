@@ -11,6 +11,7 @@ import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
 import { refreshChampionatMatchPages } from "@/lib/football-api/sync";
 import {
+  isMatchInProgress,
   isMatchLockedForPredictions,
   isMatchPostponed,
 } from "@/lib/match-prediction-state";
@@ -165,6 +166,7 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
         : null,
       locked: isMatchLockedForPredictions(match),
       postponed: isMatchPostponed(match),
+      inProgress: isMatchInProgress(match),
       points:
         saved?.scores.reduce((sum, score) => sum + score.points, 0) ?? 0,
     };

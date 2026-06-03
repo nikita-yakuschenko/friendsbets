@@ -10,8 +10,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { DeleteGameButton } from "@/components/admin/delete-game-button";
 import { InviteCodeCopyCell } from "@/components/admin/games/invite-code-copy-cell";
 import { Button } from "@/components/ui/button";
-import { gamePath } from "@/lib/game-path";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTimeWithYear } from "@/lib/utils";
 import type { AdminGameRow } from "@/components/admin/games/types";
 
 function SortableHeader({
@@ -52,13 +51,23 @@ export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
     header: ({ column }) => (
       <SortableHeader column={column} title="Название" />
     ),
+    cell: ({ row }) => (
+      <Link
+        href={row.original.openHref}
+        className="line-clamp-2 max-w-[14rem] font-medium text-white hover:text-brand-lime"
+      >
+        {row.original.title}
+      </Link>
+    ),
     filterFn: (row, _columnId, filterValue) => {
       const query = String(filterValue).toLowerCase().trim();
       if (!query) return true;
       const game = row.original;
       return (
         game.title.toLowerCase().includes(query) ||
-        game.inviteCode.toLowerCase().includes(query)
+        game.inviteCode.toLowerCase().includes(query) ||
+        game.createdByName.toLowerCase().includes(query) ||
+        game.organizerNames.toLowerCase().includes(query)
       );
     },
   },
@@ -91,13 +100,34 @@ export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
     ),
   },
   {
+    accessorKey: "createdByName",
+    header: "Создатель",
+    cell: ({ row }) => (
+      <span className="line-clamp-2 max-w-[12rem] text-white">
+        {row.original.createdByName}
+      </span>
+    ),
+  },
+  {
+    id: "organizer",
+    header: "Организатор",
+    cell: ({ row }) => (
+      <span className="line-clamp-2 max-w-[12rem] text-white">
+        {row.original.organizerNames || "—"}
+      </span>
+    ),
+  },
+  {
     accessorKey: "createdAt",
     header: ({ column }) => <SortableHeader column={column} title="Создан" />,
     sortingFn: (rowA, rowB) =>
       new Date(rowA.original.createdAt).getTime() -
       new Date(rowB.original.createdAt).getTime(),
-    cell: ({ row }) =>
-      formatDateTime(new Date(row.getValue("createdAt") as string)),
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap tabular-nums text-brand-muted">
+        {formatDateTimeWithYear(new Date(row.original.createdAt))}
+      </span>
+    ),
   },
   {
     id: "actions",
@@ -107,7 +137,7 @@ export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
       return (
         <div className="flex items-center justify-end gap-3">
           <Link
-            href={gamePath(game.inviteCode)}
+            href={game.openHref}
             className="text-sm font-medium text-brand-lime hover:underline"
           >
             Открыть

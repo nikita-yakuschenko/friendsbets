@@ -31,6 +31,23 @@ enum GameParticipantRole {
   ORGANIZER
 }
 
+enum GameAccessMode {
+  OPEN
+  REQUEST
+}
+
+enum GameJoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum UserNotificationKind {
+  JOIN_REQUEST_RECEIVED
+  JOIN_REQUEST_APPROVED
+  JOIN_REQUEST_REJECTED
+}
+
 enum PredictionReminderKind {
   H3
   H1
@@ -59,6 +76,9 @@ model User {
   bonusPredictions  BonusPrediction[]
   predictionReminders PredictionReminder[]
   tournamentTemplates TournamentTemplate[] @relation("TemplateCreator")
+  joinRequests        GameJoinRequest[]
+  joinRequestsResponded GameJoinRequest[] @relation("JoinRequestResponder")
+  notifications       UserNotification[]
 }
 
 model TournamentTemplate {
@@ -107,6 +127,7 @@ model Game {
   title         String
   slug          String   @unique
   inviteCode    String   @unique
+  accessMode    GameAccessMode @default(OPEN)
   entryFeeText  String?
   prizeFundText String?
   scoringRuleId String
@@ -121,10 +142,47 @@ model Game {
   predictions  Prediction[]
   bonusPredictions BonusPrediction[]
   predictionReminders PredictionReminder[]
+  joinRequests GameJoinRequest[]
 
   @@index([tournamentId])
   @@index([inviteCode])
   @@index([slug])
+}
+
+model GameJoinRequest {
+  id            String                @id @default(cuid())
+  gameId        String
+  userId        String
+  status        GameJoinRequestStatus @default(PENDING)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  respondedAt   DateTime?
+  respondedById String?
+
+  game        Game  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  respondedBy User? @relation("JoinRequestResponder", fields: [respondedById], references: [id], onDelete: SetNull)
+  notifications UserNotification[]
+
+  @@unique([gameId, userId])
+  @@index([gameId, status])
+  @@index([userId])
+}
+
+model UserNotification {
+  id            String               @id @default(cuid())
+  userId        String
+  kind          UserNotificationKind
+  joinRequestId String?
+  readAt        DateTime?
+  createdAt     DateTime             @default(now())
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinRequest GameJoinRequest? @relation(fields: [joinRequestId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@index([joinRequestId])
 }
 
 model GameParticipant {

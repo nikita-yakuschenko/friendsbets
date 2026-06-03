@@ -14,7 +14,13 @@ import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import type { ActionResult } from "@/server/actions/auth";
-import { recalculateMatchScoresAction } from "@/server/actions/games";
+import {
+  listAdminPlatformMatches,
+  listTemplateTournamentIdsForRecalc,
+  recalculateAllScoresForTournament,
+  recalculateMatchScoresForTournament,
+  userCanManageTournament,
+} from "@/lib/template-match-admin";
 import { getChampionatSyncConfig } from "@/lib/football-api/client";
 import { syncMatches } from "@/lib/football-api/sync";
 import { listTournamentTemplatesForUi } from "@/lib/tournament-templates";
@@ -31,24 +37,25 @@ export async function updateMatchResultAction(
   const matchId = String(formData.get("matchId") ?? "");
   const homeScore = Number(formData.get("homeScore"));
   const awayScore = Number(formData.get("awayScore"));
-  const gameId = String(formData.get("gameId") ?? "");
 
   if (!matchId || Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
     return { error: "Некорректные данные." };
   }
 
-  if (!gameId) {
-    return { error: "Игра не указана." };
-  }
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { id: true, homeTeamId: true, awayTeamId: true, tournamentId: true },
+  });
+  if (!match) return { error: "Матч не найден." };
 
-  const allowed =
-    isSuperadmin(session.role) || (await isGameOrganizer(session.id, gameId));
+  const allowed = await userCanManageTournament(
+    session.id,
+    session.role,
+    match.tournamentId,
+  );
   if (!allowed) {
     return { error: "Нет доступа." };
   }
-
-  const match = await prisma.match.findUnique({ where: { id: matchId } });
-  if (!match) return { error: "Матч не найден." };
 
   const winnerTeamId = deriveWinnerTeamId(
     homeScore,
@@ -67,12 +74,15 @@ export async function updateMatchResultAction(
     },
   });
 
-  if (gameId) {
-    await recalculateMatchScoresAction(gameId, matchId);
-  }
+  await recalculateMatchScoresForTournament(match.tournamentId, matchId);
+
+  const gameIds = await prisma.game.findMany({
+    where: { tournamentId: match.tournamentId },
+    select: { id: true },
+  });
 
   revalidatePath("/admin");
-  if (gameId) {
+  for (const { id: gameId } of gameIds) {
     await revalidateGamePaths(gameId);
   }
 
@@ -150,6 +160,12 @@ export async function getAdminDashboardData(userId: string, role: UserRole) {
     include: {
       tournament: true,
       scoringRule: true,
+      createdBy: { select: { name: true } },
+      participants: {
+        where: { role: GameParticipantRole.ORGANIZER },
+        orderBy: { joinedAt: "asc" },
+        select: { displayName: true },
+      },
       _count: { select: { participants: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -157,20 +173,16 @@ export async function getAdminDashboardData(userId: string, role: UserRole) {
 
   const tournamentIds = [...new Set(games.map((game) => game.tournamentId))];
 
-  const [tournaments, matches, templates] = await Promise.all([
+  const [tournaments, platformMatches, templates] = await Promise.all([
     prisma.tournament.findMany({
       where: isSuperadmin(role) ? {} : { id: { in: tournamentIds } },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.match.findMany({
-      where: { tournamentId: { in: tournamentIds } },
-      include: { homeTeam: true, awayTeam: true, tournament: true },
-      orderBy: { startsAt: "asc" },
-    }),
+    listAdminPlatformMatches(userId, role),
     listTournamentTemplatesForUi(),
   ]);
 
-  return { tournaments, games, matches, templates };
+  return { tournaments, games, matches: platformMatches, templates };
 }
 
 export async function getAdminIntegrationInfo() {
@@ -198,31 +210,54 @@ export async function getAdminIntegrationInfo() {
 }
 
 export async function recalculateAllScoresAction(
-  gameId: string,
+  options?: { tournamentId?: string },
 ): Promise<ActionResult> {
   const session = await requireAuth();
-  const allowed =
-    isSuperadmin(session.role) || (await isGameOrganizer(session.id, gameId));
-  if (!allowed) {
-    return { error: "Нет доступа." };
+
+  let tournamentIds: string[];
+
+  if (options?.tournamentId) {
+    const allowed = await userCanManageTournament(
+      session.id,
+      session.role,
+      options.tournamentId,
+    );
+    if (!allowed) return { error: "Нет доступа." };
+    tournamentIds = [options.tournamentId];
+  } else if (isSuperadmin(session.role)) {
+    tournamentIds = await listTemplateTournamentIdsForRecalc();
+  } else {
+    const games = await prisma.game.findMany({
+      where: {
+        participants: {
+          some: {
+            userId: session.id,
+            role: GameParticipantRole.ORGANIZER,
+          },
+        },
+      },
+      select: { tournamentId: true },
+    });
+    tournamentIds = [...new Set(games.map((g) => g.tournamentId))];
   }
 
-  const games = await prisma.game.findMany({ where: { id: gameId } });
-  if (!games.length) return { error: "Игра не найдена." };
+  if (tournamentIds.length === 0) {
+    return { error: "Нет турниров для пересчёта." };
+  }
 
-  const finishedMatches = await prisma.match.findMany({
-    where: {
-      tournamentId: games[0].tournamentId,
-      status: MatchStatus.FINISHED,
-    },
-  });
+  for (const tournamentId of tournamentIds) {
+    await recalculateAllScoresForTournament(tournamentId);
 
-  for (const match of finishedMatches) {
-    await recalculateMatchScoresAction(gameId, match.id);
+    const gameIds = await prisma.game.findMany({
+      where: { tournamentId },
+      select: { id: true },
+    });
+    for (const { id: gameId } of gameIds) {
+      await revalidateGamePaths(gameId);
+    }
   }
 
   revalidatePath("/admin");
-  await revalidateGamePaths(gameId);
 
   return { success: true };
 }
@@ -379,6 +414,68 @@ export async function sendTestEmailToUserAction(
   return {
     success: true,
     message: `Тестовое письмо отправлено на ${user.email}. Проверьте входящие и спам.`,
+  };
+}
+
+/** Суперадмин: назначить пользователя организатором турнира (участник → ORGANIZER или вступление с ролью). */
+export async function assignGameOrganizerAction(
+  userId: string,
+  gameId: string,
+): Promise<ActionResult> {
+  const session = await requireAuth();
+  if (!isSuperadmin(session.role)) {
+    return { error: "Нет доступа." };
+  }
+
+  const [user, game] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true },
+    }),
+    prisma.game.findUnique({
+      where: { id: gameId },
+      select: { id: true, title: true, inviteCode: true },
+    }),
+  ]);
+
+  if (!user) return { error: "Пользователь не найден." };
+  if (!game) return { error: "Турнир не найден." };
+
+  const existing = await prisma.gameParticipant.findUnique({
+    where: { gameId_userId: { gameId, userId } },
+    select: { id: true, role: true },
+  });
+
+  if (existing?.role === GameParticipantRole.ORGANIZER) {
+    return {
+      success: true,
+      message: `«${user.name}» уже организатор «${game.title}».`,
+    };
+  }
+
+  if (existing) {
+    await prisma.gameParticipant.update({
+      where: { id: existing.id },
+      data: { role: GameParticipantRole.ORGANIZER },
+    });
+  } else {
+    await prisma.gameParticipant.create({
+      data: {
+        gameId,
+        userId,
+        displayName: user.name,
+        role: GameParticipantRole.ORGANIZER,
+      },
+    });
+  }
+
+  await revalidateGamePaths(gameId);
+  revalidatePath("/admin");
+  revalidatePath("/", "layout");
+
+  return {
+    success: true,
+    message: `«${user.name}» назначен организатором «${game.title}».`,
   };
 }
 

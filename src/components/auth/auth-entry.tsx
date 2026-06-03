@@ -109,7 +109,7 @@ export function AuthEntry() {
                   id="inviteCode"
                   name="inviteCode"
                   variant="brand"
-                  placeholder="ABC123 — если пригласили в турнир"
+                  placeholder="ABC123"
                   defaultValue={inviteFromUrl}
                   disabled={!isRegister}
                   tabIndex={isRegister ? 0 : -1}

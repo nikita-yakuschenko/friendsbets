@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   IconHome,
+  IconSoccerField,
   IconTarget,
   IconTrophy,
   IconBroadcast,
@@ -68,7 +69,7 @@ export function DesktopSidebar({
     (Boolean(activeInviteCode) || pathname.startsWith("/admin"));
 
   return (
-    <aside className="hidden md:sticky md:top-0 md:flex md:h-screen md:max-h-screen md:w-64 md:shrink-0 md:flex-col md:overflow-hidden md:border-r md:border-brand-neutral md:bg-brand-surface/50">
+    <aside className="hidden md:flex md:h-full md:max-h-full md:w-64 md:shrink-0 md:flex-col md:overflow-hidden md:border-r md:border-brand-neutral md:bg-brand-surface/50">
       <div
         className={cn(
           shellHeaderHeightClass,
@@ -80,7 +81,7 @@ export function DesktopSidebar({
 
       <nav className="flex flex-1 flex-col gap-1 overflow-hidden px-3 py-4">
         <Link href="/" className={navLinkClass(pathname === "/")}>
-          <IconHome className="h-4 w-4 shrink-0" stroke={1.75} />
+          <IconSoccerField className="h-4 w-4 shrink-0" stroke={1.75} />
           Мои турниры
         </Link>
         <Link href="/profile" className={navLinkClass(pathname === "/profile")}>
@@ -139,9 +140,9 @@ export function DesktopSidebar({
 
       {hasGames &&
       pathname !== "/" &&
-      pathname !== "/add-tournament" ? (
+      pathname !== "/join" ? (
         <div className="shrink-0 border-t border-brand-neutral/60 p-3">
-          <Link href="/add-tournament" className="block">
+          <Link href="/join" className="block">
             <Button className="w-full">Добавить турнир</Button>
           </Link>
         </div>

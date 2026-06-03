@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, Inter } from "next/font/google";
-import { Toaster } from "sonner";
+import { AppToaster } from "@/components/ui/app-toaster";
 import "./globals.css";
 
 const inter = Inter({
@@ -25,6 +25,12 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -40,12 +46,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         {children}
-        <Toaster
-          theme="dark"
-          position="top-center"
-          richColors
-          closeButton
-        />
+        <AppToaster />
       </body>
     </html>
   );

@@ -68,7 +68,7 @@ export function RegisterForm({
           id="inviteCode"
           name="inviteCode"
           variant="brand"
-          placeholder="ABC123 — если пригласили"
+          placeholder="ABC123"
           className="font-mono uppercase tracking-widest"
           autoComplete="off"
         />

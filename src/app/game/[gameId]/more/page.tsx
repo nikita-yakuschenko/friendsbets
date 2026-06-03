@@ -1,12 +1,18 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  IconBell,
+  IconShield,
+  IconSoccerField,
+  IconUser,
+} from "@tabler/icons-react";
+import { GameMoreMenu, type GameMoreMenuItem } from "@/components/game/game-more-menu";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
-import { Button } from "@/components/ui/button";
 import { canManageGame, resolveGameIdFromRoute } from "@/lib/game-access";
 import { getSession } from "@/lib/auth";
+import { countUnreadNotifications } from "@/lib/notifications";
+import { gamePath } from "@/lib/game-path";
 import { isSuperadmin } from "@/lib/roles";
-import { prisma } from "@/lib/db";
 
 export default async function GameMorePage({
   params,
@@ -20,45 +26,49 @@ export default async function GameMorePage({
   const internalId = await resolveGameIdFromRoute(routeParam);
   if (!internalId) return notFound();
 
-  const game = await prisma.game.findUnique({
-    where: { id: internalId },
-    select: { inviteCode: true },
-  });
-  if (!game) return notFound();
-
   const canManage = await canManageGame(session, internalId);
   const isPlatformAdmin = isSuperadmin(session.role);
+  const unreadNotifications = await countUnreadNotifications(session.id);
+
+  const items: GameMoreMenuItem[] = [
+    {
+      href: gamePath(routeParam, "more/notifications"),
+      label:
+        unreadNotifications > 0
+          ? `Уведомления (${unreadNotifications})`
+          : "Уведомления",
+      icon: IconBell,
+    },
+    {
+      href: "/profile",
+      label: "Профиль",
+      icon: IconUser,
+    },
+    {
+      href: "/",
+      label: "Мои турниры",
+      icon: IconSoccerField,
+    },
+  ];
+
+  if (isPlatformAdmin) {
+    items.push({
+      href: "/admin",
+      label: "Платформа",
+      icon: IconShield,
+    });
+  } else if (canManage) {
+    items.push({
+      href: "/admin",
+      label: "Мой турнир",
+      icon: IconShield,
+    });
+  }
 
   return (
     <ContentContainer>
-      <PageHeader title="Ещё" description="Дополнительные разделы игры." />
-
-      <div className="space-y-3">
-        <Link href="/profile">
-          <Button variant="secondary" className="w-full justify-start">
-            Профиль
-          </Button>
-        </Link>
-        <Link href="/">
-          <Button variant="secondary" className="w-full justify-start">
-            Мои турниры
-          </Button>
-        </Link>
-        {canManage && (
-          <Link href={`/admin/missing?game=${encodeURIComponent(game.inviteCode)}`}>
-            <Button variant="secondary" className="w-full justify-start">
-              Кто не поставил
-            </Button>
-          </Link>
-        )}
-        {isPlatformAdmin && (
-          <Link href="/admin">
-            <Button variant="secondary" className="w-full justify-start">
-              Админка платформы
-            </Button>
-          </Link>
-        )}
-      </div>
+      <PageHeader title="Ещё" />
+      <GameMoreMenu items={items} />
     </ContentContainer>
   );
 }

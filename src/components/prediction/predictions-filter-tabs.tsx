@@ -18,7 +18,7 @@ export function PredictionsFilterTabs({
 }) {
   return (
     <nav
-      className="mb-6 flex flex-wrap gap-1 rounded-xl border border-brand-neutral bg-brand-surface/50 p-1"
+      className="mb-6 flex w-full max-w-full flex-nowrap gap-1 overflow-x-auto rounded-xl border border-brand-neutral bg-brand-surface/50 p-1 scrollbar-none"
       aria-label="Фильтр матчей"
     >
       {PREDICTIONS_FILTER_IDS.map((id) => {
@@ -29,7 +29,7 @@ export function PredictionsFilterTabs({
             key={id}
             href={`${gamePath(inviteCode, "predictions")}?view=${id}`}
             className={cn(
-              "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              "shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:py-2 sm:text-sm",
               active
                 ? "bg-brand-lime text-black"
                 : "text-brand-muted hover:bg-brand-neutral/30 hover:text-white",

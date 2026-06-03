@@ -1,14 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   IconArrowsSort,
   IconChevronDown,
   IconChevronUp,
 } from "@tabler/icons-react";
 import { type ColumnDef } from "@tanstack/react-table";
+import { AssignGameOrganizerControl } from "@/components/admin/users/assign-game-organizer-control";
 import { GameMembershipList } from "@/components/admin/users/game-membership-list";
 import { SendTestEmailButton } from "@/components/admin/users/send-test-email-button";
-import type { AdminUserRow } from "@/components/admin/users/types";
+import type { AdminGameOption, AdminUserRow } from "@/components/admin/users/types";
 import { UserRoleBadge } from "@/components/user/user-role-badge";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/utils";
@@ -45,70 +47,93 @@ function SortableHeader({
   );
 }
 
-export const adminUsersColumns: ColumnDef<AdminUserRow>[] = [
-  {
-    accessorKey: "name",
-    header: ({ column }) => <SortableHeader column={column} title="Имя" />,
-    cell: ({ row }) => (
-      <div className="min-w-[8rem]">
-        <p className="font-medium text-white">{row.original.name}</p>
-        <p className="text-xs text-brand-muted">{row.original.email}</p>
-      </div>
-    ),
-    filterFn: (row, _columnId, filterValue) => {
-      const query = String(filterValue).toLowerCase().trim();
-      if (!query) return true;
-      const user = row.original;
-      return (
-        user.name.toLowerCase().includes(query) ||
-        user.email.toLowerCase().includes(query)
-      );
-    },
-  },
-  {
-    accessorKey: "platformRole",
-    header: "Роль на платформе",
-    cell: ({ row }) => <UserRoleBadge role={row.original.platformRole} />,
-  },
-  {
-    id: "organizerGames",
-    header: "Организатор",
-    cell: ({ row }) => (
-      <GameMembershipList games={row.original.organizerGames} variant="organizer" />
-    ),
-    enableSorting: false,
-  },
-  {
-    id: "participantGames",
-    header: "Участник",
-    cell: ({ row }) => (
-      <GameMembershipList
-        games={row.original.participantGames}
-        variant="participant"
-      />
-    ),
-    enableSorting: false,
-  },
-  {
-    id: "testEmail",
-    header: "Почта",
-    cell: ({ row }) => (
-      <SendTestEmailButton
-        userId={row.original.id}
-        email={row.original.email}
-      />
-    ),
-    enableSorting: false,
-  },
-  {
-    accessorKey: "createdAt",
-    header: ({ column }) => (
-      <SortableHeader column={column} title="Регистрация" />
-    ),
-    cell: ({ row }) => (
-      <span className="whitespace-nowrap text-sm text-brand-muted">
-        {formatDateTime(new Date(row.original.createdAt))}
-      </span>
-    ),
-  },
-];
+export function useAdminUsersColumns(
+  allGames: AdminGameOption[],
+): ColumnDef<AdminUserRow>[] {
+  return useMemo(
+    () => [
+      {
+        accessorKey: "name",
+        header: ({ column }) => <SortableHeader column={column} title="Имя" />,
+        cell: ({ row }) => (
+          <div className="min-w-0 max-w-[14rem]">
+            <p className="truncate font-medium text-white">{row.original.name}</p>
+            <p className="truncate text-xs text-brand-muted">{row.original.email}</p>
+          </div>
+        ),
+        filterFn: (row, _columnId, filterValue) => {
+          const query = String(filterValue).toLowerCase().trim();
+          if (!query) return true;
+          const user = row.original;
+          return (
+            user.name.toLowerCase().includes(query) ||
+            user.email.toLowerCase().includes(query)
+          );
+        },
+      },
+      {
+        accessorKey: "platformRole",
+        header: "Роль на платформе",
+        cell: ({ row }) => <UserRoleBadge role={row.original.platformRole} />,
+      },
+      {
+        id: "organizerGames",
+        header: "Организаторы",
+        cell: ({ row }) => (
+          <GameMembershipList games={row.original.organizerGames} variant="organizer" />
+        ),
+        enableSorting: false,
+      },
+      {
+        id: "participantGames",
+        header: "Участник",
+        cell: ({ row }) => (
+          <GameMembershipList
+            games={row.original.participantGames}
+            variant="participant"
+          />
+        ),
+        enableSorting: false,
+      },
+      {
+        id: "assignOrganizer",
+        header: "Назначить орг.",
+        cell: ({ row }) => (
+          <AssignGameOrganizerControl
+            userId={row.original.id}
+            userName={row.original.name}
+            participantGames={row.original.participantGames}
+            organizerGameIds={
+              new Set(row.original.organizerGames.map((g) => g.id))
+            }
+            allGames={allGames}
+          />
+        ),
+        enableSorting: false,
+      },
+      {
+        id: "testEmail",
+        header: "Почта",
+        cell: ({ row }) => (
+          <SendTestEmailButton
+            userId={row.original.id}
+            email={row.original.email}
+          />
+        ),
+        enableSorting: false,
+      },
+      {
+        accessorKey: "createdAt",
+        header: ({ column }) => (
+          <SortableHeader column={column} title="Регистрация" />
+        ),
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap text-sm text-brand-muted">
+            {formatDateTime(new Date(row.original.createdAt))}
+          </span>
+        ),
+      },
+    ],
+    [allGames],
+  );
+}

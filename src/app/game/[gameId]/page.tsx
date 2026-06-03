@@ -8,12 +8,13 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { gamePath, isGameParticipant, resolveGameIdFromRoute } from "@/lib/game-access";
+import { gamePath } from "@/lib/game-access";
 import { isPlatformViewQuery } from "@/lib/game-platform-view";
+import { parseGameOversightTab } from "@/lib/game-oversight-tabs";
 import { getSession } from "@/lib/auth";
-import { isSuperadmin } from "@/lib/roles";
 import { GameOversightHome } from "@/components/game/game-oversight-home";
-import { GamePlayerModeBanner } from "@/components/game/game-player-mode-banner";
+import { GameOversightShell } from "@/components/game/game-oversight-shell";
+import { PlatformOversightBackButton } from "@/components/game/platform-oversight-back-button";
 import { getGameOverview, getGameOversightOverview } from "@/server/actions/games";
 
 export default async function GamePage({
@@ -21,28 +22,32 @@ export default async function GamePage({
   searchParams,
 }: {
   params: Promise<{ gameId: string }>;
-  searchParams: Promise<{ as?: string }>;
+  searchParams: Promise<{ as?: string; tab?: string }>;
 }) {
   const session = await getSession();
   if (!session) return notFound();
 
   const { gameId: routeParam } = await params;
-  const { as } = await searchParams;
+  const { as, tab: tabParam } = await searchParams;
   const platformView = isPlatformViewQuery(as);
 
   const oversight = await getGameOversightOverview(routeParam, platformView);
   if (oversight) {
-    const internalId = await resolveGameIdFromRoute(routeParam);
-    const alsoParticipant =
-      internalId && (await isGameParticipant(session.id, internalId));
+    const activeTab = parseGameOversightTab(tabParam);
 
     return (
       <ContentContainer>
-        <PageHeader title={oversight.game.title} keepTitleOnDesktop />
-        <GameOversightHome
-          data={oversight}
-          isAlsoParticipant={Boolean(alsoParticipant)}
+        <PageHeader
+          title={oversight.game.title}
+          keepTitleOnDesktop
+          action={<PlatformOversightBackButton />}
         />
+        <GameOversightShell
+          inviteCode={oversight.game.inviteCode}
+          activeTab={activeTab}
+        >
+          <GameOversightHome data={oversight} activeTab={activeTab} />
+        </GameOversightShell>
       </ContentContainer>
     );
   }
@@ -77,10 +82,6 @@ export default async function GamePage({
             .join(" · ")
         }
       />
-
-      {isSuperadmin(session.role) ? (
-        <GamePlayerModeBanner inviteCode={game.inviteCode} />
-      ) : null}
 
       <div className="mb-4">
         {nextMatch ? (

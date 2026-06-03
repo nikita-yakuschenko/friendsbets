@@ -25,3 +25,18 @@ export function isMatchLockedForPredictions(
   if (match.status === MatchStatus.LIVE) return true;
   return match.startsAt.getTime() <= Date.now();
 }
+
+/** Уже стартовал, но ещё не завершён (вкладка «Предстоящие», прогноз закрыт). */
+export function isMatchInProgress(match: MatchPredictionStateInput): boolean {
+  if (match.status === MatchStatus.FINISHED) return false;
+  if (match.status === MatchStatus.CANCELLED) return false;
+  if (match.status === MatchStatus.POSTPONED || isMatchPostponed(match)) {
+    return false;
+  }
+  if (match.status === MatchStatus.LIVE) return true;
+  if (match.startsAt.getTime() > Date.now()) return false;
+  return (
+    match.status === MatchStatus.SCHEDULED &&
+    (match.homeScore != null || match.awayScore != null)
+  );
+}

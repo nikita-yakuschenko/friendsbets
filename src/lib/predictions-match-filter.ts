@@ -1,14 +1,15 @@
 import { MatchStatus } from "@/generated/prisma/client";
 import {
+  isMatchInProgress,
   isMatchPostponed,
   type MatchPredictionStateInput,
 } from "@/lib/match-prediction-state";
 
 export const PREDICTIONS_FILTER_IDS = [
   "upcoming",
-  "postponed",
   "finished",
   "all",
+  "postponed",
 ] as const;
 
 export type PredictionsFilterId = (typeof PREDICTIONS_FILTER_IDS)[number];
@@ -21,7 +22,7 @@ export const PREDICTIONS_FILTER_LABELS: Record<PredictionsFilterId, string> = {
 };
 
 export const PREDICTIONS_FILTER_EMPTY: Record<PredictionsFilterId, string> = {
-  upcoming: "Нет предстоящих матчей.",
+  upcoming: "Нет предстоящих и идущих матчей.",
   postponed: "Нет перенесённых матчей.",
   finished: "Нет завершённых матчей.",
   all: "Матчей пока нет.",
@@ -52,10 +53,25 @@ export function matchPredictionsFilter(
     return match.status === MatchStatus.FINISHED;
   }
 
-  return (
-    match.status !== MatchStatus.FINISHED &&
-    match.status !== MatchStatus.CANCELLED
-  );
+  // Предстоящие: будущие + уже идущие (прогноз закрыт); не завершённые и не перенесённые
+  if (filter === "upcoming") {
+    if (match.status === MatchStatus.FINISHED) return false;
+    if (match.status === MatchStatus.CANCELLED) return false;
+    if (isMatchPostponed(match)) return false;
+    return true;
+  }
+
+  return true;
+}
+
+export function countInProgressInUpcoming(
+  items: { match: MatchPredictionStateInput }[],
+): number {
+  return items.filter(
+    (item) =>
+      matchPredictionsFilter(item.match, "upcoming") &&
+      isMatchInProgress(item.match),
+  ).length;
 }
 
 export function emptyPredictionsFilterCounts(): Record<

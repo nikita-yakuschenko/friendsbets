@@ -73,7 +73,9 @@ npm run dev
 | Что | Значение |
 |-----|----------|
 | Admin email | `admin@friendsbets.local` (или из `ADMIN_EMAIL`) |
-| Admin password | `admin123456` (или из `ADMIN_PASSWORD`) |
+| Admin password | `admin123456` (или из `ADMIN_PASSWORD`; пустой `ADMIN_PASSWORD=` тоже даёт дефолт) |
+
+После смены пароля в `.env`: `npm run admin:sync-password` (или полный `npm run db:seed`).
 
 Демо-игра и моковые матчи больше не создаются. Повторный `db:seed` удаляет старые демо-записи (`demo2026`, `seed-tournament-2026` и т.п.).
 

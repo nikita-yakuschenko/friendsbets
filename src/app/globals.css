@@ -41,6 +41,15 @@ body {
   font-family: var(--font-sans);
 }
 
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 .min-h-leaderboard {
   min-height: 11rem;
 }
@@ -50,12 +59,118 @@ body {
   background-size: 14px 14px;
 }
 
+/* Только стартовая страница (форма входа/регистрации на /) */
+.landing-page-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--background);
+  background-image: url("/vertical_bg.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}
+
+.landing-page-bg-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgb(11 15 20 / 0.3) 0%,
+    rgb(11 15 20 / 0.5) 50%,
+    rgb(11 15 20 / 0.72) 100%
+  );
+}
+
+/* Отступ сверху на лендинге: safe area + запас под Dynamic Island / статус-бар */
+@media (max-width: 1023px) {
+  .landing-main-top {
+    padding-top: max(3.5rem, calc(env(safe-area-inset-top, 0px) + 2.5rem));
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 1023px) {
+    .landing-main-top {
+      padding-top: max(5rem, calc(env(safe-area-inset-top, 0px) + 2rem));
+    }
+  }
+}
+
+/* Мягкое затемнение под логотипом на стартовой странице */
+.landing-logo-spot {
+  position: relative;
+  display: inline-block;
+}
+
+.landing-logo-spot::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: 220%;
+  height: 280%;
+  translate: -50% -50%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 70% 65% at 50% 50%,
+    rgb(11 15 20 / 0.92) 0%,
+    rgb(11 15 20 / 0.65) 42%,
+    rgb(11 15 20 / 0.2) 68%,
+    transparent 78%
+  );
+}
+
+@media (min-width: 1024px) {
+  .landing-page-bg {
+    background-image: url("/main_bg.png");
+    background-position: center center;
+  }
+}
+
+/* iPhone: iOS, типичные размеры телефона (портрет и альбом); iPad остаётся на vertical */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 932px) and (max-height: 932px) {
+    .landing-page-bg {
+      background-image: url("/iphone_bg.png");
+      background-position: center top;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page-bg {
+    background-attachment: scroll;
+  }
+}
+
 .brand-display {
   font-style: italic;
   font-weight: 800;
   letter-spacing: -0.02em;
   text-transform: uppercase;
   padding-inline-end: 0.08em;
+}
+
+/* Ровно 2 строки: без переноса внутри строки, размер под ширину viewport */
+.landing-hero-title {
+  font-size: clamp(0.9375rem, 4.15vw, 2.25rem);
+  line-height: 1.12;
+}
+
+.landing-hero-title__line {
+  display: block;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .landing-hero-title {
+    font-size: clamp(1.375rem, 2.8vw, 2.25rem);
+  }
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -90,6 +205,86 @@ input[type="number"]::-webkit-outer-spin-button {
   line-height: 1;
   color: color-mix(in srgb, var(--muted) 85%, transparent);
   text-transform: lowercase;
+}
+
+/* Sonner: без крестика; мобилка — над нижней нав-панелью, десктоп — сверху */
+[data-sonner-toaster] [data-close-button] {
+  display: none !important;
+}
+
+[data-sonner-toaster].app-toaster {
+  --normal-bg: var(--color-brand-surface);
+  --normal-border: var(--color-brand-neutral);
+  --normal-text: #fff;
+  --success-bg: #c6ff2e;
+  --success-border: #c6ff2e;
+  --success-text: #0b0f14;
+  --error-bg: #1f1416;
+  --error-border: #ff4d60;
+  --error-text: #ff4d60;
+  --offset-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  --mobile-offset-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  [data-sonner-toaster].app-toaster[data-y-position="bottom"] {
+    top: 1rem !important;
+    bottom: auto !important;
+    --offset-top: 1rem;
+    --mobile-offset-top: 1rem;
+  }
+}
+
+[data-sonner-toaster].app-toaster .fb-toast {
+  font-family: var(--font-inter, system-ui, sans-serif);
+  border-radius: 0.75rem;
+  border-width: 1px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
+}
+
+[data-sonner-toaster].app-toaster [data-sonner-toast][data-type="success"],
+[data-sonner-toaster].app-toaster .fb-toast--success {
+  background: #c6ff2e !important;
+  border-color: #c6ff2e !important;
+  color: #0b0f14 !important;
+}
+
+[data-sonner-toaster].app-toaster [data-sonner-toast][data-type="success"] [data-title],
+[data-sonner-toaster].app-toaster [data-sonner-toast][data-type="success"] [data-description],
+[data-sonner-toaster].app-toaster .fb-toast--success [data-title],
+[data-sonner-toaster].app-toaster .fb-toast--success [data-description] {
+  color: #0b0f14 !important;
+}
+
+[data-sonner-toaster].app-toaster [data-sonner-toast][data-type="success"] [data-icon] svg,
+[data-sonner-toaster].app-toaster .fb-toast--success [data-icon] svg {
+  color: #0b0f14 !important;
+}
+
+[data-sonner-toaster].app-toaster [data-sonner-toast][data-type="error"],
+[data-sonner-toaster].app-toaster .fb-toast--error {
+  background: #1f1416 !important;
+  border-color: #ff4d60 !important;
+  color: #ff4d60 !important;
+}
+
+[data-sonner-toaster].app-toaster [data-sonner-toast][data-type="error"] [data-title],
+[data-sonner-toaster].app-toaster [data-sonner-toast][data-type="error"] [data-description],
+[data-sonner-toaster].app-toaster .fb-toast--error [data-title],
+[data-sonner-toaster].app-toaster .fb-toast--error [data-description] {
+  color: #ff4d60 !important;
+}
+
+[data-sonner-toaster].app-toaster [data-sonner-toast][data-type="error"] [data-icon] svg,
+[data-sonner-toaster].app-toaster .fb-toast--error [data-icon] svg {
+  color: #ff4d60 !important;
+}
+
+[data-sonner-toaster].app-toaster .fb-toast--info,
+[data-sonner-toaster].app-toaster .fb-toast:not([data-type]) {
+  background: var(--color-brand-surface) !important;
+  border-color: var(--brand-lime) !important;
+  color: #fff !important;
 }
 
 .countdown-hint {

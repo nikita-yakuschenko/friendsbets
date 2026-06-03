@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { GameAccessMode, GameJoinRequestStatus } from "@/generated/prisma/client";
 import { JoinGamePreviewCard } from "@/components/game/join-game-preview-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { GameJoinPreview } from "@/lib/join-game-preview";
 import type { ActionResult } from "@/server/actions/auth";
+import { requestJoinGameAction } from "@/server/actions/join-request";
 import {
   confirmJoinGameAction,
   lookupGameByInviteAction,
@@ -34,8 +36,15 @@ export function JoinGameForm({
     FormData
   >(confirmJoinGameAction, undefined);
 
+  const [requestState, requestAction, requestPending] = useActionState<
+    ActionResult | undefined,
+    FormData
+  >(requestJoinGameAction, undefined);
+
   const lookupError = lookupState?.error;
   const joinError = joinState?.error;
+  const requestError = requestState?.error;
+  const requestSuccess = requestState?.success ? requestState.message : undefined;
 
   useEffect(() => {
     if (lookupState?.preview) {
@@ -44,16 +53,41 @@ export function JoinGameForm({
     }
   }, [lookupState]);
 
+  useEffect(() => {
+    if (!requestState?.success) return;
+    setPreview((current) =>
+      current
+        ? { ...current, joinRequestStatus: GameJoinRequestStatus.PENDING }
+        : current,
+    );
+  }, [requestState?.success]);
+
   const resetSearch = () => {
     setPreview(null);
     setInviteInput("");
   };
 
+  const isRequestMode = preview?.accessMode === GameAccessMode.REQUEST;
+  const requestPendingStatus =
+    preview?.joinRequestStatus === GameJoinRequestStatus.PENDING;
+  const canSendRequest =
+    isRequestMode &&
+    !preview?.alreadyMember &&
+    !requestPendingStatus;
+
   return (
     <div className="space-y-6">
-      {(lookupError || joinError) && (
+      {(lookupError || joinError || requestError) && (
         <Alert className="border-brand-red/40 bg-brand-red/10 text-brand-red">
-          <AlertDescription>{lookupError ?? joinError}</AlertDescription>
+          <AlertDescription>
+            {lookupError ?? joinError ?? requestError}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {requestSuccess && (
+        <Alert className="border-brand-lime/40 bg-brand-lime/10 text-brand-lime">
+          <AlertDescription>{requestSuccess}</AlertDescription>
         </Alert>
       )}
 
@@ -85,17 +119,34 @@ export function JoinGameForm({
         <>
           <JoinGamePreviewCard
             preview={preview}
-            joinPending={joinPending}
+            joinPending={joinPending || requestPending}
             onSearchAnother={resetSearch}
           />
 
-          {!preview.alreadyMember && (
+          {!preview.alreadyMember && !isRequestMode && (
             <form action={joinAction} className="space-y-2">
               <input type="hidden" name="inviteCode" value={preview.inviteCode} />
               <Button type="submit" className="w-full" disabled={joinPending}>
                 {joinPending ? "Вступаем…" : "Вступить в турнир"}
               </Button>
             </form>
+          )}
+
+          {canSendRequest && (
+            <form action={requestAction} className="space-y-2">
+              <input type="hidden" name="inviteCode" value={preview.inviteCode} />
+              <Button type="submit" className="w-full" disabled={requestPending}>
+                {requestPending
+                  ? "Отправляем…"
+                  : "Отправить заявку на вступление"}
+              </Button>
+            </form>
+          )}
+
+          {isRequestMode && requestPendingStatus && (
+            <p className="text-center text-sm text-brand-muted">
+              Заявка на вступление ожидает ответа организатора.
+            </p>
           )}
         </>
       )}

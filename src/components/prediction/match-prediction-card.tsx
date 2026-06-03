@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,8 @@ type MatchCardProps = {
   canPredict: boolean;
   locked: boolean;
   postponed: boolean;
+  inProgress?: boolean;
+  liveHref?: string;
   points: number;
 };
 
@@ -196,6 +199,8 @@ export function MatchPredictionCard({
   prediction,
   locked,
   postponed,
+  inProgress = false,
+  liveHref,
   points,
 }: MatchCardProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -274,11 +279,15 @@ export function MatchPredictionCard({
       ? "Матч перенесён"
       : awaitingTeams
         ? "Команды неизвестны"
-        : locked
-          ? "Матч начался"
-          : prediction
-            ? "Прогноз принят"
-            : "Прогноз не сделан";
+        : inProgress
+          ? match.status === "LIVE"
+            ? "Идёт сейчас"
+            : "Матч начался"
+          : locked
+            ? "Матч начался"
+            : prediction
+              ? "Прогноз принят"
+              : "Прогноз не сделан";
 
   return (
     <Card className="w-full min-w-0 max-w-full overflow-hidden p-0">
@@ -358,6 +367,16 @@ export function MatchPredictionCard({
             {!prediction && locked && !isFinished && !isPostponed && !awaitingTeams && (
               <p className="text-center text-sm text-brand-muted">Прогноз не сделан</p>
             )}
+            {inProgress && liveHref ? (
+              <p className="text-center text-sm">
+                <Link
+                  href={liveHref}
+                  className="font-medium text-brand-lime underline-offset-2 hover:underline"
+                >
+                  Смотреть в Лайв
+                </Link>
+              </p>
+            ) : null}
             {isFinished && <FinishedMatchSummary match={match} points={points} />}
           </div>
         )}

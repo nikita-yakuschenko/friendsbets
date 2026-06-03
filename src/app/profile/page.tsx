@@ -3,33 +3,26 @@ import { ProfileSettingsForm } from "@/components/profile/profile-settings-form"
 import { AppShell } from "@/components/layout/app-shell";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth";
-import { getUserGames } from "@/lib/game-access";
+import { logoutAction } from "@/server/actions/auth";
 import { getProfileForUser } from "@/server/actions/profile";
 
 export default async function ProfilePage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const [profile, memberships] = await Promise.all([
-    getProfileForUser(session.id),
-    getUserGames(session.id),
-  ]);
+  const profile = await getProfileForUser(session.id);
 
   if (!profile) redirect("/");
 
   return (
-    <AppShell
-      user={session}
-      gameInviteCode={memberships[0]?.game.inviteCode}
-    >
-      <ContentContainer className="flex flex-col items-center">
-        <div className="w-full max-w-md text-center">
-          <PageHeader
-            title="Профиль"
-            description="Имя и аватар видят друзья в турнире."
-          />
-        </div>
+    <AppShell user={session}>
+      <ContentContainer className="max-w-md">
+        <PageHeader
+          title="Профиль"
+          description="Имя и аватар видят друзья в турнире."
+        />
         <ProfileSettingsForm
           user={{
             name: profile.name,
@@ -38,6 +31,11 @@ export default async function ProfilePage() {
             updatedAt: profile.updatedAt.toISOString(),
           }}
         />
+        <form action={logoutAction} className="mt-8 border-t border-brand-neutral/60 pt-6">
+          <Button type="submit" variant="secondary" size="sm">
+            Выйти
+          </Button>
+        </form>
       </ContentContainer>
     </AppShell>
   );

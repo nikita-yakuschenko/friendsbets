@@ -2,12 +2,16 @@
 export function resolveDesktopHeaderTitle(pathname: string): string | null {
   if (pathname === "/") return "Мои турниры";
   if (pathname === "/profile") return "Профиль";
-  if (pathname === "/join") return "Найти турнир";
+  if (pathname === "/join") return "Добавить турнир";
   if (pathname === "/add-tournament") return "Добавить турнир";
   if (pathname === "/create") return "Создать турнир";
   if (pathname.startsWith("/create/success")) return "Турнир создан";
   if (pathname.startsWith("/admin/missing")) return "Кто не поставил";
   if (pathname === "/admin") return "Управление";
+
+  if (/\/more\/notifications\/?$/.test(pathname)) {
+    return "Уведомления";
+  }
 
   const gameSubpage = pathname.match(/^\/game\/[^/]+\/([^/]+)\/?$/);
   if (gameSubpage) {
@@ -30,4 +34,9 @@ export function resolveDesktopHeaderTitle(pathname: string): string | null {
 
 export function isGameHomePath(pathname: string): boolean {
   return /^\/game\/[^/]+\/?$/.test(pathname);
+}
+
+/** Маршруты вне /game/* — список турниров, профиль, создание и т.д. */
+export function isHubShellPath(pathname: string): boolean {
+  return !pathname.startsWith("/game/");
 }

@@ -1,14 +1,15 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { IconCrown } from "@tabler/icons-react";
 import { UserAvatar } from "@/components/user/user-avatar";
-import { logoutAction } from "@/server/actions/auth";
 import { BrandLogo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { DesktopSidebar } from "@/components/layout/desktop-sidebar";
 import { ShellDesktopPageTitle } from "@/components/layout/shell-desktop-page-title";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { shellHeaderHeightClass } from "@/components/layout/shell-header";
+import { resolveActiveGameInviteCode } from "@/lib/active-game";
 import { getUserGamesState } from "@/lib/game-access";
 import { cn } from "@/lib/utils";
 import { userNeedsEmailVerification } from "@/lib/email-verification";
@@ -49,22 +50,25 @@ export async function AppShell({
   if (user) {
     const state = await getUserGamesState(user.id);
     hasGames = state.hasGames;
-    if (!activeInviteCode && state.firstInviteCode) {
-      activeInviteCode = state.firstInviteCode;
-    }
+    const pathname = (await headers()).get("x-pathname") ?? "";
+    activeInviteCode = await resolveActiveGameInviteCode(user.id, {
+      preferredInviteCode: gameInviteCode,
+      pathname,
+      fallbackInviteCode: state.firstInviteCode,
+    });
   }
 
   const showGameNav = hasGamesOrOversight ?? hasGames;
-  const showMobileNav = Boolean(user && showGameNav && activeInviteCode);
+  const showMobileNav = Boolean(user);
 
   return (
-    <div className="relative min-h-screen bg-brand-bg text-white">
+    <div className="relative h-dvh overflow-hidden bg-brand-bg text-white">
       <div
         className="brand-dot-pattern pointer-events-none absolute inset-0 opacity-10"
         aria-hidden="true"
       />
 
-      <div className="relative flex min-h-screen min-w-0">
+      <div className="relative flex h-full min-h-0 min-w-0 max-w-full">
         {user ? (
           <DesktopSidebar
             gameInviteCode={activeInviteCode}
@@ -74,11 +78,11 @@ export async function AppShell({
             gameOversightMode={gameOversightMode}
           />
         ) : null}
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <div className="flex h-full min-h-0 min-w-0 max-w-full flex-1 flex-col">
           <header
             className={cn(
               shellHeaderHeightClass,
-              "sticky top-0 z-40 flex items-center border-b border-brand-neutral bg-brand-bg/90 py-3 backdrop-blur md:py-0",
+              "z-40 flex shrink-0 items-center border-b border-brand-neutral bg-brand-bg/90 py-3 backdrop-blur md:py-0",
             )}
           >
             <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 md:px-6">
@@ -118,16 +122,6 @@ export async function AppShell({
                         </span>
                       </Link>
                     </div>
-                    <form action={logoutAction}>
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="sm"
-                        className="h-auto min-h-0 px-2 py-1 text-sm font-medium text-brand-muted hover:text-white"
-                      >
-                        Выйти
-                      </Button>
-                    </form>
                   </>
                 ) : (
                   <Link href="/">
@@ -145,18 +139,20 @@ export async function AppShell({
           </header>
           <main
             className={cn(
-              "min-w-0 flex-1 overflow-x-hidden",
-              showMobileNav && "pb-24 md:pb-6",
+              "min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden md:pb-6",
+              showMobileNav &&
+                "pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]",
             )}
           >
             {children}
           </main>
         </div>
       </div>
-      {showMobileNav && activeInviteCode ? (
+      {showMobileNav ? (
         <MobileBottomNav
           gameInviteCode={activeInviteCode}
           gameOversightMode={gameOversightMode}
+          hasGames={showGameNav}
         />
       ) : null}
     </div>

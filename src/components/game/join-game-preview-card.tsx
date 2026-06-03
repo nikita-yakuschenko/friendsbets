@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { gamePath } from "@/lib/game-path";
+import { GameAccessMode, GameJoinRequestStatus } from "@/generated/prisma/client";
+import { GAME_ACCESS_MODE_LABELS } from "@/lib/game-access-mode";
 import type { GameJoinPreview } from "@/lib/join-game-preview";
 
 export function JoinGamePreviewCard({
@@ -37,6 +39,12 @@ export function JoinGamePreviewCard({
             <dd className="text-right text-white">{preview.participantsCount}</dd>
           </div>
           <div className="flex justify-between gap-4">
+            <dt className="text-brand-muted">Доступ</dt>
+            <dd className="text-right text-white">
+              {GAME_ACCESS_MODE_LABELS[preview.accessMode]}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-4">
             <dt className="text-brand-muted">Invite-код</dt>
             <dd>
               <Badge variant="secondary" className="font-mono">
@@ -58,6 +66,14 @@ export function JoinGamePreviewCard({
               Перейти в турнир
             </Link>
           </div>
+        ) : preview.accessMode === GameAccessMode.REQUEST ? (
+          <p className="text-sm text-brand-muted">
+            {preview.joinRequestStatus === GameJoinRequestStatus.PENDING
+              ? "Заявка отправлена. Дождитесь решения организатора."
+              : preview.joinRequestStatus === GameJoinRequestStatus.REJECTED
+                ? "Заявка отклонена. Можно отправить заявку снова."
+                : "Вступление по заявке: отправьте запрос организатору."}
+          </p>
         ) : (
           <p className="text-sm text-brand-muted">
             Это тот турнир? Нажмите «Вступить» — только после этого вы станете

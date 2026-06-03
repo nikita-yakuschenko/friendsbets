@@ -246,9 +246,10 @@ export function ProfileSettingsForm({ user }: { user: ProfileUser }) {
         </div>
       </section>
 
-      <div className="flex justify-center border-t border-brand-neutral/60 pt-8">
+      <div className="border-t border-brand-neutral/60 pt-8">
         <Button
           type="submit"
+          className="w-full sm:w-auto"
           disabled={!hasChanges || pending || processingAvatar}
         >
           {pending ? "Сохраняем…" : "Сохранить"}

@@ -11,9 +11,12 @@ const COPIED_FEEDBACK_MS = 1600;
 export function InviteCodeCopyCell({
   inviteCode,
   inviteLinkUrl,
+  compact = false,
 }: {
   inviteCode: string;
   inviteLinkUrl: string;
+  /** Компактная строка рядом с подписью (карточки турниров). */
+  compact?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -41,7 +44,12 @@ export function InviteCodeCopyCell({
     : { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const };
 
   return (
-    <div className="inline-flex h-11 items-center min-w-38">
+    <div
+      className={cn(
+        "inline-flex items-center",
+        compact ? "h-5 min-w-0" : "h-11 min-w-38",
+      )}
+    >
       <AnimatePresence mode="wait" initial={false}>
         {copied ? (
           <motion.span
@@ -50,7 +58,10 @@ export function InviteCodeCopyCell({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={transition}
-            className="flex h-11 items-center text-sm font-medium text-brand-lime"
+            className={cn(
+              "flex items-center text-sm font-medium text-brand-lime",
+              compact ? "h-5" : "h-11",
+            )}
             aria-live="polite"
           >
             Скопировано
@@ -66,7 +77,8 @@ export function InviteCodeCopyCell({
             onClick={handleCopy}
             aria-label={`Скопировать ссылку приглашения, код ${inviteCode}`}
             className={cn(
-              "-mx-1 flex h-11 items-center gap-2 min-w-38 rounded-lg px-2 text-left",
+              "-mx-1 flex items-center gap-2 rounded-lg px-1 text-left",
+              compact ? "h-5 min-w-0 py-0" : "h-11 min-w-38 px-2",
               "transition-colors hover:text-brand-lime active:text-brand-lime",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime/60",
             )}

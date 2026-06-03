@@ -77,7 +77,7 @@ export function DataTable<TData, TValue>({
           placeholder={filterPlaceholder}
           value={(filterColumn.getFilterValue() as string) ?? ""}
           onChange={(event) => filterColumn.setFilterValue(event.target.value)}
-          className="max-w-sm"
+          className="w-full max-w-sm"
         />
       ) : null}
 

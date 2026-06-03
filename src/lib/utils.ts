@@ -14,6 +14,16 @@ export function formatDateTime(date: Date): string {
   }).format(date);
 }
 
+export function formatDateTimeWithYear(date: Date): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 /** Полная дата и время по часовому поясу Москвы. */
 export function formatDateTimeMoscow(date: Date): string {
   const formatted = new Intl.DateTimeFormat("ru-RU", {
