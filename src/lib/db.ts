@@ -1,5 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
+import { Pool, type PoolConfig } from "pg";
 import { PrismaClient } from "@/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
@@ -7,13 +7,38 @@ const globalForPrisma = globalThis as unknown as {
   pool: Pool | undefined;
 };
 
+function parsePoolInt(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export function getDatabasePoolConfig(connectionString: string): PoolConfig {
+  return {
+    connectionString,
+    max: parsePoolInt(process.env.DATABASE_POOL_MAX, 10),
+    idleTimeoutMillis: parsePoolInt(
+      process.env.DATABASE_POOL_IDLE_TIMEOUT_MS,
+      30_000,
+    ),
+    connectionTimeoutMillis: parsePoolInt(
+      process.env.DATABASE_POOL_CONNECTION_TIMEOUT_MS,
+      10_000,
+    ),
+  };
+}
+
+function createPool(connectionString: string): Pool {
+  return new Pool(getDatabasePoolConfig(connectionString));
+}
+
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set");
   }
 
-  const pool = globalForPrisma.pool ?? new Pool({ connectionString });
+  const pool = globalForPrisma.pool ?? createPool(connectionString);
   const adapter = new PrismaPg(pool);
 
   if (!globalForPrisma.pool) {

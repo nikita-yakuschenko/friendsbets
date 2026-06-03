@@ -50,7 +50,10 @@ export function verifySessionToken(token: string): { userId: string } | null {
       .update(payload)
       .digest("hex");
 
-    if (signature !== expected) return null;
+    const sigBuf = Buffer.from(signature, "hex");
+    const expectedBuf = Buffer.from(expected, "hex");
+    if (sigBuf.length !== expectedBuf.length) return null;
+    if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return null;
 
     const data = JSON.parse(payload) as { userId: string; exp: number };
     if (Date.now() > data.exp) return null;

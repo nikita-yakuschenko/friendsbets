@@ -1,4 +1,5 @@
 import { MatchStatus } from "@/generated/prisma/client";
+import { mapWithConcurrency, readConcurrencyFromEnv } from "@/lib/concurrency";
 import { prisma } from "@/lib/db";
 import type { ParsedChampionatTournamentUrl } from "@/lib/championat-url";
 import {
@@ -13,6 +14,7 @@ import {
 import { resolveTeamCountryCode } from "@/lib/football-api/championat/team-country-codes";
 import { normalizeVenueCity } from "@/lib/venue";
 import type {
+  ChampionatSyncMode,
   ChampionatSyncOptions,
   ExternalMatch,
   ExternalTeamRef,
@@ -21,11 +23,14 @@ import type {
 import { championatFinishedTrackingPatch } from "@/lib/football-api/championat/championat-tracking";
 import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
 import { MATCH_LIVE_TRACKING_MAX_MS } from "@/lib/match-prediction-state";
+import { logOperation, logOperationError } from "@/lib/logger";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import { CHAMPIONAT_WORLD_CUP_2026 } from "@/lib/football-api/championat/constants";
 
 const VENUE_FETCH_DELAY_MS = 120;
+/** Окно «ближайших» матчей для quick sync (часы). */
+const QUICK_SYNC_NEAR_HOURS = 72;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -207,33 +212,58 @@ export async function refreshChampionatMatchPages(
   return enrichMatchesFromChampionatPages(tournamentId, source);
 }
 
+type EnrichPageOptions = {
+  mode: ChampionatSyncMode;
+};
+
 async function enrichMatchesFromChampionatPages(
   tournamentId: string,
   source?: ParsedChampionatTournamentUrl,
-): Promise<{ venuesUpdated: number; statusesUpdated: number }> {
+  options: EnrichPageOptions = { mode: "full" },
+): Promise<{
+  venuesUpdated: number;
+  statusesUpdated: number;
+  externalRequests: number;
+  errors: number;
+}> {
   const config = source ?? getChampionatSyncConfig();
   const now = new Date();
   const staleCutoff = new Date(now.getTime() - MATCH_LIVE_TRACKING_MAX_MS);
+  const nearAhead = new Date(
+    now.getTime() + QUICK_SYNC_NEAR_HOURS * 60 * 60 * 1000,
+  );
+  const nearBehind = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+
+  const quickOr = [
+    { status: MatchStatus.LIVE },
+    {
+      status: MatchStatus.SCHEDULED,
+      startsAt: { gte: nearBehind, lte: nearAhead },
+    },
+    {
+      status: MatchStatus.SCHEDULED,
+      startsAt: { lte: now },
+      homeScore: null,
+      awayScore: null,
+    },
+    {
+      status: { notIn: [MatchStatus.FINISHED, MatchStatus.CANCELLED] },
+      startsAt: { lte: staleCutoff },
+    },
+  ];
+
+  const fullOr = [
+    { venueName: null },
+    { venueCity: null },
+    ...quickOr,
+  ];
 
   const matches = await prisma.match.findMany({
     where: {
       tournamentId,
       externalId: { startsWith: "championat:" },
-      OR: [
-        { venueName: null },
-        { venueCity: null },
-        { status: MatchStatus.LIVE },
-        {
-          status: MatchStatus.SCHEDULED,
-          startsAt: { lte: now },
-          homeScore: null,
-          awayScore: null,
-        },
-        {
-          status: { notIn: [MatchStatus.FINISHED, MatchStatus.CANCELLED] },
-          startsAt: { lte: staleCutoff },
-        },
-      ],
+      championatTrackActive: true,
+      OR: options.mode === "quick" ? quickOr : fullOr,
     },
     select: {
       id: true,
@@ -243,12 +273,14 @@ async function enrichMatchesFromChampionatPages(
     },
   });
 
-  let venuesUpdated = 0;
-  let statusesUpdated = 0;
+  const concurrency = readConcurrencyFromEnv("CHAMPIONAT_SYNC_CONCURRENCY", 3);
+  const allowVenueEnrichment = options.mode === "full";
 
-  for (const match of matches) {
+  const stats = await mapWithConcurrency(matches, concurrency, async (match) => {
     const championatMatchId = extractChampionatMatchId(match.externalId);
-    if (!championatMatchId) continue;
+    if (!championatMatchId) {
+      return { venues: 0, statuses: 0, requests: 0, errors: 0 };
+    }
 
     try {
       const details = await fetchChampionatMatchDetails(championatMatchId, {
@@ -266,7 +298,10 @@ async function enrichMatchesFromChampionatPages(
         championatFinishedAt?: Date;
       } = {};
 
-      if (details.venueName || details.venueCity) {
+      if (
+        allowVenueEnrichment &&
+        (details.venueName || details.venueCity)
+      ) {
         data.venueName = details.venueName ?? null;
         data.venueCity = normalizeVenueCity(details.venueCity) ?? null;
       }
@@ -299,7 +334,7 @@ async function enrichMatchesFromChampionatPages(
 
       if (Object.keys(data).length === 0) {
         await sleep(VENUE_FETCH_DELAY_MS);
-        continue;
+        return { venues: 0, statuses: 0, requests: 1, errors: 0 };
       }
 
       await prisma.match.update({
@@ -307,23 +342,31 @@ async function enrichMatchesFromChampionatPages(
         data,
       });
 
-      if (data.venueName !== undefined || data.venueCity !== undefined) {
-        venuesUpdated += 1;
-      }
-      if (data.status !== undefined) {
-        statusesUpdated += 1;
-      }
+      await sleep(VENUE_FETCH_DELAY_MS);
+      return {
+        venues:
+          data.venueName !== undefined || data.venueCity !== undefined ? 1 : 0,
+        statuses: data.status !== undefined ? 1 : 0,
+        requests: 1,
+        errors: 0,
+      };
     } catch (error) {
-      console.warn(
-        `[championat-sync] match page failed id=${championatMatchId}`,
-        error instanceof Error ? error.message : error,
-      );
+      logOperationError("championat-sync:match-page", error, {
+        tournamentId,
+        matchId: match.id,
+        championatMatchId,
+      });
+      await sleep(VENUE_FETCH_DELAY_MS);
+      return { venues: 0, statuses: 0, requests: 1, errors: 1 };
     }
+  });
 
-    await sleep(VENUE_FETCH_DELAY_MS);
-  }
+  const venuesUpdated = stats.reduce((n, s) => n + s.venues, 0);
+  const statusesUpdated = stats.reduce((n, s) => n + s.statuses, 0);
+  const externalRequests = stats.reduce((n, s) => n + s.requests, 0);
+  const errors = stats.reduce((n, s) => n + s.errors, 0);
 
-  return { venuesUpdated, statusesUpdated };
+  return { venuesUpdated, statusesUpdated, externalRequests, errors };
 }
 
 async function normalizeStoredVenueCities(tournamentId: string): Promise<void> {
@@ -358,18 +401,77 @@ export async function enrichChampionatVenuesOnly(
   return venuesUpdated;
 }
 
+export async function syncChampionatTournamentQuick(
+  dbTournamentId: string,
+  source: ParsedChampionatTournamentUrl,
+): Promise<SyncMatchesResult> {
+  const started = Date.now();
+  const enriched = await enrichMatchesFromChampionatPages(
+    dbTournamentId,
+    source,
+    { mode: "quick" },
+  );
+
+  const result: SyncMatchesResult = {
+    created: 0,
+    updated: 0,
+    teamsCreated: 0,
+    teamsUpdated: 0,
+    venuesUpdated: enriched.venuesUpdated,
+    statusesUpdated: enriched.statusesUpdated,
+    total: 0,
+    mode: "quick",
+    externalRequests: enriched.externalRequests,
+  };
+
+  logOperation("championat-sync", {
+    mode: "quick",
+    tournamentId: dbTournamentId,
+    durationMs: Date.now() - started,
+    total: result.total,
+    venuesUpdated: result.venuesUpdated,
+    statusesUpdated: result.statusesUpdated ?? 0,
+    externalRequests: enriched.externalRequests,
+    errors: enriched.errors,
+  });
+
+  return result;
+}
+
+export async function syncChampionatTournamentFull(
+  dbTournamentId: string,
+  source: ParsedChampionatTournamentUrl,
+  options: { enrichVenues?: boolean } = {},
+): Promise<SyncMatchesResult> {
+  return syncChampionatTournament(dbTournamentId, source, {
+    mode: "full",
+    enrichVenues: options.enrichVenues ?? true,
+  });
+}
+
 export async function syncChampionatTournament(
   dbTournamentId: string,
   source: ParsedChampionatTournamentUrl,
   options: ChampionatSyncOptions = {},
 ): Promise<SyncMatchesResult> {
-  const enrichVenues = options.enrichVenues ?? true;
+  const mode = options.mode ?? "full";
+  if (mode === "quick") {
+    return syncChampionatTournamentQuick(dbTournamentId, source);
+  }
 
-  console.info(
-    `[championat-sync] calendar fetch tournament=${dbTournamentId} enrichVenues=${enrichVenues}`,
-  );
+  const started = Date.now();
+  const enrichVenues = options.enrichVenues ?? true;
+  let externalRequests = 0;
+
+  logOperation("championat-sync", {
+    mode: "full",
+    tournamentId: dbTournamentId,
+    enrichVenues,
+    phase: "calendar",
+  });
+
+  externalRequests += 1;
   const externalMatches = await fetchChampionatCalendar(source.calendarUrl);
-  console.info(`[championat-sync] calendar parsed matches=${externalMatches.length}`);
 
   let created = 0;
   let updated = 0;
@@ -398,28 +500,46 @@ export async function syncChampionatTournament(
 
   let venuesUpdated = 0;
   let statusesUpdated = 0;
+  let enrichErrors = 0;
   if (enrichVenues) {
-    console.info("[championat-sync] enriching match pages…");
     const enriched = await enrichMatchesFromChampionatPages(
       dbTournamentId,
       source,
+      { mode: "full" },
     );
     venuesUpdated = enriched.venuesUpdated;
     statusesUpdated = enriched.statusesUpdated;
+    externalRequests += enriched.externalRequests;
+    enrichErrors = enriched.errors;
     await normalizeStoredVenueCities(dbTournamentId);
-    console.info(
-      `[championat-sync] venues updated=${venuesUpdated} statuses updated=${statusesUpdated}`,
-    );
   }
 
-  return {
+  const result: SyncMatchesResult = {
     created,
     updated,
     teamsCreated,
     teamsUpdated,
     venuesUpdated,
+    statusesUpdated,
     total: externalMatches.length,
+    mode: "full",
+    externalRequests,
   };
+
+  logOperation("championat-sync", {
+    mode: "full",
+    tournamentId: dbTournamentId,
+    durationMs: Date.now() - started,
+    total: result.total,
+    created,
+    updated,
+    venuesUpdated,
+    statusesUpdated: statusesUpdated ?? 0,
+    externalRequests,
+    errors: enrichErrors,
+  });
+
+  return result;
 }
 
 export type SyncAllChampionatResult = {
@@ -430,7 +550,9 @@ export type SyncAllChampionatResult = {
 };
 
 /** Синк календаря всех турниров с externalId championat:tournament:* (не только из .env). */
-export async function syncAllChampionatTournaments(): Promise<SyncAllChampionatResult> {
+export async function syncAllChampionatTournaments(
+  options: ChampionatSyncOptions = {},
+): Promise<SyncAllChampionatResult> {
   const tournaments = await prisma.tournament.findMany({
     where: { externalId: { startsWith: "championat:tournament:" } },
     select: { id: true, title: true },
@@ -459,7 +581,8 @@ export async function syncAllChampionatTournaments(): Promise<SyncAllChampionatR
     }
 
     const result = await syncChampionatTournament(tournament.id, source, {
-      enrichVenues: true,
+      enrichVenues: options.enrichVenues ?? true,
+      mode: options.mode ?? "full",
     });
     synced += 1;
     totals.created += result.created;
@@ -475,15 +598,21 @@ export async function syncAllChampionatTournaments(): Promise<SyncAllChampionatR
 
 export async function syncMatches(
   tournamentId?: string,
+  options: ChampionatSyncOptions = {},
 ): Promise<SyncMatchesResult> {
+  const mode = options.mode ?? "full";
+
   if (!tournamentId) {
-    const all = await syncAllChampionatTournaments();
-    return all.totals;
+    const all = await syncAllChampionatTournaments({ ...options, mode });
+    return { ...all.totals, mode };
   }
 
   const source = await resolveChampionatSourceForTournament(tournamentId);
   if (source) {
-    return syncChampionatTournament(tournamentId, source, { enrichVenues: true });
+    return syncChampionatTournament(tournamentId, source, {
+      enrichVenues: options.enrichVenues ?? mode === "full",
+      mode,
+    });
   }
 
   const dbTournamentId = await resolveDbTournamentId();

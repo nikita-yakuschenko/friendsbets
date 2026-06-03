@@ -247,6 +247,9 @@ model Match {
   @@unique([tournamentId, externalId])
   @@index([tournamentId])
   @@index([startsAt])
+  @@index([tournamentId, status, startsAt])
+  @@index([tournamentId, championatTrackActive])
+  @@index([externalId])
 }
 
 model Prediction {
@@ -271,6 +274,7 @@ model Prediction {
   @@index([gameId])
   @@index([matchId])
   @@index([userId])
+  @@index([gameId, matchId])
 }
 
 model PredictionScore {
@@ -300,6 +304,8 @@ model PredictionReminder {
   @@unique([gameId, matchId, userId, kind])
   @@index([matchId])
   @@index([userId])
+  @@index([gameId, matchId])
+  @@index([gameId, matchId, kind])
 }
 
 model BonusPrediction {
@@ -317,4 +323,18 @@ model BonusPrediction {
 
   @@unique([gameId, userId])
   @@index([gameId])
+}
+
+/** История запусков cron (sync, reminders) для health и ops. */
+model CronRun {
+  id          String   @id @default(cuid())
+  jobId       String
+  ok          Boolean
+  mode        String?
+  startedAt   DateTime @default(now())
+  finishedAt  DateTime
+  durationMs  Int
+  summaryJson Json?
+
+  @@index([jobId, startedAt(sort: Desc)])
 }

@@ -41,7 +41,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# --- Testing: артефакты, отчёты, локальная инфраструктура ---
+# --- Testing: только артефакты прогонов (исходники тестов — в Git) ---
 /coverage/
 htmlcov/
 .nyc_output/
@@ -49,17 +49,7 @@ htmlcov/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
-vitest.config.ts
-playwright.config.ts
-.env.test.example
-/tests/
-**/*.test.ts
-**/*.test.tsx
-**/*.spec.ts
-
-# Внутренняя документация по тестам / coverage
-/docs/TESTING.md
-/docs/TESTING_REPORT.md
+.env.test.local
 
 # --- Tooling cache ---
 .cache/

@@ -154,11 +154,16 @@ export async function getUserGamesState(userId: string) {
 export async function getUserGames(userId: string) {
   return prisma.gameParticipant.findMany({
     where: { userId },
-    include: {
+    select: {
+      role: true,
       game: {
-        include: {
-          tournament: true,
-          scoringRule: true,
+        select: {
+          id: true,
+          title: true,
+          inviteCode: true,
+          createdAt: true,
+          tournament: { select: { externalId: true } },
+          scoringRule: { select: { title: true } },
           createdBy: { select: { name: true } },
           participants: {
             where: { role: GameParticipantRole.ORGANIZER },

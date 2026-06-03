@@ -9,6 +9,7 @@ import {
   buildPredictionReminderEmail,
 } from "@/lib/email/templates";
 import { gamePath } from "@/lib/game-path";
+import { logOperation, logOperationError, maskEmail } from "@/lib/logger";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { formatDateTime } from "@/lib/utils";
@@ -68,6 +69,14 @@ type GameWithParticipants = {
   }>;
 };
 
+type ReminderMatchRow = {
+  id: string;
+  startsAt: Date;
+  homeTeam: { name: string };
+  awayTeam: { name: string };
+  tournament: { games: GameWithParticipants[] };
+};
+
 /** Окно startsAt для напоминания (экспорт для тестов). */
 export function matchReminderWindow(minutesBefore: number, now: Date) {
   const half = REMINDER_WINDOW_MS / 2;
@@ -93,7 +102,7 @@ function missingUrl(inviteCode: string, origin?: string): string {
   return `${appOrigin(origin)}/admin/missing?game=${encodeURIComponent(inviteCode)}`;
 }
 
-function getAdminRecipients(game: GameWithParticipants) {
+export function getAdminRecipients(game: GameWithParticipants) {
   const recipients = new Map<string, { email: string; name: string }>();
 
   for (const participant of game.participants) {
@@ -119,6 +128,15 @@ function getAdminRecipients(game: GameWithParticipants) {
   }
 
   return [...recipients.entries()].map(([userId, info]) => ({ userId, ...info }));
+}
+
+function reminderKey(
+  gameId: string,
+  matchId: string,
+  userId: string,
+  kind: PredictionReminderKind,
+) {
+  return `${gameId}:${matchId}:${userId}:${kind}`;
 }
 
 async function sendReminderEmail(params: {
@@ -173,9 +191,161 @@ async function sendAdminMissingListEmail(params: {
   await sendEmail({ to: params.to, subject, text, html });
 }
 
+async function processReminderBatch(params: {
+  matches: ReminderMatchRow[];
+  kind: PredictionReminderKind;
+  adminKind: PredictionReminderKind;
+  label: string;
+  result: ReminderRunResult;
+}) {
+  const { matches, kind, adminKind, label, result } = params;
+  if (matches.length === 0) return;
+
+  const gameIds = new Set<string>();
+  const matchIds = new Set<string>();
+  for (const match of matches) {
+    matchIds.add(match.id);
+    for (const game of match.tournament.games) {
+      gameIds.add(game.id);
+    }
+  }
+
+  const predictions = await prisma.prediction.findMany({
+    where: {
+      gameId: { in: [...gameIds] },
+      matchId: { in: [...matchIds] },
+    },
+    select: { gameId: true, matchId: true, userId: true },
+  });
+
+  const predictedKeys = new Set(
+    predictions.map((p) => `${p.gameId}:${p.matchId}:${p.userId}`),
+  );
+
+  const sentReminders = await prisma.predictionReminder.findMany({
+    where: {
+      gameId: { in: [...gameIds] },
+      matchId: { in: [...matchIds] },
+      kind: { in: [kind, adminKind] },
+    },
+    select: { gameId: true, matchId: true, userId: true, kind: true },
+  });
+
+  const alreadySent = new Set(
+    sentReminders.map((r) =>
+      reminderKey(r.gameId, r.matchId, r.userId, r.kind),
+    ),
+  );
+
+  for (const match of matches) {
+    for (const game of match.tournament.games) {
+      const missingParticipants = game.participants.filter(
+        (participant) =>
+          !predictedKeys.has(
+            `${game.id}:${match.id}:${participant.userId}`,
+          ),
+      );
+
+      for (const participant of missingParticipants) {
+        result.checked++;
+        const key = reminderKey(game.id, match.id, participant.userId, kind);
+
+        if (alreadySent.has(key)) {
+          result.skipped++;
+          continue;
+        }
+
+        if (!participant.user.emailVerifiedAt) {
+          result.skipped++;
+          continue;
+        }
+
+        try {
+          await sendReminderEmail({
+            to: participant.user.email,
+            userName: participant.displayName,
+            gameTitle: game.title,
+            gameInviteCode: game.inviteCode,
+            homeTeam: match.homeTeam.name,
+            awayTeam: match.awayTeam.name,
+            startsAt: match.startsAt,
+            timeLabel: label,
+          });
+
+          await prisma.predictionReminder.create({
+            data: {
+              gameId: game.id,
+              matchId: match.id,
+              userId: participant.userId,
+              kind,
+            },
+          });
+          alreadySent.add(key);
+          result.sent++;
+        } catch (error) {
+          logOperationError("reminders:participant", error, {
+            gameId: game.id,
+            matchId: match.id,
+            email: maskEmail(participant.user.email),
+          });
+          result.errors++;
+        }
+      }
+
+      if (missingParticipants.length === 0) continue;
+
+      const missingNames = missingParticipants.map((p) => p.displayName);
+      const adminRecipients = getAdminRecipients(game);
+
+      for (const admin of adminRecipients) {
+        result.checked++;
+        const key = reminderKey(game.id, match.id, admin.userId, adminKind);
+
+        if (alreadySent.has(key)) {
+          result.skipped++;
+          continue;
+        }
+
+        try {
+          await sendAdminMissingListEmail({
+            to: admin.email,
+            adminName: admin.name,
+            gameTitle: game.title,
+            gameInviteCode: game.inviteCode,
+            homeTeam: match.homeTeam.name,
+            awayTeam: match.awayTeam.name,
+            startsAt: match.startsAt,
+            timeLabel: label,
+            missingNames,
+          });
+
+          await prisma.predictionReminder.create({
+            data: {
+              gameId: game.id,
+              matchId: match.id,
+              userId: admin.userId,
+              kind: adminKind,
+            },
+          });
+          alreadySent.add(key);
+          result.sent++;
+        } catch (error) {
+          logOperationError("reminders:admin", error, {
+            gameId: game.id,
+            matchId: match.id,
+            email: maskEmail(admin.email),
+          });
+          result.errors++;
+        }
+      }
+    }
+  }
+}
+
 export async function sendDuePredictionReminders(
   now = new Date(),
 ): Promise<ReminderRunResult> {
+  const started = Date.now();
   const result: ReminderRunResult = {
     checked: 0,
     sent: 0,
@@ -229,124 +399,22 @@ export async function sendDuePredictionReminders(
       },
     });
 
-    for (const match of matches.filter(isMatchPredictable)) {
-      for (const game of match.tournament.games) {
-        const predictions = await prisma.prediction.findMany({
-          where: { gameId: game.id, matchId: match.id },
-          select: { userId: true },
-        });
-        const predictedUserIds = new Set(predictions.map((p) => p.userId));
-        const missingParticipants = game.participants.filter(
-          (participant) => !predictedUserIds.has(participant.userId),
-        );
-
-        for (const participant of missingParticipants) {
-          result.checked++;
-
-          const alreadySent = await prisma.predictionReminder.findUnique({
-            where: {
-              gameId_matchId_userId_kind: {
-                gameId: game.id,
-                matchId: match.id,
-                userId: participant.userId,
-                kind,
-              },
-            },
-          });
-
-          if (alreadySent) {
-            result.skipped++;
-            continue;
-          }
-
-          if (!participant.user.emailVerifiedAt) {
-            result.skipped++;
-            continue;
-          }
-
-          try {
-            await sendReminderEmail({
-              to: participant.user.email,
-              userName: participant.displayName,
-              gameTitle: game.title,
-              gameInviteCode: game.inviteCode,
-              homeTeam: match.homeTeam.name,
-              awayTeam: match.awayTeam.name,
-              startsAt: match.startsAt,
-              timeLabel: label,
-            });
-
-            await prisma.predictionReminder.create({
-              data: {
-                gameId: game.id,
-                matchId: match.id,
-                userId: participant.userId,
-                kind,
-              },
-            });
-
-            result.sent++;
-          } catch (error) {
-            console.error("[reminders:participant]", error);
-            result.errors++;
-          }
-        }
-
-        if (missingParticipants.length === 0) continue;
-
-        const missingNames = missingParticipants.map((p) => p.displayName);
-        const adminRecipients = getAdminRecipients(game);
-
-        for (const admin of adminRecipients) {
-          result.checked++;
-
-          const alreadySent = await prisma.predictionReminder.findUnique({
-            where: {
-              gameId_matchId_userId_kind: {
-                gameId: game.id,
-                matchId: match.id,
-                userId: admin.userId,
-                kind: adminKind,
-              },
-            },
-          });
-
-          if (alreadySent) {
-            result.skipped++;
-            continue;
-          }
-
-          try {
-            await sendAdminMissingListEmail({
-              to: admin.email,
-              adminName: admin.name,
-              gameTitle: game.title,
-              gameInviteCode: game.inviteCode,
-              homeTeam: match.homeTeam.name,
-              awayTeam: match.awayTeam.name,
-              startsAt: match.startsAt,
-              timeLabel: label,
-              missingNames,
-            });
-
-            await prisma.predictionReminder.create({
-              data: {
-                gameId: game.id,
-                matchId: match.id,
-                userId: admin.userId,
-                kind: adminKind,
-              },
-            });
-
-            result.sent++;
-          } catch (error) {
-            console.error("[reminders:admin]", error);
-            result.errors++;
-          }
-        }
-      }
-    }
+    await processReminderBatch({
+      matches: matches.filter(isMatchPredictable) as ReminderMatchRow[],
+      kind,
+      adminKind,
+      label,
+      result,
+    });
   }
+
+  logOperation("reminders:run", {
+    durationMs: Date.now() - started,
+    checked: result.checked,
+    sent: result.sent,
+    skipped: result.skipped,
+    errors: result.errors,
+  });
 
   return result;
 }
