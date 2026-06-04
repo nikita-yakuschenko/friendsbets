@@ -35,6 +35,8 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/src ./src
+# entrypoint: npm run db:essentials (tsx scripts/ensure-platform-essentials.ts)
+COPY --from=builder /app/scripts ./scripts
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh \
   && mkdir -p public/avatars \
