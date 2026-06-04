@@ -113,10 +113,24 @@ export function ProfileSettingsForm({ user }: { user: ProfileUser }) {
     }
   }
 
-  function handleRemoveAvatarClick() {
-    setRemoveAvatar(true);
-    clearAvatarSelection();
+  function handleAvatarClearClick() {
+    if (removeAvatar) {
+      setRemoveAvatar(false);
+      return;
+    }
+    if (avatarFile || selectedFileName || previewUrl) {
+      clearAvatarSelection();
+      return;
+    }
+    if (user.avatarUrl) {
+      setRemoveAvatar(true);
+    }
   }
+
+  const showAvatarClear =
+    removeAvatar ||
+    Boolean(selectedFileName) ||
+    Boolean(user.avatarUrl && !hasNewAvatarFile);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -181,13 +195,19 @@ export function ProfileSettingsForm({ user }: { user: ProfileUser }) {
                   ? "Обработка…"
                   : (selectedFileName ?? "Файл не выбран")}
               </span>
-              {selectedFileName ? (
+              {showAvatarClear ? (
                 <button
                   type="button"
                   className="flex h-full w-10 shrink-0 items-center justify-center border-l border-brand-neutral text-brand-muted transition-colors hover:bg-brand-neutral/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-lime disabled:pointer-events-none disabled:opacity-50"
                   disabled={pending || processingAvatar}
-                  aria-label="Убрать выбранный файл"
-                  onClick={clearAvatarSelection}
+                  aria-label={
+                    removeAvatar
+                      ? "Отменить удаление аватара"
+                      : selectedFileName
+                        ? "Убрать выбранный файл"
+                        : "Удалить аватар"
+                  }
+                  onClick={handleAvatarClearClick}
                 >
                   <IconX className="size-4" stroke={2} />
                 </button>
@@ -204,24 +224,6 @@ export function ProfileSettingsForm({ user }: { user: ProfileUser }) {
               />
             </div>
           </div>
-          {user.avatarUrl && !removeAvatar && !hasNewAvatarFile ? (
-            <div className="flex justify-center">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={pending || processingAvatar}
-                onClick={handleRemoveAvatarClick}
-              >
-                Удалить аватар
-              </Button>
-            </div>
-          ) : null}
-          {removeAvatar ? (
-            <p className="text-center text-xs text-brand-muted">
-              Аватар будет удалён после сохранения
-            </p>
-          ) : null}
         </div>
       </section>
 
