@@ -20,6 +20,13 @@ export type ScheduledChampionatSyncResult = {
   errors: number;
 };
 
+export type ScheduledChampionatSyncOptions = {
+  /** Только матчи этого турнира (страница прогнозов, игра). */
+  tournamentId?: string;
+  /** Верхняя граница HTTP-запросов к Championat за один вызов. */
+  maxPolls?: number;
+};
+
 async function deactivateExpiredChampionatTracking(now: Date): Promise<number> {
   const expired = await prisma.match.findMany({
     where: {
@@ -54,7 +61,9 @@ async function deactivateExpiredChampionatTracking(now: Date): Promise<number> {
 /**
  * Опрос страниц матчей по расписанию (слоты МСК; в матче и 10 мин после FINISHED — каждые 30 с).
  */
-export async function runScheduledChampionatMatchSyncs(): Promise<ScheduledChampionatSyncResult> {
+export async function runScheduledChampionatMatchSyncs(
+  options: ScheduledChampionatSyncOptions = {},
+): Promise<ScheduledChampionatSyncResult> {
   const now = new Date();
   await deactivateExpiredChampionatTracking(now);
 
@@ -63,6 +72,7 @@ export async function runScheduledChampionatMatchSyncs(): Promise<ScheduledChamp
       externalId: { startsWith: "championat:" },
       championatTrackActive: true,
       status: { notIn: [MatchStatus.CANCELLED] },
+      ...(options.tournamentId ? { tournamentId: options.tournamentId } : {}),
     },
     select: {
       id: true,
@@ -112,6 +122,10 @@ export async function runScheduledChampionatMatchSyncs(): Promise<ScheduledChamp
       sourceCache.set(match.tournamentId, source);
     }
     if (!source || !match.externalId) continue;
+
+    if (options.maxPolls !== undefined && polled >= options.maxPolls) {
+      break;
+    }
 
     polled += 1;
 

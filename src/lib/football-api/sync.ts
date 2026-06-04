@@ -23,12 +23,12 @@ import type {
 import { championatFinishedTrackingPatch } from "@/lib/football-api/championat/championat-tracking";
 import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
 import { MATCH_LIVE_TRACKING_MAX_MS } from "@/lib/match-prediction-state";
-import { logOperation, logOperationError } from "@/lib/logger";
+import { logOperation } from "@/lib/logger";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import { CHAMPIONAT_WORLD_CUP_2026 } from "@/lib/football-api/championat/constants";
 
-const VENUE_FETCH_DELAY_MS = 120;
+const VENUE_FETCH_DELAY_MS = 200;
 /** Окно «ближайших» матчей для quick sync (часы). */
 const QUICK_SYNC_NEAR_HOURS = 72;
 
@@ -273,7 +273,7 @@ async function enrichMatchesFromChampionatPages(
     },
   });
 
-  const concurrency = readConcurrencyFromEnv("CHAMPIONAT_SYNC_CONCURRENCY", 3);
+  const concurrency = readConcurrencyFromEnv("CHAMPIONAT_SYNC_CONCURRENCY", 2);
   const allowVenueEnrichment = options.mode === "full";
 
   const stats = await mapWithConcurrency(matches, concurrency, async (match) => {
@@ -350,12 +350,7 @@ async function enrichMatchesFromChampionatPages(
         requests: 1,
         errors: 0,
       };
-    } catch (error) {
-      logOperationError("championat-sync:match-page", error, {
-        tournamentId,
-        matchId: match.id,
-        championatMatchId,
-      });
+    } catch {
       await sleep(VENUE_FETCH_DELAY_MS);
       return { venues: 0, statuses: 0, requests: 1, errors: 1 };
     }
@@ -365,6 +360,17 @@ async function enrichMatchesFromChampionatPages(
   const statusesUpdated = stats.reduce((n, s) => n + s.statuses, 0);
   const externalRequests = stats.reduce((n, s) => n + s.requests, 0);
   const errors = stats.reduce((n, s) => n + s.errors, 0);
+
+  if (errors > 0) {
+    logOperation("championat-sync:match-page", {
+      tournamentId,
+      mode: options.mode,
+      candidates: matches.length,
+      errors,
+      level: "error",
+      hint: "championat.ru timeout or rate limit — set CHAMPIONAT_SYNC_CONCURRENCY=1",
+    });
+  }
 
   return { venuesUpdated, statusesUpdated, externalRequests, errors };
 }
@@ -449,7 +455,18 @@ export async function syncChampionatTournamentFull(
   });
 }
 
-export async function syncChampionatTournament(
+const championatSyncInFlight = new Map<string, Promise<SyncMatchesResult>>();
+
+function championatSyncLockKey(
+  dbTournamentId: string,
+  options: ChampionatSyncOptions,
+): string {
+  const mode = options.mode ?? "full";
+  const enrichVenues = options.enrichVenues ?? mode === "full";
+  return `${dbTournamentId}:${mode}:${enrichVenues}`;
+}
+
+async function syncChampionatTournamentUnlocked(
   dbTournamentId: string,
   source: ParsedChampionatTournamentUrl,
   options: ChampionatSyncOptions = {},
@@ -542,6 +559,24 @@ export async function syncChampionatTournament(
   return result;
 }
 
+export async function syncChampionatTournament(
+  dbTournamentId: string,
+  source: ParsedChampionatTournamentUrl,
+  options: ChampionatSyncOptions = {},
+): Promise<SyncMatchesResult> {
+  const lockKey = championatSyncLockKey(dbTournamentId, options);
+  const inFlight = championatSyncInFlight.get(lockKey);
+  if (inFlight) return inFlight;
+
+  const run = syncChampionatTournamentUnlocked(dbTournamentId, source, options).finally(
+    () => {
+      championatSyncInFlight.delete(lockKey);
+    },
+  );
+  championatSyncInFlight.set(lockKey, run);
+  return run;
+}
+
 export type SyncAllChampionatResult = {
   tournaments: number;
   synced: number;
@@ -581,7 +616,7 @@ export async function syncAllChampionatTournaments(
     }
 
     const result = await syncChampionatTournament(tournament.id, source, {
-      enrichVenues: options.enrichVenues ?? true,
+      enrichVenues: options.enrichVenues ?? false,
       mode: options.mode ?? "full",
     });
     synced += 1;

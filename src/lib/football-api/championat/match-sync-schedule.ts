@@ -6,10 +6,16 @@ import {
   mskDateTimeFromDayAndMinutes,
 } from "@/lib/football-api/championat/match-msk-time";
 import { isChampionatPostFinishPollPhase } from "@/lib/football-api/championat/championat-tracking";
-import { isMatchStaleAwaitingResult } from "@/lib/match-prediction-state";
+import {
+  isMatchStaleAwaitingResult,
+  isMatchWithinLiveTrackingWindow,
+} from "@/lib/match-prediction-state";
 
 /** Во время матча и 10 мин после FINISHED — опрос каждые 30 с (cron ≥ 1 мин). */
 export const CHAMPIONAT_LIVE_POLL_INTERVAL_MS = 30_000;
+
+/** Повтор опроса «зависшего» матча (старт давно, в БД ещё не FINISHED). */
+export const CHAMPIONAT_STALE_RETRY_MS = 20 * 60 * 1000;
 
 /** Окно попадания в слот при cron каждые 5–15 мин. */
 export const CHAMPIONAT_SCHEDULED_SLOT_TOLERANCE_MIN = 6;
@@ -106,7 +112,16 @@ export function isChampionatLivePollPhase(
 ): boolean {
   if (status === MatchStatus.FINISHED) return false;
   if (status === MatchStatus.CANCELLED) return false;
-  return now.getTime() >= startsAt.getTime();
+  if (now.getTime() < startsAt.getTime()) return false;
+  return isMatchWithinLiveTrackingWindow(
+    {
+      status,
+      startsAt,
+      homeScore: null,
+      awayScore: null,
+    },
+    now,
+  );
 }
 
 function isWithinScheduledSlot(
@@ -136,13 +151,19 @@ export function shouldPollChampionatMatchNow(
   if (input.championatTrackActive === false) return false;
   if (input.status === MatchStatus.CANCELLED) return false;
 
-  const stale = isMatchStaleAwaitingResult({
-    status: input.status,
-    startsAt: input.startsAt,
-    homeScore: input.homeScore ?? null,
-    awayScore: input.awayScore ?? null,
-  });
-  if (stale) return true;
+  const stale = isMatchStaleAwaitingResult(
+    {
+      status: input.status,
+      startsAt: input.startsAt,
+      homeScore: input.homeScore ?? null,
+      awayScore: input.awayScore ?? null,
+    },
+    now,
+  );
+  if (stale) {
+    const last = input.championatLastSyncAt?.getTime() ?? 0;
+    return now.getTime() - last >= CHAMPIONAT_STALE_RETRY_MS;
+  }
 
   const needsFastPoll =
     isChampionatLivePollPhase(input.startsAt, now, input.status) ||

@@ -107,10 +107,6 @@ export async function createGameAction(
     }
     tournamentId = linked.tournamentId;
     matchCount = linked.matchCount;
-    const template = await getTournamentTemplateRecord(templateId);
-    championatBackgroundSync = template
-      ? parseChampionatTournamentUrl(template.championatUrl)
-      : null;
     console.info(
       `[create-tournament] template link user=${session.id} matches=${matchCount}`,
     );
@@ -155,7 +151,9 @@ export async function createGameAction(
         `[create-tournament] championat ready matches=${matchCount} tournamentId=${tournamentId}`,
       );
 
-      championatBackgroundSync = parsedUrl;
+      if (process.env.CHAMPIONAT_BACKGROUND_VENUES === "1") {
+        championatBackgroundSync = parsedUrl;
+      }
     } catch (error) {
       console.error("[create-tournament] championat failed", error);
       const message =

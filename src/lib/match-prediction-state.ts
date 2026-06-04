@@ -30,9 +30,10 @@ export function isMatchLockedForPredictions(
 /** Старт был не позже MAX_MS назад — иначе это не «лайв», а зависший статус в БД. */
 export function isMatchWithinLiveTrackingWindow(
   match: MatchPredictionStateInput,
+  referenceNow: Date = new Date(),
 ): boolean {
   const kickoff = match.startsAt.getTime();
-  const now = Date.now();
+  const now = referenceNow.getTime();
   if (kickoff > now) return false;
   return now - kickoff <= MATCH_LIVE_TRACKING_MAX_MS;
 }
@@ -40,12 +41,13 @@ export function isMatchWithinLiveTrackingWindow(
 /** В БД ещё не FINISHED, но по времени матч давно должен был закончиться. */
 export function isMatchStaleAwaitingResult(
   match: MatchPredictionStateInput,
+  referenceNow: Date = new Date(),
 ): boolean {
   if (match.status === MatchStatus.FINISHED) return false;
   if (match.status === MatchStatus.CANCELLED) return false;
   if (isMatchPostponed(match)) return false;
-  if (match.startsAt.getTime() > Date.now()) return false;
-  return !isMatchWithinLiveTrackingWindow(match);
+  if (match.startsAt.getTime() > referenceNow.getTime()) return false;
+  return !isMatchWithinLiveTrackingWindow(match, referenceNow);
 }
 
 /** Уже стартовал, но ещё не завершён (вкладка «Предстоящие», прогноз закрыт). */

@@ -108,7 +108,7 @@
 | `DATABASE_POOL_MAX` | `10` | `src/lib/db.ts` |
 | `DATABASE_POOL_IDLE_TIMEOUT_MS` | `30000` | Пул PG |
 | `DATABASE_POOL_CONNECTION_TIMEOUT_MS` | `10000` | Пул PG |
-| `CHAMPIONAT_SYNC_CONCURRENCY` | `3` | Параллель enrichment в sync |
+| `CHAMPIONAT_SYNC_CONCURRENCY` | `2` | Параллель enrichment; на Dokploy при `UND_ERR_CONNECT_TIMEOUT` поставьте `1` |
 
 ### 4.2. SMTP (если нужны email-напоминания)
 

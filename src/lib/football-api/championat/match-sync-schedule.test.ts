@@ -39,4 +39,29 @@ describe("match-sync-schedule", () => {
       }),
     ).toBe(false);
   });
+
+  it("stale-матч не опрашивается чаще CHAMPIONAT_STALE_RETRY_MS", () => {
+    vi.useFakeTimers();
+    const now = new Date("2026-06-10T22:00:00Z");
+    const startsAt = new Date("2026-06-10T10:00:00Z");
+    const base = {
+      startsAt,
+      status: MatchStatus.SCHEDULED,
+      championatTrackActive: true,
+      homeScore: null,
+      awayScore: null,
+      now,
+    };
+
+    expect(shouldPollChampionatMatchNow(base)).toBe(true);
+
+    expect(
+      shouldPollChampionatMatchNow({
+        ...base,
+        championatLastSyncAt: new Date(now.getTime() - 5 * 60_000),
+      }),
+    ).toBe(false);
+
+    vi.useRealTimers();
+  });
 });

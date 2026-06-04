@@ -10,7 +10,6 @@ import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { runScheduledChampionatMatchSyncs } from "@/lib/football-api/championat/sync-scheduled-championat-matches";
 import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
-import { syncChampionatTournament } from "@/lib/football-api/sync";
 import {
   isMatchInProgress,
   isMatchLockedForPredictions,
@@ -141,22 +140,19 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
     orderBy: { startsAt: "asc" },
   });
 
-  if (
-    championatSource &&
-    matches.some((match) => isMatchStaleAwaitingResult(match))
-  ) {
+  if (championatSource) {
     try {
-      await syncChampionatTournament(game.tournamentId, championatSource, {
-        enrichVenues: true,
+      await runScheduledChampionatMatchSyncs({
+        tournamentId: game.tournamentId,
+        maxPolls: 12,
       });
-      await runScheduledChampionatMatchSyncs();
       matches = await prisma.match.findMany({
         where: { tournamentId: game.tournamentId },
         include: { homeTeam: true, awayTeam: true },
         orderBy: { startsAt: "asc" },
       });
     } catch (err) {
-      console.error("[predictions] championat stale sync failed", err);
+      console.error("[predictions] championat scheduled sync failed", err);
     }
   }
 
