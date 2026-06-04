@@ -1,22 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { unlink } from "fs/promises";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { requireAuth } from "@/lib/auth";
-import {
-  AVATAR_ALLOWED_TYPES,
-  AVATAR_MAX_BYTES,
-  avatarDiskPath,
-  avatarExtensionFromMime,
-  avatarPublicPath,
-} from "@/lib/avatar";
+import { removeAvatarStored, storeAvatar } from "@/lib/avatar-storage";
 import { prisma } from "@/lib/db";
 import type { ActionResult } from "@/server/actions/auth";
-
-const AVATAR_DIR = path.join(process.cwd(), "public", "avatars");
-const AVATAR_EXTENSIONS = ["jpg", "png", "webp"] as const;
 
 export async function getProfileForUser(userId: string) {
   return prisma.user.findUnique({
@@ -29,30 +17,6 @@ export async function getProfileForUser(userId: string) {
       updatedAt: true,
     },
   });
-}
-
-async function saveAvatarFile(userId: string, file: File): Promise<string> {
-  if (!AVATAR_ALLOWED_TYPES.has(file.type)) {
-    throw new Error("Допустимы JPEG, PNG или WebP.");
-  }
-
-  if (file.size > AVATAR_MAX_BYTES) {
-    throw new Error("Файл не больше 5 МБ.");
-  }
-
-  const ext = avatarExtensionFromMime(file.type);
-  if (!ext) {
-    throw new Error("Неподдерживаемый формат.");
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await mkdir(AVATAR_DIR, { recursive: true });
-  await removeAvatarFiles(userId);
-
-  const diskPath = avatarDiskPath(userId, ext);
-  await writeFile(diskPath, buffer);
-
-  return avatarPublicPath(userId, ext);
 }
 
 export async function updateProfileAction(
@@ -89,7 +53,7 @@ export async function updateProfileAction(
 
   try {
     if (hasFile) {
-      const avatarUrl = await saveAvatarFile(session.id, file);
+      const avatarUrl = await storeAvatar(session.id, file);
       await prisma.user.update({
         where: { id: session.id },
         data: {
@@ -98,7 +62,7 @@ export async function updateProfileAction(
         },
       });
     } else if (removeAvatar) {
-      await removeAvatarFiles(session.id);
+      await removeAvatarStored(session.id);
       await prisma.user.update({
         where: { id: session.id },
         data: { name, avatarUrl: null },
@@ -127,16 +91,3 @@ export async function updateProfileAction(
 
   return { success: true };
 }
-
-async function removeAvatarFiles(userId: string) {
-  await Promise.all(
-    AVATAR_EXTENSIONS.map(async (ext) => {
-      try {
-        await unlink(avatarDiskPath(userId, ext));
-      } catch {
-        // file may not exist
-      }
-    }),
-  );
-}
-

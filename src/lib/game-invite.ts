@@ -1,3 +1,4 @@
+import { getAppOriginFromEnv } from "@/lib/app-origin";
 import { prisma } from "@/lib/db";
 import {
   generateRandomInviteCode,
@@ -63,8 +64,7 @@ export async function createUniqueGameSlug(baseTitle: string): Promise<string> {
 }
 
 export function buildRegisterInviteUrl(inviteCode: string, origin?: string): string {
-  const base =
-    origin ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const base = origin ?? getAppOriginFromEnv();
   const url = new URL("/", base);
   url.searchParams.set("register", "1");
   url.searchParams.set("invite", inviteCode);
@@ -72,7 +72,6 @@ export function buildRegisterInviteUrl(inviteCode: string, origin?: string): str
 }
 
 export function buildGameUrl(inviteCode: string, origin?: string): string {
-  const base =
-    origin ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  return `${base.replace(/\/$/, "")}/game/${inviteCode}`;
+  const base = (origin ?? getAppOriginFromEnv()).replace(/\/$/, "");
+  return `${base}/game/${inviteCode}`;
 }

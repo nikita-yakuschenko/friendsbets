@@ -37,6 +37,36 @@ export function buildEmailVerificationContent(params: {
   return { text, html };
 }
 
+export function buildPasswordResetContent(params: {
+  userName: string;
+  link: string;
+}): EmailContent {
+  const text = [
+    `Здравствуйте, ${params.userName}!`,
+    "",
+    "Запрошен сброс пароля FriendsBets. Задайте новый пароль по ссылке:",
+    params.link,
+    "",
+    "Ссылка действует 1 час. Если вы не запрашивали сброс, проигнорируйте письмо.",
+    "",
+    "— FriendsBets",
+  ].join("\n");
+
+  const html = renderEmailLayout({
+    preheader: "Сброс пароля FriendsBets",
+    badge: "Сброс пароля",
+    title: "Новый пароль",
+    introHtml: `
+      <p style="margin:0 0 14px;">Здравствуйте, <strong style="color:${EMAIL_BRAND.heading};font-weight:600;">${escapeHtml(params.userName)}</strong>!</p>
+      <p style="margin:0;">Нажмите кнопку ниже, чтобы задать новый пароль. Старая ссылка перестанет работать после смены.</p>`,
+    cta: { label: "Задать новый пароль", href: params.link },
+    footnote:
+      "Ссылка действует 1 час. Если вы не запрашивали сброс, ничего делать не нужно.",
+  });
+
+  return { text, html };
+}
+
 export function buildTestEmailContent(userName: string): EmailContent {
   const text = [
     `Здравствуйте, ${userName}!`,

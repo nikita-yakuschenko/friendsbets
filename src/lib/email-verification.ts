@@ -3,16 +3,10 @@ import { UserRole } from "@/generated/prisma/client";
 import { sendEmail } from "@/lib/email";
 import { buildEmailVerificationContent } from "@/lib/email/templates";
 import { prisma } from "@/lib/db";
+import { absoluteAppUrl } from "@/lib/app-origin";
 import { isSuperadmin } from "@/lib/roles";
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
-
-function appOrigin(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(
-    /\/$/,
-    "",
-  );
-}
 
 export function userNeedsEmailVerification(user: {
   emailVerifiedAt: Date | null;
@@ -43,7 +37,9 @@ export async function sendEmailVerificationMessage(user: {
   name: string;
 }): Promise<void> {
   const token = await issueEmailVerificationToken(user.id);
-  const link = `${appOrigin()}/verify-email/confirm?token=${encodeURIComponent(token)}`;
+  const link = absoluteAppUrl(
+    `/verify-email/confirm?token=${encodeURIComponent(token)}`,
+  );
   const { text, html } = buildEmailVerificationContent({
     userName: user.name,
     link,

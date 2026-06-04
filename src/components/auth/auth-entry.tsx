@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -71,6 +72,16 @@ export function AuthEntry() {
             minLength={isRegister ? 6 : undefined}
             required
           />
+          {!isRegister ? (
+            <p className="text-right">
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-brand-lime hover:underline"
+              >
+                Забыли пароль?
+              </Link>
+            </p>
+          ) : null}
         </div>
 
         <div

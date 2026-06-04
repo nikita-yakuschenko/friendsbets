@@ -12,6 +12,7 @@ services:
       - .env
     ports:
       - "${APP_PORT:-3000}:3000"
+    # Локальные аватары (если не S3 — см. docs/AVATAR_STORAGE.md). При AVATAR_STORAGE=s3 том не обязателен.
     volumes:
       - friendsbets_avatars:/app/public/avatars
 

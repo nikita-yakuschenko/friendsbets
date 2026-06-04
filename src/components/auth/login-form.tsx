@@ -51,6 +51,14 @@ export function LoginForm({
           autoComplete="current-password"
           required
         />
+        <p className="text-right">
+          <Link
+            href="/forgot-password"
+            className="text-xs font-medium text-brand-lime hover:underline"
+          >
+            Забыли пароль?
+          </Link>
+        </p>
       </div>
       <Button type="submit" variant="brand" className="w-full" disabled={pending}>
         {pending ? "Входим..." : "Войти"}

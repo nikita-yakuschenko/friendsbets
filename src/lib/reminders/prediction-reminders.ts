@@ -8,6 +8,7 @@ import {
   buildAdminMissingPredictionsEmail,
   buildPredictionReminderEmail,
 } from "@/lib/email/templates";
+import { getAppOriginFromEnv } from "@/lib/app-origin";
 import { gamePath } from "@/lib/game-path";
 import { logOperation, logOperationError, maskEmail } from "@/lib/logger";
 import { prisma } from "@/lib/db";
@@ -88,10 +89,7 @@ export function matchReminderWindow(minutesBefore: number, now: Date) {
 }
 
 function appOrigin(origin?: string): string {
-  return (origin ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(
-    /\/$/,
-    "",
-  );
+  return (origin ?? getAppOriginFromEnv()).replace(/\/$/, "");
 }
 
 function predictionsUrl(inviteCode: string, origin?: string): string {

@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
+import { getAppOriginFromRequest, absoluteAppUrl } from "@/lib/app-origin";
 import { verifyEmailByToken } from "@/lib/email-verification";
 
 export async function GET(request: Request) {
   const token = new URL(request.url).searchParams.get("token");
-  const origin = new URL(request.url).origin;
+  const origin = getAppOriginFromRequest(request);
 
   if (!token) {
     return NextResponse.redirect(
-      new URL("/verify-email?error=invalid", origin),
+      absoluteAppUrl("/verify-email?error=invalid", origin),
     );
   }
 
@@ -15,9 +16,9 @@ export async function GET(request: Request) {
 
   if (!result.ok) {
     return NextResponse.redirect(
-      new URL(`/verify-email?error=${result.reason}`, origin),
+      absoluteAppUrl(`/verify-email?error=${result.reason}`, origin),
     );
   }
 
-  return NextResponse.redirect(new URL("/?verified=1", origin));
+  return NextResponse.redirect(absoluteAppUrl("/?verified=1", origin));
 }

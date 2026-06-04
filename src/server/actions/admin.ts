@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { MatchStatus, GameParticipantRole, UserRole } from "@/generated/prisma/client";
+import { getAppOriginFromEnv } from "@/lib/app-origin";
 import { requireAuth } from "@/lib/auth";
 import {
   canManageGame,
@@ -252,7 +253,7 @@ export async function getAdminIntegrationInfo() {
   await requireAuth();
 
   const championat = getChampionatSyncConfig();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = getAppOriginFromEnv();
 
   return {
     appUrl,

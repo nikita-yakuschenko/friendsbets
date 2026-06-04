@@ -261,7 +261,7 @@ SKIP_CHAMPIONAT_SEED=true
 
 После первого успешного деплоя: `RUN_DB_SEED=false`, настроить cron (см. чеклист).
 
-Том app: `friendsbets_avatars`. Данные PostgreSQL — в томе сервиса **Databases**, не в compose app.
+Аватары: локально — том `friendsbets_avatars`; в prod лучше **S3** — см. **[docs/AVATAR_STORAGE.md](docs/AVATAR_STORAGE.md)**. PostgreSQL — в томе **Databases**, не в compose app.
 
 ### Локальная проверка production-образа
 

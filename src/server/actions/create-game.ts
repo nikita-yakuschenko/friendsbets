@@ -13,6 +13,7 @@ import {
   saveTournamentTemplateFromProfessional,
   shouldSaveAsTemplate,
 } from "@/lib/tournament-templates";
+import { getAppOriginFromHeaders } from "@/lib/app-origin";
 import {
   buildGameUrl,
   buildRegisterInviteUrl,
@@ -239,9 +240,7 @@ export async function getCreatedGameInvite(inviteParam: string) {
   }
 
   const headersList = await headers();
-  const host = headersList.get("x-forwarded-host") ?? headersList.get("host");
-  const proto = headersList.get("x-forwarded-proto") ?? "http";
-  const origin = host ? `${proto}://${host}` : undefined;
+  const origin = getAppOriginFromHeaders(headersList);
 
   return {
     game,
