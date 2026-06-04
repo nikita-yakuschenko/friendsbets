@@ -1,9 +1,14 @@
-import { getAppOriginFromEnv } from "@/lib/app-origin";
 import { prisma } from "@/lib/db";
 import {
   generateRandomInviteCode,
   normalizeInviteCodeInput,
 } from "@/lib/invite-code";
+
+export {
+  buildGameUrl,
+  buildInvitePath,
+  buildRegisterInviteUrl,
+} from "@/lib/invite-url";
 
 export function slugifyGameTitle(title: string): string {
   const slug = title
@@ -61,15 +66,4 @@ export async function createUniqueGameSlug(baseTitle: string): Promise<string> {
   }
 
   return `${base}-${generateRandomInviteCode().toLowerCase()}`;
-}
-
-export function buildRegisterInviteUrl(inviteCode: string, origin?: string): string {
-  const base = (origin ?? getAppOriginFromEnv()).replace(/\/$/, "");
-  const code = normalizeInviteCodeInput(inviteCode);
-  return `${base}/invite/${encodeURIComponent(code)}`;
-}
-
-export function buildGameUrl(inviteCode: string, origin?: string): string {
-  const base = (origin ?? getAppOriginFromEnv()).replace(/\/$/, "");
-  return `${base}/game/${inviteCode}`;
 }

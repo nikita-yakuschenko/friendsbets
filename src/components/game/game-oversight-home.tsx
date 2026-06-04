@@ -1,5 +1,7 @@
+import { InviteCodeCopyCell } from "@/components/admin/games/invite-code-copy-cell";
 import { GameOversightParticipantsTable } from "@/components/game/game-oversight-participants-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buildRegisterInviteUrl } from "@/lib/game-invite";
 import {
   GAME_PARTICIPANT_ROLE,
   type GameParticipantRoleValue,
@@ -61,9 +63,13 @@ function GameOversightGeneralPanel({
           {game.entryFeeText ? (
             <p className="text-brand-muted">Взнос: {game.entryFeeText}</p>
           ) : null}
-          <p className="text-brand-muted">
-            Инвайт:{" "}
-            <span className="font-mono text-white">{game.inviteCode}</span>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-brand-muted">
+            <span>Приглашение:</span>
+            <InviteCodeCopyCell
+              inviteCode={game.inviteCode}
+              inviteLinkUrl={buildRegisterInviteUrl(game.inviteCode)}
+              compact
+            />
           </p>
         </CardContent>
       </Card>

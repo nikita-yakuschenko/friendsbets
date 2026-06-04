@@ -9,6 +9,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
+import { InviteCodeCopyCell } from "@/components/admin/games/invite-code-copy-cell";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -22,6 +23,7 @@ import {
   GAME_PARTICIPANT_ROLE,
   type GameParticipantRoleValue,
 } from "@/lib/game-participant-role";
+import { buildRegisterInviteUrl } from "@/lib/invite-url";
 import {
   removeGameParticipantBySuperadminAction,
   setGameParticipantRoleBySuperadminAction,
@@ -284,7 +286,11 @@ export function GameOversightParticipantsTable({
             {participants.length}
           </span>
         </span>
-        <span className="font-mono text-[11px] sm:text-xs">{inviteCode}</span>
+        <InviteCodeCopyCell
+          inviteCode={inviteCode}
+          inviteLinkUrl={buildRegisterInviteUrl(inviteCode)}
+          compact
+        />
       </div>
 
       <div className="overflow-x-auto">

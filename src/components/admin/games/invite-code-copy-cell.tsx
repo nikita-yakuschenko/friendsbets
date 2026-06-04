@@ -4,6 +4,7 @@ import { IconCopy } from "@tabler/icons-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { buildInvitePath } from "@/lib/invite-url";
 import { cn } from "@/lib/utils";
 
 const COPIED_FEEDBACK_MS = 1600;
@@ -28,12 +29,22 @@ export function InviteCodeCopyCell({
     };
   }, []);
 
+  function resolveInviteLinkUrl(): string {
+    if (typeof window !== "undefined") {
+      const origin = window.location.origin.replace(/\/$/, "");
+      return `${origin}${buildInvitePath(inviteCode)}`;
+    }
+    return inviteLinkUrl;
+  }
+
   async function handleCopy() {
+    const url = resolveInviteLinkUrl();
     try {
-      await navigator.clipboard.writeText(inviteLinkUrl);
+      await navigator.clipboard.writeText(url);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setCopied(true);
       timeoutRef.current = setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
+      toast.success("Ссылка приглашения скопирована");
     } catch {
       toast.error("Не удалось скопировать ссылку");
     }
