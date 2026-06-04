@@ -64,11 +64,9 @@ export async function createUniqueGameSlug(baseTitle: string): Promise<string> {
 }
 
 export function buildRegisterInviteUrl(inviteCode: string, origin?: string): string {
-  const base = origin ?? getAppOriginFromEnv();
-  const url = new URL("/", base);
-  url.searchParams.set("register", "1");
-  url.searchParams.set("invite", inviteCode);
-  return url.toString();
+  const base = (origin ?? getAppOriginFromEnv()).replace(/\/$/, "");
+  const code = normalizeInviteCodeInput(inviteCode);
+  return `${base}/invite/${encodeURIComponent(code)}`;
 }
 
 export function buildGameUrl(inviteCode: string, origin?: string): string {

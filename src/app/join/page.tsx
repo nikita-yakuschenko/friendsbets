@@ -7,6 +7,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { getUserGamesState } from "@/lib/game-access";
 import { getGameJoinPreviewForUser } from "@/server/actions/join-game";
+import { normalizeInviteCodeInput } from "@/lib/invite-code";
 
 export default async function JoinGamePage({
   searchParams,
@@ -17,9 +18,12 @@ export default async function JoinGamePage({
 
   const session = await getSession();
   if (!session) {
-    const params = new URLSearchParams({ register: "1" });
-    if (invite) params.set("invite", invite);
-    redirect(`/?${params.toString()}`);
+    if (invite?.trim()) {
+      redirect(
+        `/invite/${encodeURIComponent(normalizeInviteCodeInput(invite))}`,
+      );
+    }
+    redirect("/");
   }
 
   const initialPreview = invite

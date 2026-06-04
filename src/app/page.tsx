@@ -16,12 +16,24 @@ import { PlatformAdminHomePrompt } from "@/components/game/platform-admin-home-p
 import { isSuperadmin } from "@/lib/roles";
 import { MyTournamentsDataTable } from "@/components/my-tournaments/my-tournaments-data-table";
 import { TournamentsAddMenu } from "@/components/my-tournaments/tournaments-add-menu";
+import { normalizeInviteCodeInput } from "@/lib/invite-code";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ register?: string; invite?: string }>;
+}) {
+  const { invite } = await searchParams;
   const session = await getSession();
 
   if (session && userNeedsEmailVerification(session)) {
     redirect("/verify-email");
+  }
+
+  if (session && invite?.trim()) {
+    redirect(
+      `/join?invite=${encodeURIComponent(normalizeInviteCodeInput(invite))}`,
+    );
   }
 
   if (!session) {

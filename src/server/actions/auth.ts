@@ -77,6 +77,18 @@ export async function loginAction(
     redirect("/verify-email");
   }
 
+  const inviteCodeRaw = String(formData.get("inviteCode") ?? "").trim();
+  if (inviteCodeRaw) {
+    const formatError = validateInviteCodeFormat(inviteCodeRaw);
+    if (!formatError) {
+      const normalized = normalizeInviteCodeInput(inviteCodeRaw);
+      const game = await findGameByInviteCode(normalized);
+      if (game) {
+        redirect(`/join?invite=${encodeURIComponent(normalized)}`);
+      }
+    }
+  }
+
   redirect("/");
 }
 

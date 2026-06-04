@@ -16,12 +16,27 @@ const ibmPlexSans = IBM_Plex_Sans({
   display: "swap",
 });
 
+const siteTitle = "FriendsBets — турнир прогнозов";
+const siteDescription = "Закрытый турнир прогнозов на футбольные матчи";
+
 export const metadata: Metadata = {
-  title: "FriendsBets — турнир прогнозов",
-  description: "Закрытый турнир прогнозов на футбольные матчи",
+  title: siteTitle,
+  description: siteDescription,
   icons: {
     icon: [{ url: "/favicon.png", type: "image/png" }],
     apple: "/favicon.png",
+  },
+  openGraph: {
+    title: siteTitle,
+    description: siteDescription,
+    siteName: "FriendsBets",
+    images: [{ url: "/favicon.png", alt: "FriendsBets" }],
+  },
+  twitter: {
+    card: "summary",
+    title: siteTitle,
+    description: siteDescription,
+    images: ["/favicon.png"],
   },
 };
 

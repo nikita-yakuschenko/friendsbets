@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -14,11 +14,32 @@ import type { ActionResult } from "@/server/actions/auth";
 
 type AuthMode = "login" | "register";
 
-export function AuthEntry() {
+export function AuthEntry({
+  initialInviteCode,
+  defaultMode,
+}: {
+  initialInviteCode?: string;
+  defaultMode?: AuthMode;
+} = {}) {
   const searchParams = useSearchParams();
-  const initialMode: AuthMode = searchParams.get("register") ? "register" : "login";
-  const inviteFromUrl = searchParams.get("invite") ?? "";
+  const inviteFromUrl =
+    initialInviteCode ?? searchParams.get("invite") ?? "";
+  const initialMode: AuthMode =
+    defaultMode ??
+    (searchParams.get("register")
+      ? "register"
+      : searchParams.get("login") === "1"
+        ? "login"
+        : inviteFromUrl
+          ? "register"
+          : "login");
   const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [inviteCode, setInviteCode] = useState(inviteFromUrl);
+
+  useEffect(() => {
+    const next = initialInviteCode ?? searchParams.get("invite") ?? "";
+    if (next) setInviteCode(next);
+  }, [initialInviteCode, searchParams]);
 
   const [loginState, loginFormAction, loginPending] = useActionState<
     ActionResult | undefined,
@@ -121,7 +142,8 @@ export function AuthEntry() {
                   name="inviteCode"
                   variant="brand"
                   placeholder="ABC123"
-                  defaultValue={inviteFromUrl}
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
                   disabled={!isRegister}
                   tabIndex={isRegister ? 0 : -1}
                   className="font-mono uppercase tracking-widest"
@@ -134,6 +156,10 @@ export function AuthEntry() {
             </div>
           </div>
         </div>
+
+        {!isRegister && inviteCode ? (
+          <input type="hidden" name="inviteCode" value={inviteCode} />
+        ) : null}
 
         {isRegister && (
           <input

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   IconSettings,
@@ -45,7 +46,11 @@ function ParticipantRoleMenu({
   onDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
   const [pending, startTransition] = useTransition();
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const isOrganizer = participant.role === GAME_PARTICIPANT_ROLE.ORGANIZER;
   const canDemote = isOrganizer && organizerCount > 1;
@@ -68,6 +73,37 @@ function ParticipantRoleMenu({
     });
   }
 
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
+  function toggleMenu() {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const itemCount = (canPromote ? 1 : 0) + (canDemote ? 1 : 0);
+    const menuHeight = itemCount * 36 + 8;
+    const gap = 6;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < menuHeight + gap + 12;
+    setMenuPos({
+      top: openUp ? rect.top - menuHeight - gap : rect.bottom + gap,
+      left: rect.right,
+    });
+    setOpen(true);
+  }
+
   if (!canPromote && !canDemote) {
     return (
       <Button
@@ -83,52 +119,71 @@ function ParticipantRoleMenu({
     );
   }
 
+  const menu =
+    open && menuPos && typeof document !== "undefined"
+      ? createPortal(
+          <>
+            <button
+              type="button"
+              className="fixed inset-0 z-[60] cursor-default"
+              aria-label="Закрыть меню"
+              onClick={() => setOpen(false)}
+            />
+            <div
+              className="fixed z-[70] min-w-[11rem] rounded-lg border border-brand-neutral bg-brand-surface py-1 shadow-lg"
+              style={{
+                top: menuPos.top,
+                left: menuPos.left,
+                transform: "translateX(-100%)",
+              }}
+              role="menu"
+            >
+              {canPromote ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="block w-full px-3 py-2 text-left text-xs text-white hover:bg-brand-neutral/40"
+                  disabled={pending}
+                  onClick={() => setRole(GAME_PARTICIPANT_ROLE.ORGANIZER)}
+                >
+                  Назначить организатором
+                </button>
+              ) : null}
+              {canDemote ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="block w-full px-3 py-2 text-left text-xs text-white hover:bg-brand-neutral/40"
+                  disabled={pending}
+                  onClick={() => setRole(GAME_PARTICIPANT_ROLE.PARTICIPANT)}
+                >
+                  Сделать участником
+                </button>
+              ) : null}
+            </div>
+          </>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div className="relative">
+    <>
       <Button
+        ref={triggerRef}
         type="button"
         variant="ghost"
         size="sm"
         className="size-8 shrink-0 p-0 text-brand-muted hover:text-white"
         disabled={pending}
         title="Роль участника"
-        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={toggleMenu}
       >
         <IconSettings className="size-4" />
       </Button>
-      {open ? (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-20 cursor-default"
-            aria-label="Закрыть меню"
-            onClick={() => setOpen(false)}
-          />
-          <div className="absolute right-0 top-full z-30 mt-1 min-w-[11rem] rounded-lg border border-brand-neutral bg-brand-surface py-1 shadow-lg">
-            {canPromote ? (
-              <button
-                type="button"
-                className="block w-full px-3 py-2 text-left text-xs text-white hover:bg-brand-neutral/40"
-                disabled={pending}
-                onClick={() => setRole(GAME_PARTICIPANT_ROLE.ORGANIZER)}
-              >
-                Назначить организатором
-              </button>
-            ) : null}
-            {canDemote ? (
-              <button
-                type="button"
-                className="block w-full px-3 py-2 text-left text-xs text-white hover:bg-brand-neutral/40"
-                disabled={pending}
-                onClick={() => setRole(GAME_PARTICIPANT_ROLE.PARTICIPANT)}
-              >
-                Сделать участником
-              </button>
-            ) : null}
-          </div>
-        </>
-      ) : null}
-    </div>
+      {menu}
+    </>
   );
 }
 
@@ -221,7 +276,7 @@ export function GameOversightParticipantsTable({
   const refresh = () => router.refresh();
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-brand-neutral bg-brand-surface">
+    <div className="rounded-2xl border border-brand-neutral bg-brand-surface">
       <div className="flex items-center justify-between gap-3 border-b border-brand-neutral/60 bg-brand-bg px-3 py-2.5 text-xs text-brand-muted sm:px-4 sm:text-sm">
         <span>
           Участники ·{" "}

@@ -1,3 +1,4 @@
+import { absoluteAppUrl } from "@/lib/app-origin";
 import { escapeHtml } from "@/lib/email/escape";
 
 /** Шрифт Inter + системные запасные (для клиентов без веб-шрифтов). */
@@ -29,6 +30,8 @@ type EmailLayoutOptions = {
   blocksHtml?: string;
   cta?: { label: string; href: string };
   footnote?: string;
+  /** Абсолютный URL PNG/SVG (по умолчанию /favicon.png на NEXT_PUBLIC_APP_URL). */
+  logoUrl?: string;
 };
 
 function cellFont(): string {
@@ -55,11 +58,22 @@ function emailButton(href: string, label: string): string {
 </table>`;
 }
 
-function emailHeader(): string {
+function emailHeader(logoUrl: string): string {
+  const safeLogo = escapeHtml(logoUrl);
   return `
 <tr>
   <td align="left" style="padding:36px 40px 20px;${cellFont()}">
-    <span style="font-size:20px;font-weight:700;letter-spacing:-0.02em;color:${EMAIL_BRAND.heading};">Friends</span><span style="font-size:20px;font-weight:700;letter-spacing:-0.02em;color:${EMAIL_BRAND.limeDark};">Bets</span>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding-right:12px;vertical-align:middle;">
+          <img src="${safeLogo}" width="40" height="40" alt="FriendsBets"
+            style="display:block;width:40px;height:40px;border-radius:8px;border:0;" />
+        </td>
+        <td style="vertical-align:middle;">
+          <span style="font-size:20px;font-weight:700;letter-spacing:-0.02em;color:${EMAIL_BRAND.heading};">Friends</span><span style="font-size:20px;font-weight:700;letter-spacing:-0.02em;color:${EMAIL_BRAND.limeDark};">Bets</span>
+        </td>
+      </tr>
+    </table>
   </td>
 </tr>`;
 }
@@ -78,6 +92,7 @@ function emailFooter(footnote?: string): string {
 }
 
 export function renderEmailLayout(options: EmailLayoutOptions): string {
+  const logoUrl = options.logoUrl ?? absoluteAppUrl("/favicon.png");
   const badge = options.badge
     ? `<p style="margin:0 0 10px;${cellFont()}font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:${EMAIL_BRAND.muted};">${escapeHtml(options.badge)}</p>`
     : "";
@@ -106,7 +121,7 @@ export function renderEmailLayout(options: EmailLayoutOptions): string {
     <tr>
       <td align="center" style="padding:32px 16px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background-color:${EMAIL_BRAND.cardBg};border:1px solid ${EMAIL_BRAND.cardBorder};border-radius:12px;">
-          ${emailHeader()}
+          ${emailHeader(logoUrl)}
           <tr>
             <td align="left" style="padding:0 40px 8px;${cellFont()}">
               ${badge}
