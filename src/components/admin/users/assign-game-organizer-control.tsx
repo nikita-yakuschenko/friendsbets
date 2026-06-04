@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { IconUserPlus } from "@tabler/icons-react";
 import { toast } from "sonner";
 import type { AdminGameOption, AdminUserGameRef } from "@/components/admin/users/types";
 import { assignGameOrganizerAction } from "@/server/actions/admin";
@@ -16,6 +17,7 @@ export function AssignGameOrganizerControl({
   organizerGameIds,
   allGames,
   className,
+  compact = false,
 }: {
   userId: string;
   userName: string;
@@ -23,6 +25,7 @@ export function AssignGameOrganizerControl({
   organizerGameIds: Set<string>;
   allGames: AdminGameOption[];
   className?: string;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -54,6 +57,39 @@ export function AssignGameOrganizerControl({
       setSelectedGameId("");
       refresh();
     });
+  }
+
+  if (compact) {
+    return (
+      <div className={cn("flex max-w-[13rem] items-center gap-1", className)}>
+        <FormSelect
+          id={`assign-org-${userId}`}
+          value={selectedGameId}
+          disabled={pending}
+          className="h-8 min-w-0 flex-1 text-xs"
+          onChange={(e) => setSelectedGameId(e.target.value)}
+        >
+          <option value="">Турнир…</option>
+          {assignableGames.map((game) => (
+            <option key={game.id} value={game.id}>
+              {game.title}
+            </option>
+          ))}
+        </FormSelect>
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="size-8 min-h-8 min-w-8 shrink-0 p-0"
+          disabled={pending || !selectedGameId}
+          title="Назначить организатором"
+          onClick={submitAssign}
+        >
+          <IconUserPlus className="size-4" stroke={1.75} aria-hidden />
+          <span className="sr-only">Назначить организатором</span>
+        </Button>
+      </div>
+    );
   }
 
   return (

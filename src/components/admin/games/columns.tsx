@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   IconArrowsSort,
+  IconArrowUpRight,
   IconChevronDown,
   IconChevronUp,
 } from "@tabler/icons-react";
@@ -10,7 +11,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { DeleteGameButton } from "@/components/admin/delete-game-button";
 import { InviteCodeCopyCell } from "@/components/admin/games/invite-code-copy-cell";
 import { Button } from "@/components/ui/button";
-import { formatDateTimeWithYear } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import type { AdminGameRow } from "@/components/admin/games/types";
 
 function SortableHeader({
@@ -30,35 +31,55 @@ function SortableHeader({
       type="button"
       variant="ghost"
       size="sm"
-      className="-ml-3 h-8 px-2 text-brand-muted hover:text-white"
+      className="-ml-2 h-7 px-1.5 text-xs text-brand-muted hover:text-white"
       onClick={() => column.toggleSorting(sorted === "asc")}
     >
       {title}
       {sorted === "asc" ? (
-        <IconChevronUp className="ml-1 size-4" />
+        <IconChevronUp className="ml-0.5 size-3.5" />
       ) : sorted === "desc" ? (
-        <IconChevronDown className="ml-1 size-4" />
+        <IconChevronDown className="ml-0.5 size-3.5" />
       ) : (
-        <IconArrowsSort className="ml-1 size-4 opacity-50" />
+        <IconArrowsSort className="ml-0.5 size-3.5 opacity-50" />
       )}
     </Button>
   );
 }
 
+const iconLinkClass =
+  "inline-flex size-8 shrink-0 items-center justify-center rounded-md text-brand-muted transition-colors hover:bg-brand-neutral/40 hover:text-brand-lime focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime/60";
+
 export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
   {
     accessorKey: "title",
     header: ({ column }) => (
-      <SortableHeader column={column} title="Название" />
+      <SortableHeader column={column} title="Турнир" />
     ),
-    cell: ({ row }) => (
-      <Link
-        href={row.original.openHref}
-        className="line-clamp-2 max-w-56 font-medium text-white hover:text-brand-lime"
-      >
-        {row.original.title}
-      </Link>
-    ),
+    cell: ({ row }) => {
+      const game = row.original;
+      return (
+        <div className="min-w-0">
+          <Link
+            href={game.openHref}
+            className="block truncate font-medium text-white hover:text-brand-lime"
+            title={game.title}
+          >
+            {game.title}
+          </Link>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-brand-muted">
+            <InviteCodeCopyCell
+              inviteCode={game.inviteCode}
+              inviteLinkUrl={game.inviteLinkUrl}
+              compact
+            />
+            <span className="tabular-nums">{game.participantsCount} уч.</span>
+            <span className="truncate" title={game.scoringRuleTitle}>
+              {game.scoringRuleTitle}
+            </span>
+          </div>
+        </div>
+      );
+    },
     filterFn: (row, _columnId, filterValue) => {
       const query = String(filterValue).toLowerCase().trim();
       if (!query) return true;
@@ -72,50 +93,27 @@ export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
     },
   },
   {
-    accessorKey: "inviteCode",
-    header: ({ column }) => (
-      <SortableHeader column={column} title="Код приглашения" />
-    ),
+    id: "people",
+    header: "Люди",
     cell: ({ row }) => {
       const game = row.original;
       return (
-        <InviteCodeCopyCell
-          inviteCode={game.inviteCode}
-          inviteLinkUrl={game.inviteLinkUrl}
-        />
+        <div className="min-w-0 text-xs leading-relaxed">
+          <p className="truncate text-white" title={game.createdByName}>
+            <span className="text-brand-muted">Созд.: </span>
+            {game.createdByName}
+          </p>
+          <p
+            className="truncate text-white"
+            title={game.organizerNames || undefined}
+          >
+            <span className="text-brand-muted">Орг.: </span>
+            {game.organizerNames || "—"}
+          </p>
+        </div>
       );
     },
-  },
-  {
-    accessorKey: "scoringRuleTitle",
-    header: "Правила очков",
-  },
-  {
-    accessorKey: "participantsCount",
-    header: ({ column }) => (
-      <SortableHeader column={column} title="Участники" />
-    ),
-    cell: ({ row }) => (
-      <span className="tabular-nums">{row.getValue("participantsCount")}</span>
-    ),
-  },
-  {
-    accessorKey: "createdByName",
-    header: "Создатель",
-    cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-48 text-white">
-        {row.original.createdByName}
-      </span>
-    ),
-  },
-  {
-    id: "organizer",
-    header: "Организатор",
-    cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-48 text-white">
-        {row.original.organizerNames || "—"}
-      </span>
-    ),
+    enableSorting: false,
   },
   {
     accessorKey: "createdAt",
@@ -124,8 +122,8 @@ export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
       new Date(rowA.original.createdAt).getTime() -
       new Date(rowB.original.createdAt).getTime(),
     cell: ({ row }) => (
-      <span className="whitespace-nowrap tabular-nums text-brand-muted">
-        {formatDateTimeWithYear(new Date(row.original.createdAt))}
+      <span className="whitespace-nowrap text-xs tabular-nums text-brand-muted">
+        {formatDateTime(new Date(row.original.createdAt))}
       </span>
     ),
   },
@@ -135,12 +133,14 @@ export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
     cell: ({ row }) => {
       const game = row.original;
       return (
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex items-center justify-end gap-0.5">
           <Link
             href={game.openHref}
-            className="text-sm font-medium text-brand-lime hover:underline"
+            className={iconLinkClass}
+            title="Открыть турнир"
           >
-            Открыть
+            <IconArrowUpRight className="size-4" stroke={1.75} aria-hidden />
+            <span className="sr-only">Открыть</span>
           </Link>
           <DeleteGameButton
             gameId={game.id}

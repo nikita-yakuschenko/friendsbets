@@ -24,7 +24,7 @@ function sortGames(rows: AdminGameRow[]) {
 }
 
 const tableClassName =
-  "font-ibm-plex font-normal [&_td]:py-2.5 [&_td]:font-normal [&_th]:py-2.5 [&_th]:font-normal";
+  "font-ibm-plex text-sm [&_table]:table-fixed [&_td]:px-2 [&_td]:py-2 [&_td]:text-sm [&_th]:h-9 [&_th]:px-2 [&_th]:py-2 [&_th]:text-xs";
 
 export function AdminGamesDataTable({ data }: { data: AdminGameRow[] }) {
   const [query, setQuery] = useState("");

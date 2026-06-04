@@ -14,9 +14,10 @@ import {
   IconCirclePlus,
   IconClipboardList,
   IconBell,
-  IconDots,
+  IconLogout,
 } from "@tabler/icons-react";
 import { BrandLogo } from "@/components/brand/logo";
+import { logoutAction } from "@/server/actions/auth";
 import { LiveNavLabel } from "@/components/layout/live-nav-label";
 import { useNotificationUnread } from "@/components/notifications/notification-unread-provider";
 import { NavBadge } from "@/components/ui/nav-badge";
@@ -139,18 +140,6 @@ export function DesktopSidebar({
               );
             })}
             <Link
-              href={gameHref("more")}
-              className={navLinkClass(
-                pathname.replace(/\/$/, "") === gameHref("more").replace(/\/$/, ""),
-              )}
-            >
-              <span className="relative inline-flex shrink-0">
-                <IconDots className="h-4 w-4" stroke={1.75} />
-                {unreadCount > 0 ? <NavBadge count={unreadCount} /> : null}
-              </span>
-              Ещё
-            </Link>
-            <Link
               href={gameHref("more/notifications")}
               className={navLinkClass(
                 /\/more\/notifications\/?$/.test(pathname),
@@ -178,15 +167,22 @@ export function DesktopSidebar({
         ) : null}
       </nav>
 
-      {hasGames &&
-      pathname !== "/" &&
-      pathname !== "/join" ? (
-        <div className="shrink-0 border-t border-brand-neutral/60 p-3">
+      <div className="mt-auto shrink-0 space-y-2 border-t border-brand-neutral/60 p-3">
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className={cn(navLinkClass(false), "w-full text-left")}
+          >
+            <IconLogout className="h-4 w-4 shrink-0" stroke={1.75} aria-hidden />
+            Выйти
+          </button>
+        </form>
+        {hasGames && pathname !== "/" && pathname !== "/join" ? (
           <Link href="/join" className="block">
             <Button className="w-full">Добавить турнир</Button>
           </Link>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </aside>
   );
 }

@@ -16,6 +16,8 @@ export type AdminUserRow = {
   id: string;
   email: string;
   name: string;
+  avatarUrl: string | null;
+  updatedAt: string;
   platformRole: PlatformRole;
   createdAt: string;
   organizerGames: AdminUserGameRef[];

@@ -83,6 +83,17 @@ export function MobileBottomNav({
       { href: gamePathFor("live"), label: "Лайв", icon: IconBroadcast, isLive: true },
       { href: gamePathFor("more"), label: "Ещё", icon: IconDots },
     ];
+  } else if (hasGames) {
+    items = [
+      { href: "/", label: "Мои", icon: IconLayoutGrid },
+      ...(isPlatformAdmin
+        ? [{ href: "/admin", label: "Платформа", icon: IconShield }]
+        : [
+            { href: "/create", label: "Создать", icon: IconCirclePlus },
+            { href: "/join", label: "Найти", icon: IconUserPlus },
+          ]),
+      { href: "/profile", label: "Профиль", icon: IconUser },
+    ];
   } else {
     items = [{ href: "/", label: "Мои", icon: IconLayoutGrid }];
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
 import {
   IconArrowsSort,
@@ -8,9 +9,11 @@ import {
 } from "@tabler/icons-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { AssignGameOrganizerControl } from "@/components/admin/users/assign-game-organizer-control";
+import { DeleteUserButton } from "@/components/admin/users/delete-user-button";
 import { GameMembershipList } from "@/components/admin/users/game-membership-list";
 import { SendTestEmailButton } from "@/components/admin/users/send-test-email-button";
 import type { AdminGameOption, AdminUserRow } from "@/components/admin/users/types";
+import { UserAvatar } from "@/components/user/user-avatar";
 import { UserRoleBadge } from "@/components/user/user-role-badge";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/utils";
@@ -54,12 +57,23 @@ export function useAdminUsersColumns(
     () => [
       {
         accessorKey: "name",
-        header: ({ column }) => <SortableHeader column={column} title="Имя" />,
+        header: ({ column }) => <SortableHeader column={column} title="Пользователь" />,
         cell: ({ row }) => (
-          <div className="min-w-0 max-w-56">
-            <p className="truncate font-medium text-white">{row.original.name}</p>
-            <p className="truncate text-xs text-brand-muted">{row.original.email}</p>
-          </div>
+          <Link
+            href={`/admin/users/${row.original.id}`}
+            className="flex min-w-0 max-w-56 items-center gap-2.5 rounded-lg transition-colors hover:bg-brand-neutral/20"
+          >
+            <UserAvatar
+              name={row.original.name}
+              avatarUrl={row.original.avatarUrl}
+              updatedAt={row.original.updatedAt}
+              size="sm"
+            />
+            <div className="min-w-0">
+              <p className="truncate font-medium text-white">{row.original.name}</p>
+              <p className="truncate text-xs text-brand-muted">{row.original.email}</p>
+            </div>
+          </Link>
         ),
         filterFn: (row, _columnId, filterValue) => {
           const query = String(filterValue).toLowerCase().trim();
@@ -73,12 +87,12 @@ export function useAdminUsersColumns(
       },
       {
         accessorKey: "platformRole",
-        header: "Роль на платформе",
+        header: "Роль",
         cell: ({ row }) => <UserRoleBadge role={row.original.platformRole} />,
       },
       {
         id: "organizerGames",
-        header: "Организаторы",
+        header: "Организатор",
         cell: ({ row }) => (
           <GameMembershipList games={row.original.organizerGames} variant="organizer" />
         ),
@@ -97,27 +111,16 @@ export function useAdminUsersColumns(
       },
       {
         id: "assignOrganizer",
-        header: "Назначить орг.",
+        header: "Орг.",
         cell: ({ row }) => (
           <AssignGameOrganizerControl
             userId={row.original.id}
             userName={row.original.name}
-            participantGames={row.original.participantGames}
             organizerGameIds={
               new Set(row.original.organizerGames.map((g) => g.id))
             }
             allGames={allGames}
-          />
-        ),
-        enableSorting: false,
-      },
-      {
-        id: "testEmail",
-        header: "Почта",
-        cell: ({ row }) => (
-          <SendTestEmailButton
-            userId={row.original.id}
-            email={row.original.email}
+            compact
           />
         ),
         enableSorting: false,
@@ -128,10 +131,27 @@ export function useAdminUsersColumns(
           <SortableHeader column={column} title="Регистрация" />
         ),
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-sm text-brand-muted">
+          <span className="whitespace-nowrap text-xs text-brand-muted tabular-nums">
             {formatDateTime(new Date(row.original.createdAt))}
           </span>
         ),
+      },
+      {
+        id: "actions",
+        header: () => <span className="sr-only">Действия</span>,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-0.5">
+            <SendTestEmailButton
+              userId={row.original.id}
+              email={row.original.email}
+            />
+            <DeleteUserButton
+              userId={row.original.id}
+              userName={row.original.name}
+            />
+          </div>
+        ),
+        enableSorting: false,
       },
     ],
     [allGames],

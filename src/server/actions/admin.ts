@@ -424,12 +424,100 @@ export async function getAdminUsers() {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarUrl: user.avatarUrl,
+      updatedAt: user.updatedAt.toISOString(),
       platformRole: user.role,
       createdAt: user.createdAt.toISOString(),
       organizerGames,
       participantGames,
     };
   });
+}
+
+export async function getAdminUserById(userId: string) {
+  const session = await requireAuth();
+  if (!isSuperadmin(session.role)) {
+    throw new Error("FORBIDDEN");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      gameParticipants: {
+        include: {
+          game: { select: { id: true, title: true, inviteCode: true } },
+        },
+      },
+      _count: { select: { createdGames: true } },
+    },
+  });
+
+  if (!user) return null;
+
+  const organizerGames = user.gameParticipants
+    .filter((p) => p.role === GameParticipantRole.ORGANIZER)
+    .map((p) => ({
+      id: p.game.id,
+      title: p.game.title,
+      inviteCode: p.game.inviteCode,
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title, "ru"));
+
+  const participantGames = user.gameParticipants
+    .filter((p) => p.role === GameParticipantRole.PARTICIPANT)
+    .map((p) => ({
+      id: p.game.id,
+      title: p.game.title,
+      inviteCode: p.game.inviteCode,
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title, "ru"));
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    avatarUrl: user.avatarUrl,
+    updatedAt: user.updatedAt.toISOString(),
+    platformRole: user.role,
+    createdAt: user.createdAt.toISOString(),
+    createdGamesCount: user._count.createdGames,
+    organizerGames,
+    participantGames,
+  };
+}
+
+export async function deleteUserAction(userId: string): Promise<ActionResult> {
+  const session = await requireAuth();
+  if (!isSuperadmin(session.role)) {
+    return { error: "Нет доступа." };
+  }
+  if (userId === session.id) {
+    return { error: "Нельзя удалить свой аккаунт." };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      _count: { select: { createdGames: true } },
+    },
+  });
+  if (!user) {
+    return { error: "Пользователь не найден." };
+  }
+  if (user.role === UserRole.ADMIN) {
+    return { error: "Нельзя удалить суперадмина." };
+  }
+  if (user._count.createdGames > 0) {
+    return {
+      error:
+        "Пользователь создал турниры. Передайте организатора или удалите турниры.",
+    };
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+  revalidatePath("/admin");
+  return { success: true, message: "Пользователь удалён." };
 }
 
 export async function sendTestEmailToUserAction(

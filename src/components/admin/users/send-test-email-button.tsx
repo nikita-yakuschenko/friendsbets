@@ -32,15 +32,15 @@ export function SendTestEmailButton({
   return (
     <Button
       type="button"
-      variant="outline"
-      size="sm"
-      className="h-8 gap-1.5 border-brand-border text-xs"
+      variant="ghost"
+      size="icon"
+      className="size-8 min-h-8 min-w-8 shrink-0 p-0 text-brand-muted hover:text-white"
       disabled={pending}
       onClick={handleClick}
-      title={`Отправить тестовое письмо на ${email}`}
+      title={`Тестовое письмо на ${email}`}
     >
-      <IconMail className="size-3.5" />
-      {pending ? "…" : "Тест"}
+      <IconMail className="size-4" stroke={1.75} aria-hidden />
+      <span className="sr-only">Тест почты</span>
     </Button>
   );
 }

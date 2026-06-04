@@ -7,6 +7,7 @@ export function resolveDesktopHeaderTitle(pathname: string): string | null {
   if (pathname === "/create") return "Создать турнир";
   if (pathname.startsWith("/create/success")) return "Турнир создан";
   if (pathname.startsWith("/admin/missing")) return "Кто не поставил";
+  if (pathname.startsWith("/admin/users/")) return "Пользователь";
   if (pathname === "/admin") return "Управление";
 
   if (/\/more\/notifications\/?$/.test(pathname)) {
