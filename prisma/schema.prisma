@@ -47,6 +47,7 @@ enum UserNotificationKind {
   JOIN_REQUEST_APPROVED
   JOIN_REQUEST_REJECTED
   PLATFORM_BROADCAST
+  MISSING_PREDICTION
 }
 
 enum PredictionReminderKind {
@@ -184,9 +185,10 @@ model UserNotification {
   userId        String
   kind          UserNotificationKind
   joinRequestId String?
-  title         String?
-  body          String?
-  readAt        DateTime?
+  title             String?
+  body              String?
+  actionInviteCode  String?
+  readAt            DateTime?
   createdAt     DateTime             @default(now())
 
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -10,8 +10,9 @@ export function AppToaster() {
       theme="dark"
       richColors
       closeButton={false}
-      duration={2800}
+      duration={3200}
       position="top-center"
+      expand
       className="app-toaster"
       offset={{ top: topOffset }}
       mobileOffset={{ top: topOffset }}

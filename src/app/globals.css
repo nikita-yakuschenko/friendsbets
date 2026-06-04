@@ -247,6 +247,16 @@ input[type="number"]::-webkit-outer-spin-button {
   --offset-top: calc(4.25rem + env(safe-area-inset-top, 0px));
   --mobile-offset-top: calc(4.25rem + env(safe-area-inset-top, 0px));
   z-index: 100;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%);
+  width: max-content !important;
+  max-width: min(22rem, calc(100vw - 1.5rem));
+}
+
+[data-sonner-toaster].app-toaster [data-sonner-toast] {
+  width: 100%;
+  max-width: min(22rem, calc(100vw - 1.5rem));
 }
 
 [data-sonner-toaster].app-toaster .fb-toast {

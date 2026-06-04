@@ -345,6 +345,7 @@ async function processReminderBatch(params: {
             await sendTelegramMessage(
               participant.user.telegramChatId,
               appendTelegramChannelFooter(tgText),
+              { parseMode: "HTML" },
             );
             delivered = true;
           }

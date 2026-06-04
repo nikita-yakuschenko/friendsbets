@@ -14,6 +14,7 @@ export async function markAllNotificationsReadAction(): Promise<ActionResult> {
   });
 
   revalidatePath("/", "layout");
+  revalidatePath("/notifications");
 
   return { success: true };
 }
@@ -29,6 +30,7 @@ export async function markNotificationReadAction(
   });
 
   revalidatePath("/", "layout");
+  revalidatePath("/notifications");
 
   return { success: true };
 }

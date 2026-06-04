@@ -56,7 +56,9 @@ export function NotificationUnreadProvider({
       prevCountRef.current = data.count;
       setUnreadCount(data.count);
 
-      const onNotificationsPage = /\/more\/notifications\/?$/.test(pathname);
+      const onNotificationsPage =
+        pathname === "/notifications" ||
+        /\/more\/notifications\/?$/.test(pathname);
       const allowToast = options?.allowToast ?? true;
       const increased = data.count > prevCount;
 

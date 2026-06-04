@@ -28,10 +28,12 @@ async function callTelegramApi<T>(
 export async function sendTelegramMessage(
   chatId: bigint,
   text: string,
+  options?: { parseMode?: "HTML" },
 ): Promise<void> {
   await callTelegramApi("sendMessage", {
     chat_id: chatId.toString(),
     text: text.slice(0, 4096),
+    parse_mode: options?.parseMode,
     disable_web_page_preview: true,
   });
 }

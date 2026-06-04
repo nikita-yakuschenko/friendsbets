@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
 import { canManageGame, resolveGameIdFromRoute } from "@/lib/game-access";
+import { formatMissingReminderSendFeedback } from "@/lib/missing-reminder-send-message";
 import {
   sendMissingPredictionReminders,
   type MissingReminderChannel,
@@ -20,23 +21,6 @@ function parseChannel(raw: string): MissingReminderChannel | null {
     return raw;
   }
   return null;
-}
-
-function formatSendResult(result: {
-  recipients: number;
-  inApp: number;
-  email: number;
-  telegram: number;
-  skipped: number;
-}): string {
-  const parts: string[] = [];
-  if (result.inApp > 0) parts.push(`уведомления: ${result.inApp}`);
-  if (result.email > 0) parts.push(`почта: ${result.email}`);
-  if (result.telegram > 0) parts.push(`Telegram: ${result.telegram}`);
-  if (result.skipped > 0) parts.push(`пропущено: ${result.skipped}`);
-  return parts.length > 0
-    ? `Отправлено (${parts.join(", ")}).`
-    : "Никому не удалось доставить сообщение.";
 }
 
 export async function sendMissingPredictionReminderAction(
@@ -79,7 +63,15 @@ export async function sendMissingPredictionReminderAction(
     revalidatePath(`/game/${inviteCode}/control`);
     revalidatePath("/admin/missing");
 
-    return { success: true, message: formatSendResult(result) };
+    const feedback = formatMissingReminderSendFeedback(result, channel);
+    if (feedback.error) {
+      return { error: feedback.error, detail: feedback.detail };
+    }
+    return {
+      success: true,
+      message: feedback.message,
+      detail: feedback.detail,
+    };
   } catch (err) {
     if (err instanceof Error && err.message === "MATCH_NOT_FOUND") {
       return { error: "Матч не найден." };

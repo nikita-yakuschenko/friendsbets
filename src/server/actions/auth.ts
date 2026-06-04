@@ -20,6 +20,8 @@ export type ActionResult = {
   error?: string;
   success?: boolean;
   message?: string;
+  /** Дополнительная строка для toast (sonner description). */
+  detail?: string;
 };
 
 export async function loginAction(

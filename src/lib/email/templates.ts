@@ -5,6 +5,7 @@ import {
   renderMatchCard,
   renderNameList,
 } from "@/lib/email/layout";
+import { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
 
 export type EmailContent = { text: string; html: string };
 
@@ -111,8 +112,7 @@ export function buildPredictionReminderEmail(params: {
     `Начало: ${params.startsAtLabel}.`,
     `Турнир: ${params.gameTitle}.`,
     "",
-    "Вы ещё не сделали прогноз. Успейте до начала матча:",
-    params.link,
+    `${PREDICTION_CTA_LABEL}: ${params.link}`,
     "",
     "— FriendsBets",
   ].join("\n");
@@ -131,7 +131,7 @@ export function buildPredictionReminderEmail(params: {
       startsAtLabel: params.startsAtLabel,
       timeLabel: params.timeLabel,
     }),
-    cta: { label: "Сделать прогноз", href: params.link },
+    cta: { label: PREDICTION_CTA_LABEL, href: params.link },
     footnote: "Письмо отправлено автоматически, потому что до матча осталось мало времени.",
   });
 

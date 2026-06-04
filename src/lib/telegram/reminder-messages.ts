@@ -1,13 +1,12 @@
-import { gamePath } from "@/lib/game-path";
-import { getAppOriginFromEnv } from "@/lib/app-origin";
 import { formatDateTime } from "@/lib/utils";
+import { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
+import {
+  buildMissingPredictionTelegramHtml,
+  predictionsLinkFromEnv,
+} from "@/lib/prediction-reminder-content";
+import { escapeHtml } from "@/lib/email/escape";
 
-function predictionsLink(inviteCode: string): string {
-  const origin = getAppOriginFromEnv().replace(/\/$/, "");
-  return `${origin}${gamePath(inviteCode, "predictions")}`;
-}
-
-/** Нет прогноза до старта матча. */
+/** Нет прогноза до старта матча (HTML, ссылка-кнопка). */
 export function buildMissingPredictionTelegramText(params: {
   displayName: string;
   homeTeam: string;
@@ -17,25 +16,21 @@ export function buildMissingPredictionTelegramText(params: {
   timeLabel: string;
   inviteCode: string;
 }): string {
-  return (
-    `⏰ ${params.displayName}, через ${params.timeLabel} матч ${params.homeTeam} — ${params.awayTeam} ` +
-    `(турнир «${params.gameTitle}», ${formatDateTime(params.startsAt)}).\n` +
-    `Вы ещё не сделали прогноз.\n` +
-    predictionsLink(params.inviteCode)
-  );
+  return buildMissingPredictionTelegramHtml(params);
 }
 
-/** Старт матча — всем участникам. */
+/** Старт матча — всем участникам (пока с явной ссылкой). */
 export function buildMatchStartedTelegramText(params: {
   homeTeam: string;
   awayTeam: string;
   gameTitle: string;
   inviteCode: string;
 }): string {
+  const link = predictionsLinkFromEnv(params.inviteCode);
   return (
-    `▶️ Матч начался: ${params.homeTeam} — ${params.awayTeam}\n` +
-    `Турнир «${params.gameTitle}».\n` +
-    predictionsLink(params.inviteCode)
+    `▶️ Матч начался: ${escapeHtml(params.homeTeam)} — ${escapeHtml(params.awayTeam)}\n` +
+    `Турнир «${escapeHtml(params.gameTitle)}».\n` +
+    `<a href="${link.replace(/"/g, "%22")}">${escapeHtml(PREDICTION_CTA_LABEL)}</a>`
   );
 }
 

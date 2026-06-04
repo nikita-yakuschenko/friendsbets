@@ -27,6 +27,8 @@ export function formatNotificationMessage(input: {
       return `Заявку в ${game} отклонили`;
     case USER_NOTIFICATION_KIND.PLATFORM_BROADCAST:
       return broadcastTitle?.trim() || "Сообщение от FriendsBets";
+    case USER_NOTIFICATION_KIND.MISSING_PREDICTION:
+      return broadcastTitle?.trim() || "Напоминание: сделайте прогноз";
     default:
       return "Новое уведомление";
   }

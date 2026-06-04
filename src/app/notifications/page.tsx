@@ -4,16 +4,12 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { getSession } from "@/lib/auth";
-import {
-  listUserNotifications,
-  markAllNotificationsRead,
-} from "@/lib/notifications";
+import { listUserNotifications } from "@/lib/notifications";
 
 export default async function NotificationsPage() {
   const session = await getSession();
   if (!session) redirect("/");
 
-  await markAllNotificationsRead(session.id);
   const items = await listUserNotifications(session.id);
 
   return (

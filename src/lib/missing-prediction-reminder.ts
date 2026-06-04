@@ -1,12 +1,15 @@
 import { UserNotificationKind } from "@/generated/prisma/client";
-import { absoluteAppUrl } from "@/lib/app-origin";
-import { gamePath } from "@/lib/game-path";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import {
+  buildMissingPredictionEmailContent,
+  buildMissingPredictionInAppBody,
+  buildMissingPredictionTelegramHtml,
+} from "@/lib/prediction-reminder-content";
 import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 import { sendTelegramMessage } from "@/lib/telegram/api";
 import { isTelegramConfigured } from "@/lib/telegram/config";
-import { formatDateTimeMoscow, formatRelativeTime } from "@/lib/utils";
+import { formatRelativeTime } from "@/lib/utils";
 
 export type MissingReminderChannel =
   | "telegram"
@@ -22,49 +25,32 @@ export type MissingReminderSendResult = {
   skipped: number;
 };
 
-function countryCodeToFlagEmoji(code: string | null | undefined): string {
-  if (!code || code.length !== 2) return "";
-  const upper = code.trim().toUpperCase();
-  if (!/^[A-Z]{2}$/.test(upper)) return "";
-  return String.fromCodePoint(
-    ...[...upper].map((char) => 0x1f1e6 + char.charCodeAt(0) - 65),
-  );
-}
+export {
+  buildMissingPredictionCopyText as buildMissingPredictionReminderText,
+} from "@/lib/prediction-reminder-content";
 
-function formatMatchLine(
-  home: { name: string; countryCode: string | null },
-  away: { name: string; countryCode: string | null },
-): string {
-  const homeFlag = countryCodeToFlagEmoji(home.countryCode);
-  const awayFlag = countryCodeToFlagEmoji(away.countryCode);
-  const homePart = homeFlag ? `${home.name} ${homeFlag}` : home.name;
-  const awayPart = awayFlag ? `${awayFlag} ${away.name}` : away.name;
-  return `${homePart} - ${awayPart}`;
-}
-
-export function buildMissingPredictionReminderText(params: {
-  homeTeam: { name: string; countryCode: string | null };
-  awayTeam: { name: string; countryCode: string | null };
-  startsAt: Date;
+type ReminderPayload = {
+  title: string;
   inviteCode: string;
-  origin?: string;
-}): string {
-  const link = absoluteAppUrl(
-    gamePath(params.inviteCode, "predictions"),
-    params.origin,
-  );
-  const startsAt = new Date(params.startsAt);
+  gameTitle: string;
+  inAppBody: string;
+  telegramHtml: string;
+  email: { subject: string; text: string; html: string };
+};
 
-  return [
-    "Ты не сделал прогноз на матч",
-    formatMatchLine(params.homeTeam, params.awayTeam),
-    `матч начнётся ${formatDateTimeMoscow(startsAt)}`,
-    `до начала матча ${formatRelativeTime(startsAt)}`,
-    "",
-    link,
-    "",
-    "Твоя команда FriendsBets 💚",
-  ].join("\n");
+async function createInAppNotification(
+  userId: string,
+  payload: ReminderPayload,
+): Promise<void> {
+  await prisma.userNotification.create({
+    data: {
+      userId,
+      kind: UserNotificationKind.MISSING_PREDICTION,
+      title: payload.title,
+      body: payload.inAppBody,
+      actionInviteCode: payload.inviteCode,
+    },
+  });
 }
 
 async function deliverToUser(params: {
@@ -73,19 +59,20 @@ async function deliverToUser(params: {
   emailVerifiedAt: Date | null;
   telegramChatId: bigint | null;
   channel: MissingReminderChannel;
-  title: string;
-  body: string;
+  payload: ReminderPayload;
 }): Promise<{ inApp: boolean; email: boolean; telegram: boolean; skipped: boolean }> {
   const result = { inApp: false, email: false, telegram: false, skipped: false };
   const linked = params.telegramChatId != null;
   const verified = params.emailVerifiedAt != null;
+  const { payload } = params;
 
   if (params.channel === "telegram") {
     if (linked && isTelegramConfigured()) {
       try {
         await sendTelegramMessage(
           params.telegramChatId!,
-          appendTelegramChannelFooter(params.body),
+          appendTelegramChannelFooter(payload.telegramHtml),
+          { parseMode: "HTML" },
         );
         result.telegram = true;
         return result;
@@ -93,14 +80,7 @@ async function deliverToUser(params: {
         console.error(`[missing-reminder:telegram:${params.userId}]`, error);
       }
     }
-    await prisma.userNotification.create({
-      data: {
-        userId: params.userId,
-        kind: UserNotificationKind.PLATFORM_BROADCAST,
-        title: params.title,
-        body: params.body,
-      },
-    });
+    await createInAppNotification(params.userId, payload);
     result.inApp = true;
     return result;
   }
@@ -113,9 +93,9 @@ async function deliverToUser(params: {
     try {
       await sendEmail({
         to: params.email,
-        subject: params.title,
-        text: params.body,
-        html: params.body.replace(/\n/g, "<br>"),
+        subject: payload.email.subject,
+        text: payload.email.text,
+        html: payload.email.html,
       });
       result.email = true;
     } catch (error) {
@@ -126,24 +106,17 @@ async function deliverToUser(params: {
   }
 
   if (params.channel === "inApp") {
-    await prisma.userNotification.create({
-      data: {
-        userId: params.userId,
-        kind: UserNotificationKind.PLATFORM_BROADCAST,
-        title: params.title,
-        body: params.body,
-      },
-    });
+    await createInAppNotification(params.userId, payload);
     result.inApp = true;
     return result;
   }
 
-  // everywhere
   if (linked && isTelegramConfigured()) {
     try {
       await sendTelegramMessage(
         params.telegramChatId!,
-        appendTelegramChannelFooter(params.body),
+        appendTelegramChannelFooter(payload.telegramHtml),
+        { parseMode: "HTML" },
       );
       result.telegram = true;
     } catch (error) {
@@ -155,9 +128,9 @@ async function deliverToUser(params: {
     try {
       await sendEmail({
         to: params.email,
-        subject: params.title,
-        text: params.body,
-        html: params.body.replace(/\n/g, "<br>"),
+        subject: payload.email.subject,
+        text: payload.email.text,
+        html: payload.email.html,
       });
       result.email = true;
     } catch (error) {
@@ -165,14 +138,7 @@ async function deliverToUser(params: {
     }
   }
 
-  await prisma.userNotification.create({
-    data: {
-      userId: params.userId,
-      kind: UserNotificationKind.PLATFORM_BROADCAST,
-      title: params.title,
-      body: params.body,
-    },
-  });
+  await createInAppNotification(params.userId, payload);
   result.inApp = true;
 
   if (!result.inApp && !result.email && !result.telegram) {
@@ -222,6 +188,7 @@ export async function sendMissingPredictionReminders(params: {
     where: { id: { in: missing.map((p) => p.userId) } },
     select: {
       id: true,
+      name: true,
       email: true,
       emailVerifiedAt: true,
       telegramChatId: true,
@@ -229,13 +196,8 @@ export async function sendMissingPredictionReminders(params: {
   });
   const userById = new Map(users.map((u) => [u.id, u]));
 
-  const body = buildMissingPredictionReminderText({
-    homeTeam: match.homeTeam,
-    awayTeam: match.awayTeam,
-    startsAt: match.startsAt,
-    inviteCode: params.inviteCode,
-  });
   const title = `Прогноз: ${match.homeTeam.name} — ${match.awayTeam.name}`;
+  const timeLabel = formatRelativeTime(new Date(match.startsAt));
 
   const totals = {
     recipients: missing.length,
@@ -252,14 +214,51 @@ export async function sendMissingPredictionReminders(params: {
       continue;
     }
 
+    const displayName = participant.displayName || user.name;
+    const inAppBody = buildMissingPredictionInAppBody({
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
+      startsAt: match.startsAt,
+    });
+    const telegramHtml = buildMissingPredictionTelegramHtml({
+      displayName,
+      homeTeam: match.homeTeam.name,
+      awayTeam: match.awayTeam.name,
+      gameTitle: game.title,
+      startsAt: match.startsAt,
+      timeLabel,
+      inviteCode: params.inviteCode,
+    });
+    const emailContent = buildMissingPredictionEmailContent({
+      userName: displayName,
+      homeTeam: match.homeTeam.name,
+      awayTeam: match.awayTeam.name,
+      gameTitle: game.title,
+      startsAt: match.startsAt,
+      inviteCode: params.inviteCode,
+      timeLabel,
+    });
+
+    const payload: ReminderPayload = {
+      title,
+      inviteCode: params.inviteCode,
+      gameTitle: game.title,
+      inAppBody,
+      telegramHtml,
+      email: {
+        subject: title,
+        text: emailContent.text,
+        html: emailContent.html,
+      },
+    };
+
     const delivered = await deliverToUser({
       userId: user.id,
       email: user.email,
       emailVerifiedAt: user.emailVerifiedAt,
       telegramChatId: user.telegramChatId,
       channel: params.channel,
-      title,
-      body,
+      payload,
     });
 
     if (delivered.inApp) totals.inApp++;

@@ -38,10 +38,16 @@ export function SendMissingReminderButton({
         channel,
       );
       if (result.error) {
-        toast.error(result.error);
+        toast.error(result.error, {
+          description: result.detail,
+          duration: 6000,
+        });
         return;
       }
-      toast.success(result.message ?? "Отправлено");
+      toast.success(result.message ?? "Напоминание отправлено", {
+        description: result.detail,
+        duration: result.detail ? 5500 : 3200,
+      });
       setOpen(false);
     });
   }

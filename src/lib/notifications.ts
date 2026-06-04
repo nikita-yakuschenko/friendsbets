@@ -1,5 +1,6 @@
 import { UserNotificationKind } from "@/generated/prisma/client";
 import { getGameOrganizerUserIds } from "@/lib/game-organizer-users";
+import { gamePath } from "@/lib/game-path";
 import {
   formatNotificationMessage,
   globalNotificationsHref,
@@ -26,6 +27,7 @@ export type NotificationListItem = {
   kind: UserNotificationKindValue;
   title: string | null;
   body: string | null;
+  actionInviteCode: string | null;
   readAt: string | null;
   createdAt: string;
   joinRequest: {
@@ -80,11 +82,14 @@ export async function getUnreadNotificationSnapshot(
         broadcastTitle: row.title,
       }),
       href:
-        row.kind === UserNotificationKind.PLATFORM_BROADCAST
-          ? globalNotificationsHref()
-          : inviteCode
-            ? notificationHref(inviteCode)
-            : globalNotificationsHref(),
+        row.kind === UserNotificationKind.MISSING_PREDICTION &&
+        row.actionInviteCode
+          ? gamePath(row.actionInviteCode, "predictions")
+          : row.kind === UserNotificationKind.PLATFORM_BROADCAST
+            ? globalNotificationsHref()
+            : inviteCode
+              ? notificationHref(inviteCode)
+              : globalNotificationsHref(),
     },
   };
 }
@@ -111,6 +116,7 @@ export async function listUserNotifications(
     kind: row.kind,
     title: row.title,
     body: row.body,
+    actionInviteCode: row.actionInviteCode,
     readAt: row.readAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     joinRequest: row.joinRequest
