@@ -124,11 +124,10 @@ export default async function LeaderboardPage({
       {oversight ? (
 
         <GameOversightShell
-
           inviteCode={view.access.game.inviteCode}
-
           activeTab="leaderboard"
-
+          platformTabLinks
+          bannerVariant="platform"
         >
 
           {leaderboardBody}

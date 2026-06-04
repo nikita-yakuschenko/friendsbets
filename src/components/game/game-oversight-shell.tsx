@@ -5,8 +5,8 @@ import type { GameOversightTabId } from "@/lib/game-oversight-tabs";
 export function GameOversightShell({
   inviteCode,
   activeTab,
-  platformTabLinks = true,
-  bannerVariant = "platform",
+  platformTabLinks = false,
+  bannerVariant = "organizer",
   children,
 }: {
   inviteCode: string;

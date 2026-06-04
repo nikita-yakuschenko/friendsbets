@@ -54,6 +54,10 @@ export default async function GamePage({
         <GameOversightShell
           inviteCode={oversight.game.inviteCode}
           activeTab={activeTab}
+          platformTabLinks={oversight.usePlatformTabLinks}
+          bannerVariant={
+            oversight.isPlatformOversight ? "platform" : "organizer"
+          }
         >
           <GameOversightHome data={oversight} activeTab={activeTab} />
         </GameOversightShell>

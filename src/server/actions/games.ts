@@ -51,7 +51,13 @@ export async function getGameOversightOverview(
 
   if (!game) return null;
 
-  return { game, participants: game.participants };
+  return {
+    game,
+    participants: game.participants,
+    isPlatformOversight: view.access.isPlatformOversight,
+    usePlatformTabLinks:
+      platformView || view.access.isPlatformOversight,
+  };
 }
 
 export async function getGameOverview(routeParam: string, userId: string) {
