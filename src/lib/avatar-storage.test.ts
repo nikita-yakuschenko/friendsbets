@@ -25,4 +25,18 @@ describe("avatar-storage mode", () => {
     process.env.AVATAR_STORAGE = "local";
     expect(getAvatarStorageMode()).toBe("local");
   });
+
+  it("uses supabase when bucket and keys are set", () => {
+    delete process.env.S3_BUCKET;
+    delete process.env.AVATAR_STORAGE;
+    process.env.SUPABASE_URL = "https://supabase.example.com";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "secret";
+    process.env.SUPABASE_STORAGE_BUCKET = "avatars";
+    expect(getAvatarStorageMode()).toBe("supabase");
+  });
+
+  it("AVATAR_STORAGE=supabase is explicit", () => {
+    process.env.AVATAR_STORAGE = "supabase";
+    expect(getAvatarStorageMode()).toBe("supabase");
+  });
 });

@@ -6,8 +6,32 @@
 
 | Режим | Когда | Где файлы | `avatarUrl` в БД |
 |-------|--------|-----------|------------------|
-| **local** (по умолчанию) | нет `S3_BUCKET` | `public/avatars/` + Docker-том `friendsbets_avatars` | `/avatars/{userId}.webp` |
+| **local** (по умолчанию) | нет облачных env | `public/avatars/` + Docker-том `friendsbets_avatars` | `/avatars/{userId}.webp` |
+| **supabase** | `AVATAR_STORAGE=supabase` или заданы `SUPABASE_*` | Supabase Storage (бакет public) | `.../storage/v1/object/public/...` |
 | **s3** | задан `S3_BUCKET` или `AVATAR_STORAGE=s3` | S3-совместимое хранилище | `https://.../avatars/{userId}.webp` |
+
+Для десятков/сотен аватаров **Supabase Storage** на уже работающем инстансе — нормальный выбор, MinIO не обязателен.
+
+---
+
+## Supabase Storage (VPS / self-hosted)
+
+1. В Supabase Studio → **Storage** → бакет `avatars` (или своё имя).
+2. Бакет **public** (чтение без авторизации для `<img>`).
+3. В Dokploy → env приложения:
+
+```env
+AVATAR_STORAGE=supabase
+SUPABASE_URL=https://ваш-kong-или-домен-supabase
+SUPABASE_PUBLIC_URL=https://тот-же-внешний-url
+SUPABASE_SERVICE_ROLE_KEY=eyJ...   # из env Supabase, только сервер
+SUPABASE_STORAGE_BUCKET=avatars
+```
+
+`SUPABASE_URL` — для загрузки с сервера app (можно внутренний Docker host, если app в той же сети).  
+`SUPABASE_PUBLIC_URL` — что попадёт в БД и откроется в браузере (внешний HTTPS). Если один URL — можно не задавать `SUPABASE_PUBLIC_URL`.
+
+Путь объекта: `avatars/{userId}.webp` (как при S3).
 
 Локальная разработка без S3 — как раньше (`npm run docker:db` + `npm run dev`).
 
@@ -65,7 +89,11 @@ S3_PUBLIC_URL=https://cdn.friendsbets.ru
 
 | Переменная | Обязательно (s3) | Описание |
 |------------|------------------|----------|
-| `AVATAR_STORAGE` | Нет | `local` \| `s3` (иначе s3 если есть `S3_BUCKET`) |
+| `AVATAR_STORAGE` | Нет | `local` \| `supabase` \| `s3` |
+| `SUPABASE_URL` | supabase | API (загрузка/удаление) |
+| `SUPABASE_PUBLIC_URL` | Нет | Публичный URL для `<img>` (по умолчанию = `SUPABASE_URL`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | supabase | Service role, **секрет** |
+| `SUPABASE_STORAGE_BUCKET` | supabase | Имя бакета |
 | `S3_BUCKET` | Да | Имя бакета |
 | `S3_ACCESS_KEY_ID` | Да | Ключ |
 | `S3_SECRET_ACCESS_KEY` | Да | Секрет |

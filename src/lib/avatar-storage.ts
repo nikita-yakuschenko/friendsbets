@@ -15,16 +15,25 @@ import {
 
 const AVATAR_EXTENSIONS = ["jpg", "png", "webp"] as const;
 
-export type AvatarStorageMode = "local" | "s3";
+export type AvatarStorageMode = "local" | "s3" | "supabase";
+
+function avatarObjectPath(userId: string, ext: string): string {
+  return `avatars/${userId}.${ext}`;
+}
 
 export function getAvatarStorageMode(): AvatarStorageMode {
-  if (process.env.AVATAR_STORAGE === "s3") return "s3";
-  if (process.env.AVATAR_STORAGE === "local") return "local";
+  const mode = process.env.AVATAR_STORAGE?.trim();
+  if (mode === "s3") return "s3";
+  if (mode === "supabase") return "supabase";
+  if (mode === "local") return "local";
+  if (process.env.SUPABASE_URL?.trim() && process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    if (process.env.SUPABASE_STORAGE_BUCKET?.trim()) return "supabase";
+  }
   return process.env.S3_BUCKET?.trim() ? "s3" : "local";
 }
 
 function s3ObjectKey(userId: string, ext: string): string {
-  return `avatars/${userId}.${ext}`;
+  return avatarObjectPath(userId, ext);
 }
 
 function s3PublicUrl(userId: string, ext: string): string {
@@ -60,6 +69,75 @@ function getS3Client(): S3Client {
   });
 
   return s3Client;
+}
+
+function supabaseConfig() {
+  const url = process.env.SUPABASE_URL?.trim().replace(/\/$/, "");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const bucket = process.env.SUPABASE_STORAGE_BUCKET?.trim();
+  if (!url || !key || !bucket) {
+    throw new Error(
+      "SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_STORAGE_BUCKET are required",
+    );
+  }
+  const publicBase = (
+    process.env.SUPABASE_PUBLIC_URL?.trim() || url
+  ).replace(/\/$/, "");
+  return { url, key, bucket, publicBase };
+}
+
+function supabasePublicUrl(userId: string, ext: string): string {
+  const { publicBase, bucket } = supabaseConfig();
+  return `${publicBase}/storage/v1/object/public/${bucket}/${avatarObjectPath(userId, ext)}`;
+}
+
+async function uploadAvatarSupabase(
+  userId: string,
+  buffer: Buffer,
+  mime: string,
+  ext: string,
+): Promise<string> {
+  const { url, key, bucket } = supabaseConfig();
+  const objectPath = avatarObjectPath(userId, ext);
+
+  await removeAvatarStored(userId);
+
+  const res = await fetch(
+    `${url}/storage/v1/object/${bucket}/${objectPath}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": mime,
+        "x-upsert": "true",
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+      body: new Uint8Array(buffer),
+    },
+  );
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      `Supabase Storage upload failed (${res.status}): ${detail || res.statusText}`,
+    );
+  }
+
+  return supabasePublicUrl(userId, ext);
+}
+
+async function removeAvatarSupabase(userId: string): Promise<void> {
+  const { url, key, bucket } = supabaseConfig();
+
+  await Promise.all(
+    AVATAR_EXTENSIONS.map(async (ext) => {
+      const objectPath = avatarObjectPath(userId, ext);
+      await fetch(`${url}/storage/v1/object/${bucket}/${objectPath}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${key}` },
+      }).catch(() => undefined);
+    }),
+  );
 }
 
 async function uploadAvatarLocal(
@@ -146,6 +224,9 @@ export async function storeAvatar(userId: string, file: File): Promise<string> {
   const buffer = Buffer.from(await file.arrayBuffer());
   const mode = getAvatarStorageMode();
 
+  if (mode === "supabase") {
+    return uploadAvatarSupabase(userId, buffer, file.type, ext);
+  }
   if (mode === "s3") {
     return uploadAvatarS3(userId, buffer, file.type, ext);
   }
@@ -153,7 +234,10 @@ export async function storeAvatar(userId: string, file: File): Promise<string> {
 }
 
 export async function removeAvatarStored(userId: string): Promise<void> {
-  if (getAvatarStorageMode() === "s3") {
+  const mode = getAvatarStorageMode();
+  if (mode === "supabase") {
+    await removeAvatarSupabase(userId);
+  } else if (mode === "s3") {
     await removeAvatarS3(userId);
   } else {
     await removeAvatarLocal(userId);
