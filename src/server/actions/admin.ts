@@ -430,6 +430,8 @@ export async function getAdminUsers() {
       createdAt: user.createdAt.toISOString(),
       organizerGames,
       participantGames,
+      telegramLinked: user.telegramChatId != null,
+      telegramUsername: user.telegramUsername,
     };
   });
 }
@@ -483,6 +485,8 @@ export async function getAdminUserById(userId: string) {
     createdGamesCount: user._count.createdGames,
     organizerGames,
     participantGames,
+    telegramLinked: user.telegramChatId != null,
+    telegramUsername: user.telegramUsername,
   };
 }
 

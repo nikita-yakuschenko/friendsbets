@@ -70,6 +70,11 @@ model User {
   emailVerificationExpiresAt DateTime?
   passwordResetToken         String?   @unique
   passwordResetExpiresAt     DateTime?
+  telegramChatId             BigInt?   @unique
+  telegramUsername           String?
+  telegramLinkedAt           DateTime?
+  telegramLinkToken          String?   @unique
+  telegramLinkExpiresAt      DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

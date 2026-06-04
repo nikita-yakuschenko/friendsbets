@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { getAdminTabsForUser, parseAdminTab } from "@/lib/admin-tabs";
 import { hasPermission } from "@/lib/roles";
 import { getSession } from "@/lib/auth";
+import { isTelegramConfigured } from "@/lib/telegram/config";
 import {
   getAdminDashboardData,
   getAdminIntegrationInfo,
@@ -85,6 +86,7 @@ export default async function AdminPage({
               title: g.title,
               inviteCode: g.inviteCode,
             }))}
+            telegramConfigured={isTelegramConfigured()}
           />
         )}
 

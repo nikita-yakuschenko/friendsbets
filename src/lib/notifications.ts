@@ -11,6 +11,11 @@ import type {
   UserNotificationKindValue,
 } from "@/lib/notification-types";
 import { prisma } from "@/lib/db";
+import {
+  pushTelegramBroadcast,
+  pushTelegramToUser,
+  pushTelegramToUsers,
+} from "@/lib/telegram/notify";
 
 export type UnreadNotificationSnapshot = {
   count: number;
@@ -134,12 +139,30 @@ export async function notifyOrganizersOfJoinRequest(
       joinRequestId,
     })),
   });
+
+  const details = await prisma.gameJoinRequest.findUnique({
+    where: { id: joinRequestId },
+    include: {
+      user: { select: { name: true } },
+      game: { select: { title: true } },
+    },
+  });
+
+  if (details) {
+    const text = `${details.user.name} хочет вступить в «${details.game.title}»`;
+    pushTelegramToUsers(organizerIds, text);
+  }
 }
 
 export async function notifyJoinRequestApproved(
   userId: string,
   joinRequestId: string,
 ): Promise<void> {
+  const row = await prisma.gameJoinRequest.findUnique({
+    where: { id: joinRequestId },
+    include: { game: { select: { title: true } } },
+  });
+
   await prisma.userNotification.create({
     data: {
       userId,
@@ -147,12 +170,21 @@ export async function notifyJoinRequestApproved(
       joinRequestId,
     },
   });
+
+  if (row) {
+    pushTelegramToUser(userId, `Вас приняли в турнир «${row.game.title}»`);
+  }
 }
 
 export async function notifyJoinRequestRejected(
   userId: string,
   joinRequestId: string,
 ): Promise<void> {
+  const row = await prisma.gameJoinRequest.findUnique({
+    where: { id: joinRequestId },
+    include: { game: { select: { title: true } } },
+  });
+
   await prisma.userNotification.create({
     data: {
       userId,
@@ -160,6 +192,13 @@ export async function notifyJoinRequestRejected(
       joinRequestId,
     },
   });
+
+  if (row) {
+    pushTelegramToUser(
+      userId,
+      `Заявку в турнир «${row.game.title}» отклонили`,
+    );
+  }
 }
 
 export async function broadcastPlatformNotification(
@@ -183,6 +222,8 @@ export async function broadcastPlatformNotification(
       body: trimmedBody,
     })),
   });
+
+  pushTelegramBroadcast(trimmedTitle, trimmedBody);
 
   return result.count;
 }

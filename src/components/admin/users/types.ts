@@ -22,4 +22,6 @@ export type AdminUserRow = {
   createdAt: string;
   organizerGames: AdminUserGameRef[];
   participantGames: AdminUserGameRef[];
+  telegramLinked: boolean;
+  telegramUsername: string | null;
 };

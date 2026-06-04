@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AssignGameOrganizerControl } from "@/components/admin/users/assign-game-organizer-control";
 import { DeleteUserButton } from "@/components/admin/users/delete-user-button";
 import { GameMembershipList } from "@/components/admin/users/game-membership-list";
+import { AdminSendTelegramForm } from "@/components/admin/users/admin-send-telegram-form";
 import { SendTestEmailButton } from "@/components/admin/users/send-test-email-button";
 import { UserAvatar } from "@/components/user/user-avatar";
 import type { AdminGameOption, AdminUserRow } from "@/components/admin/users/types";
@@ -17,9 +18,11 @@ import { formatDateTime } from "@/lib/utils";
 export function AdminUserCard({
   user,
   games,
+  telegramConfigured,
 }: {
   user: AdminUserRow;
   games: AdminGameOption[];
+  telegramConfigured: boolean;
 }) {
   return (
     <AdminRecordCard>
@@ -68,6 +71,14 @@ export function AdminUserCard({
           <SendTestEmailButton userId={user.id} email={user.email} />
           <DeleteUserButton userId={user.id} userName={user.name} />
         </div>
+        <AdminSendTelegramForm
+          userId={user.id}
+          userName={user.name}
+          telegramLinked={user.telegramLinked}
+          telegramUsername={user.telegramUsername}
+          telegramConfigured={telegramConfigured}
+          compact
+        />
       </AdminCardFooter>
     </AdminRecordCard>
   );

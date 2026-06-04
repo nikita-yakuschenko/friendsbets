@@ -12,8 +12,10 @@ import { Button } from "@/components/ui/button";
 import { hasPermission } from "@/lib/roles";
 import { formatDateTime } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
+import { AdminSendTelegramForm } from "@/components/admin/users/admin-send-telegram-form";
 import { getAdminUserById } from "@/server/actions/admin";
 import { prisma } from "@/lib/db";
+import { isTelegramConfigured } from "@/lib/telegram/config";
 
 export default async function AdminUserPage({
   params,
@@ -27,6 +29,8 @@ export default async function AdminUserPage({
   const { userId } = await params;
   const user = await getAdminUserById(userId);
   if (!user) notFound();
+
+  const telegramConfigured = isTelegramConfigured();
 
   const games = await prisma.game.findMany({
     orderBy: { createdAt: "desc" },
@@ -79,6 +83,16 @@ export default async function AdminUserPage({
                 />
               </div>
             </div>
+          </section>
+
+          <section className="border-t border-brand-neutral/60 pt-5">
+            <AdminSendTelegramForm
+              userId={user.id}
+              userName={user.name}
+              telegramLinked={user.telegramLinked}
+              telegramUsername={user.telegramUsername}
+              telegramConfigured={telegramConfigured}
+            />
           </section>
 
           <section className="space-y-3 border-t border-brand-neutral/60 pt-5">

@@ -30,9 +30,11 @@ const tableClassName =
 export function AdminUsersDataTable({
   data,
   games,
+  telegramConfigured,
 }: {
   data: AdminUserRow[];
   games: AdminGameOption[];
+  telegramConfigured: boolean;
 }) {
   const columns = useAdminUsersColumns(games);
   const [query, setQuery] = useState("");
@@ -65,7 +67,12 @@ export function AdminUsersDataTable({
       mobile={
         <>
           {paged.map((user) => (
-            <AdminUserCard key={user.id} user={user} games={games} />
+            <AdminUserCard
+              key={user.id}
+              user={user}
+              games={games}
+              telegramConfigured={telegramConfigured}
+            />
           ))}
           {filtered.length > PAGE_SIZE ? (
             <MobilePagination
