@@ -384,6 +384,39 @@ export async function getAdminMissingPredictions(routeParam: string) {
   });
 }
 
+export type AdminBroadcastUserOption = {
+  id: string;
+  name: string;
+  email: string;
+  telegramLinked: boolean;
+};
+
+export async function getAdminBroadcastUserOptions(): Promise<
+  AdminBroadcastUserOption[]
+> {
+  const session = await requireAuth();
+  if (!isSuperadmin(session.role)) {
+    throw new Error("FORBIDDEN");
+  }
+
+  const users = await prisma.user.findMany({
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      telegramChatId: true,
+    },
+  });
+
+  return users.map((user) => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    telegramLinked: user.telegramChatId != null,
+  }));
+}
+
 export async function getAdminUsers() {
   const session = await requireAuth();
   if (!isSuperadmin(session.role)) {

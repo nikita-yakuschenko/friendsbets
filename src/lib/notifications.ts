@@ -11,9 +11,7 @@ import type {
   UserNotificationKindValue,
 } from "@/lib/notification-types";
 import { prisma } from "@/lib/db";
-import { postTelegramChannelNews } from "@/lib/telegram/channel";
 import {
-  pushTelegramBroadcast,
   pushTelegramToUser,
   pushTelegramToUsers,
 } from "@/lib/telegram/notify";
@@ -202,33 +200,21 @@ export async function notifyJoinRequestRejected(
   }
 }
 
+/** @deprecated Используйте sendPlatformNotificationBroadcast из platform-broadcast.ts */
 export async function broadcastPlatformNotification(
   title: string,
   body: string,
 ): Promise<number> {
-  const trimmedTitle = title.trim();
-  const trimmedBody = body.trim();
-  if (!trimmedTitle || !trimmedBody) {
-    throw new Error("TITLE_AND_BODY_REQUIRED");
-  }
-
-  const users = await prisma.user.findMany({ select: { id: true } });
-  if (users.length === 0) return 0;
-
-  const result = await prisma.userNotification.createMany({
-    data: users.map((user) => ({
-      userId: user.id,
-      kind: UserNotificationKind.PLATFORM_BROADCAST,
-      title: trimmedTitle,
-      body: trimmedBody,
-    })),
+  const { sendPlatformNotificationBroadcast } = await import(
+    "@/lib/platform-broadcast"
+  );
+  const result = await sendPlatformNotificationBroadcast({
+    title,
+    body,
+    audience: "all",
+    channels: { inApp: true, telegram: true },
   });
-
-  pushTelegramBroadcast(trimmedTitle, trimmedBody);
-
-  postTelegramChannelNews(`${trimmedTitle}\n\n${trimmedBody}`);
-
-  return result.count;
+  return result.inApp + result.telegram;
 }
 
 export async function markAllNotificationsRead(userId: string): Promise<void> {

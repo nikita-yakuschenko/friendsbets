@@ -17,6 +17,7 @@ import { isTelegramConfigured } from "@/lib/telegram/config";
 import {
   getAdminDashboardData,
   getAdminIntegrationInfo,
+  getAdminBroadcastUserOptions,
   getAdminUsers,
   getMissingPredictionsGames,
 } from "@/server/actions/admin";
@@ -61,6 +62,11 @@ export default async function AdminPage({
   const users =
     activeTab === "users" && isPlatformSuperadmin ? await getAdminUsers() : null;
 
+  const broadcastUsers =
+    activeTab === "notifications" && isPlatformSuperadmin
+      ? await getAdminBroadcastUserOptions()
+      : [];
+
   const defaultGame = data.games[0];
 
   return (
@@ -91,7 +97,10 @@ export default async function AdminPage({
         )}
 
         {activeTab === "notifications" && isPlatformSuperadmin && (
-          <AdminNotificationsPanel />
+          <AdminNotificationsPanel
+            users={broadcastUsers}
+            telegramConfigured={isTelegramConfigured()}
+          />
         )}
 
         {activeTab === "tournaments" && (
