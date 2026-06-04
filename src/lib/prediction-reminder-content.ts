@@ -100,7 +100,33 @@ function telegramHtmlLink(href: string, label: string): string {
   return `<a href="${safeHref}">${escapeHtml(label)}</a>`;
 }
 
-/** Telegram: HTML с маскированной ссылкой «Сделать прогноз». */
+/**
+ * Telegram (ручная рассылка / in-app тот же текст): жирный заголовок, флаги, отступы, 💚, CTA-ссылка.
+ */
+export function buildMissingPredictionTelegramPersonalHtml(params: {
+  homeTeam: { name: string; countryCode: string | null };
+  awayTeam: { name: string; countryCode: string | null };
+  startsAt: Date;
+  inviteCode: string;
+  origin?: string;
+}): string {
+  const link = predictionsAbsoluteUrl(params.inviteCode, params.origin);
+  const startsAt = new Date(params.startsAt);
+  const matchLine = formatPredictionMatchLine(params.homeTeam, params.awayTeam);
+
+  return [
+    `<b>${escapeHtml("Ты не сделал прогноз на матч")}</b>`,
+    escapeHtml(matchLine),
+    escapeHtml(`матч начнётся ${formatDateTimeMoscow(startsAt)}`),
+    escapeHtml(`до начала матча ${formatRelativeTime(startsAt)}`),
+    "",
+    telegramHtmlLink(link, PREDICTION_CTA_LABEL),
+    "",
+    "Твоя команда FriendsBets 💚",
+  ].join("\n");
+}
+
+/** Telegram (cron): краткое напоминание с именем и турниром. */
 export function buildMissingPredictionTelegramHtml(params: {
   displayName: string;
   homeTeam: string;

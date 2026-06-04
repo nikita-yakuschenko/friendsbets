@@ -12,7 +12,6 @@ export function AppToaster() {
       closeButton={false}
       duration={3200}
       position="top-center"
-      expand
       className="app-toaster"
       offset={{ top: topOffset }}
       mobileOffset={{ top: topOffset }}

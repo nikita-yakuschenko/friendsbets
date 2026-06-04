@@ -246,24 +246,25 @@ input[type="number"]::-webkit-outer-spin-button {
   --error-text: #ff4d60;
   --offset-top: calc(4.25rem + env(safe-area-inset-top, 0px));
   --mobile-offset-top: calc(4.25rem + env(safe-area-inset-top, 0px));
+  --width: min(22rem, calc(100vw - 1.5rem));
   z-index: 100;
-  left: 50% !important;
-  right: auto !important;
-  transform: translateX(-50%);
-  width: max-content !important;
-  max-width: min(22rem, calc(100vw - 1.5rem));
 }
 
-[data-sonner-toaster].app-toaster [data-sonner-toast] {
-  width: 100%;
-  max-width: min(22rem, calc(100vw - 1.5rem));
-}
-
+[data-sonner-toaster].app-toaster [data-sonner-toast],
 [data-sonner-toaster].app-toaster .fb-toast {
+  width: var(--width) !important;
+  max-width: var(--width) !important;
+  min-width: min(16rem, calc(100vw - 1.5rem)) !important;
   font-family: var(--font-inter, system-ui, sans-serif);
   border-radius: 0.75rem;
   border-width: 1px;
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
+}
+
+[data-sonner-toaster].app-toaster [data-sonner-toast] [data-title],
+[data-sonner-toaster].app-toaster [data-sonner-toast] [data-description] {
+  white-space: normal;
+  word-break: break-word;
 }
 
 [data-sonner-toaster].app-toaster [data-sonner-toast][data-type="success"],

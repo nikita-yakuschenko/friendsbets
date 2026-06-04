@@ -4,7 +4,7 @@ import { sendEmail } from "@/lib/email";
 import {
   buildMissingPredictionEmailContent,
   buildMissingPredictionInAppBody,
-  buildMissingPredictionTelegramHtml,
+  buildMissingPredictionTelegramPersonalHtml,
 } from "@/lib/prediction-reminder-content";
 import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 import { sendTelegramMessage } from "@/lib/telegram/api";
@@ -197,7 +197,6 @@ export async function sendMissingPredictionReminders(params: {
   const userById = new Map(users.map((u) => [u.id, u]));
 
   const title = `Прогноз: ${match.homeTeam.name} — ${match.awayTeam.name}`;
-  const timeLabel = formatRelativeTime(new Date(match.startsAt));
 
   const totals = {
     recipients: missing.length,
@@ -220,13 +219,10 @@ export async function sendMissingPredictionReminders(params: {
       awayTeam: match.awayTeam,
       startsAt: match.startsAt,
     });
-    const telegramHtml = buildMissingPredictionTelegramHtml({
-      displayName,
-      homeTeam: match.homeTeam.name,
-      awayTeam: match.awayTeam.name,
-      gameTitle: game.title,
+    const telegramHtml = buildMissingPredictionTelegramPersonalHtml({
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
       startsAt: match.startsAt,
-      timeLabel,
       inviteCode: params.inviteCode,
     });
     const emailContent = buildMissingPredictionEmailContent({
@@ -236,7 +232,7 @@ export async function sendMissingPredictionReminders(params: {
       gameTitle: game.title,
       startsAt: match.startsAt,
       inviteCode: params.inviteCode,
-      timeLabel,
+      timeLabel: formatRelativeTime(new Date(match.startsAt)),
     });
 
     const payload: ReminderPayload = {

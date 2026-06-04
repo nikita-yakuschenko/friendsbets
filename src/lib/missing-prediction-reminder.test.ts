@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildMissingPredictionCopyText,
   buildMissingPredictionInAppBody,
-  buildMissingPredictionTelegramHtml,
+  buildMissingPredictionTelegramPersonalHtml,
   PREDICTION_CTA_LABEL,
 } from "@/lib/prediction-reminder-content";
 
@@ -35,20 +35,20 @@ describe("prediction reminder content", () => {
     expect(text).toContain("https://friendsbets.ru/game/TEST01/predictions");
   });
 
-  it("telegram: маскированная HTML-ссылка", () => {
-    const html = buildMissingPredictionTelegramHtml({
-      displayName: "Иван",
-      homeTeam: "Мексика",
-      awayTeam: "ЮАР",
-      gameTitle: "ЧМ-2026",
-      startsAt: matchTeams.startsAt,
-      timeLabel: "3 ч",
-      inviteCode: "TEST01",
+  it("telegram: жирный заголовок, флаги, отступы, CTA и 💚", () => {
+    const html = buildMissingPredictionTelegramPersonalHtml({
+      ...matchTeams,
       origin: "https://friendsbets.ru",
     });
 
+    expect(html).toContain("<b>Ты не сделал прогноз на матч</b>");
+    expect(html).toContain("Мексика");
+    expect(html).toContain("ЮАР");
+    expect(html).toContain("МСК");
     expect(html).toContain(`<a href="https://friendsbets.ru/game/TEST01/predictions">`);
     expect(html).toContain(PREDICTION_CTA_LABEL);
-    expect(html).not.toMatch(/>\s*https:\/\//);
+    expect(html).toContain("FriendsBets 💚");
+    expect(html).not.toContain("https://friendsbets.ru/game/TEST01/predictions</a>");
+    expect(html.split("\n")[4]).toBe("");
   });
 });
