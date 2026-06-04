@@ -56,7 +56,8 @@ export function SendMissingReminderButton({
     return (
       <Button
         type="button"
-        className="w-full"
+        size="sm"
+        className="h-9 shrink-0 px-4"
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
@@ -66,7 +67,7 @@ export function SendMissingReminderButton({
   }
 
   return (
-    <div className="w-full space-y-3 rounded-lg border border-brand-lime/30 bg-brand-bg/60 p-3">
+    <div className="w-full max-w-lg space-y-2.5 rounded-lg border border-brand-lime/30 bg-brand-bg/60 p-3">
       <Label className="text-xs text-brand-muted">Куда отправить</Label>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {CHANNELS.map((item) => (

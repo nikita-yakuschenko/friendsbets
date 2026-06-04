@@ -14,8 +14,14 @@ export function CopyReminderButton({ text }: { text: string }) {
   }
 
   return (
-    <Button type="button" variant="secondary" className="w-full" onClick={handleCopy}>
-      Скопировать текст напоминания
+    <Button
+      type="button"
+      size="sm"
+      variant="secondary"
+      className="h-9 shrink-0 px-3"
+      onClick={handleCopy}
+    >
+      Скопировать текст
     </Button>
   );
 }
