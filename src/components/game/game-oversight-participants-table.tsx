@@ -127,12 +127,12 @@ function ParticipantRoleMenu({
           <>
             <button
               type="button"
-              className="fixed inset-0 z-[60] cursor-default"
+              className="fixed inset-0 z-60 cursor-default"
               aria-label="Закрыть меню"
               onClick={() => setOpen(false)}
             />
             <div
-              className="fixed z-[70] min-w-[11rem] rounded-lg border border-brand-neutral bg-brand-surface py-1 shadow-lg"
+              className="fixed z-70 min-w-44 rounded-lg border border-brand-neutral bg-brand-surface py-1 shadow-lg"
               style={{
                 top: menuPos.top,
                 left: menuPos.left,
@@ -306,7 +306,7 @@ export function GameOversightParticipantsTable({
               <th className="hidden px-3 py-2.5 text-left font-medium md:table-cell md:px-4 md:py-3">
                 Email
               </th>
-              <th className="w-[4.5rem] px-2 py-2.5 text-right font-medium sm:px-3 sm:py-3">
+              <th className="w-18 px-2 py-2.5 text-right font-medium sm:px-3 sm:py-3">
                 <span className="sr-only">Действия</span>
               </th>
             </tr>

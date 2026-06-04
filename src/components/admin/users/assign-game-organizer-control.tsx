@@ -61,7 +61,7 @@ export function AssignGameOrganizerControl({
 
   if (compact) {
     return (
-      <div className={cn("flex max-w-[13rem] items-center gap-1", className)}>
+      <div className={cn("flex max-w-52 items-center gap-1", className)}>
         <FormSelect
           id={`assign-org-${userId}`}
           value={selectedGameId}
