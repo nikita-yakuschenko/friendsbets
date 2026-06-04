@@ -129,7 +129,7 @@ model Game {
   title         String
   slug          String   @unique
   inviteCode    String   @unique
-  accessMode    GameAccessMode @default(OPEN)
+  accessMode    GameAccessMode @default(REQUEST)
   entryFeeText  String?
   prizeFundText String?
   scoringRuleId String

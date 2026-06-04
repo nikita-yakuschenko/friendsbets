@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 export function SetActiveTournamentButton({
   inviteCode,
   gameTitle,
+  className,
 }: {
   inviteCode: string;
   gameTitle: string;
+  className?: string;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -20,7 +22,10 @@ export function SetActiveTournamentButton({
       variant="ghost"
       size="sm"
       disabled={pending}
-      className="h-auto min-h-0 px-0 py-0 text-sm font-medium text-brand-cyan hover:text-brand-lime"
+      className={
+        className ??
+        "h-auto min-h-0 px-0 py-0 text-sm font-medium text-brand-cyan hover:text-brand-lime"
+      }
       onClick={() => {
         startTransition(async () => {
           const result = await setActiveGameAction(inviteCode);

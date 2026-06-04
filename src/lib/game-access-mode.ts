@@ -10,8 +10,17 @@ export type GameAccessModeValue =
 
 export const GAME_ACCESS_MODE_LABELS: Record<GameAccessModeValue, string> = {
   [GAME_ACCESS_MODE.OPEN]: "Свободный",
-  [GAME_ACCESS_MODE.REQUEST]: "По запросу",
+  [GAME_ACCESS_MODE.REQUEST]: "По заявке",
 };
+
+/** Порядок для UI: сначала режим по умолчанию. */
+export const GAME_ACCESS_MODE_OPTIONS: ReadonlyArray<{
+  value: GameAccessModeValue;
+  label: string;
+}> = [
+  { value: GAME_ACCESS_MODE.REQUEST, label: GAME_ACCESS_MODE_LABELS.REQUEST },
+  { value: GAME_ACCESS_MODE.OPEN, label: GAME_ACCESS_MODE_LABELS.OPEN },
+];
 
 export function parseGameAccessModeInput(value: string): GameAccessModeValue {
   return value === GAME_ACCESS_MODE.REQUEST

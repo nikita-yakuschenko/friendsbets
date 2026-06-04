@@ -10,7 +10,8 @@ const baseMembership = {
     inviteCode: "ABC123",
     createdAt: new Date("2026-01-01T00:00:00Z"),
     tournament: { externalId: "championat:tournament:1" },
-    scoringRule: { title: "Классика" },
+    accessMode: "REQUEST",
+    scoringRule: { id: "rule-1", title: "Классика" },
     createdBy: { name: "Оля" },
     participants: [{ displayName: "Оля" }],
     _count: { participants: 3 },
@@ -25,6 +26,7 @@ describe("buildMyTournamentRows", () => {
       sourceLabelByExternalId: new Map([
         ["championat:tournament:1", "ЧМ-2026"],
       ]),
+      tournamentStartedByGameId: new Map([["g1", false]]),
     });
 
     expect(rows).toHaveLength(1);
@@ -34,6 +36,8 @@ describe("buildMyTournamentRows", () => {
     expect(rows[0]?.organizerLabel).toBe("Организатор");
     expect(rows[0]?.canDelete).toBe(false);
     expect(rows[0]?.canLeave).toBe(false);
+    expect(rows[0]?.accessMode).toBe("REQUEST");
+    expect(rows[0]?.canChangeTournamentSettings).toBe(true);
   });
 
   it("помечает неактивный турнир и canSetAsActive при нескольких играх", () => {
@@ -52,6 +56,10 @@ describe("buildMyTournamentRows", () => {
       ],
       activeInviteCode: "ABC123",
       sourceLabelByExternalId: new Map(),
+      tournamentStartedByGameId: new Map([
+        ["g1", false],
+        ["g2", false],
+      ]),
     });
 
     expect(rows[1]?.isActive).toBe(false);

@@ -163,7 +163,8 @@ export async function getUserGames(userId: string) {
           inviteCode: true,
           createdAt: true,
           tournament: { select: { externalId: true } },
-          scoringRule: { select: { title: true } },
+          accessMode: true,
+          scoringRule: { select: { id: true, title: true } },
           createdBy: { select: { name: true } },
           participants: {
             where: { role: GameParticipantRole.ORGANIZER },

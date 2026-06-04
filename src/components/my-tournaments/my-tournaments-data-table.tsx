@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { myTournamentsColumns } from "@/components/my-tournaments/columns";
+import { createMyTournamentsColumns } from "@/components/my-tournaments/columns";
 import { MyTournamentCard } from "@/components/my-tournaments/my-tournament-card";
-import type { MyTournamentRow } from "@/components/my-tournaments/types";
+import type { MyTournamentRow, ScoringRuleOption } from "@/components/my-tournaments/types";
 import { RECORD_CARD_EMPTY_CLASS } from "@/components/ui/record-card";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
@@ -26,8 +26,19 @@ function sortTournaments(rows: MyTournamentRow[]) {
   });
 }
 
-export function MyTournamentsDataTable({ data }: { data: MyTournamentRow[] }) {
+export function MyTournamentsDataTable({
+  data,
+  scoringRules,
+}: {
+  data: MyTournamentRow[];
+  scoringRules: ScoringRuleOption[];
+}) {
   const [query, setQuery] = useState("");
+
+  const columns = useMemo(
+    () => createMyTournamentsColumns(scoringRules),
+    [scoringRules],
+  );
 
   const filtered = useMemo(
     () => sortTournaments(filterTournaments(data, query)),
@@ -48,7 +59,11 @@ export function MyTournamentsDataTable({ data }: { data: MyTournamentRow[] }) {
           <p className={RECORD_CARD_EMPTY_CLASS}>Нет турниров.</p>
         ) : (
           filtered.map((tournament) => (
-            <MyTournamentCard key={tournament.id} tournament={tournament} />
+            <MyTournamentCard
+              key={tournament.id}
+              tournament={tournament}
+              scoringRules={scoringRules}
+            />
           ))
         )}
         <p className="text-sm text-brand-muted">{filtered.length} записей</p>
@@ -56,7 +71,7 @@ export function MyTournamentsDataTable({ data }: { data: MyTournamentRow[] }) {
 
       <div className="hidden lg:block">
         <DataTable
-          columns={myTournamentsColumns}
+          columns={columns}
           data={filtered}
           emptyMessage="Нет турниров."
           tableClassName="font-ibm-plex font-normal [&_td]:font-normal [&_th]:font-normal"

@@ -17,6 +17,8 @@ import { isSuperadmin } from "@/lib/roles";
 import { MyTournamentsDataTable } from "@/components/my-tournaments/my-tournaments-data-table";
 import { TournamentsAddMenu } from "@/components/my-tournaments/tournaments-add-menu";
 import { normalizeInviteCodeInput } from "@/lib/invite-code";
+import { getGameTournamentStartedMap } from "@/lib/game-tournament-started";
+import { prisma } from "@/lib/db";
 
 export default async function HomePage({
   searchParams,
@@ -51,17 +53,25 @@ export default async function HomePage({
   }
 
   const memberships = await getUserGames(session.id);
-  const [activeInviteCode, sourceLabelByExternalId] = await Promise.all([
-    getActiveGameInviteForUser(session.id, memberships[0]?.game.inviteCode),
-    buildTournamentSourceLabelMap(
-      memberships.map((m) => m.game.tournament.externalId),
-    ),
-  ]);
+  const gameIds = memberships.map((m) => m.game.id);
+  const [activeInviteCode, sourceLabelByExternalId, tournamentStartedByGameId, scoringRules] =
+    await Promise.all([
+      getActiveGameInviteForUser(session.id, memberships[0]?.game.inviteCode),
+      buildTournamentSourceLabelMap(
+        memberships.map((m) => m.game.tournament.externalId),
+      ),
+      getGameTournamentStartedMap(gameIds),
+      prisma.scoringRule.findMany({
+        orderBy: { title: "asc" },
+        select: { id: true, title: true, code: true },
+      }),
+    ]);
 
   const tournamentRows = buildMyTournamentRows({
     memberships,
     activeInviteCode: activeInviteCode ?? null,
     sourceLabelByExternalId,
+    tournamentStartedByGameId,
   });
 
   const isPlatformSuperadmin = isSuperadmin(session.role);
@@ -86,7 +96,10 @@ export default async function HomePage({
             <NoGamesPrompt />
           )
         ) : (
-          <MyTournamentsDataTable data={tournamentRows} />
+          <MyTournamentsDataTable
+            data={tournamentRows}
+            scoringRules={scoringRules}
+          />
         )}
       </ContentContainer>
     </AppShell>

@@ -20,12 +20,14 @@ export function DeleteTournamentButton({
   inviteCode,
   isActive,
   otherTournaments,
+  className,
 }: {
   gameId: string;
   gameTitle: string;
   inviteCode: string;
   isActive: boolean;
   otherTournaments: TournamentPickOption[];
+  className?: string;
 }) {
   const {
     confirmOpen,
@@ -51,7 +53,10 @@ export function DeleteTournamentButton({
       <button
         type="button"
         onClick={() => setConfirmOpen(true)}
-        className="text-sm font-medium text-brand-red transition-colors hover:text-brand-red/80"
+        className={
+          className ??
+          "text-sm font-medium text-brand-red transition-colors hover:text-brand-red/80"
+        }
       >
         Удалить
       </button>

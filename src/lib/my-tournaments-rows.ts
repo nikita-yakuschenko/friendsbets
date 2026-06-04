@@ -1,4 +1,4 @@
-import type { GameParticipantRole } from "@/generated/prisma/client";
+import { GameParticipantRole } from "@/generated/prisma/client";
 import type { MyTournamentRow } from "@/components/my-tournaments/types";
 import { buildRegisterInviteUrl } from "@/lib/game-invite";
 import {
@@ -7,6 +7,7 @@ import {
   formatGameOrganizersLine,
   getGameOrganizerDisplayNames,
 } from "@/lib/game-organizer";
+import { parseGameAccessModeInput } from "@/lib/game-access-mode";
 import { resolveSourceLabelForGame } from "@/lib/tournament-source-label";
 
 export type MembershipForTournamentRow = {
@@ -17,7 +18,8 @@ export type MembershipForTournamentRow = {
     inviteCode: string;
     createdAt: Date;
     tournament: { externalId: string | null };
-    scoringRule: { title: string };
+    accessMode: string;
+    scoringRule: { id: string; title: string };
     createdBy: { name: string };
     participants: { displayName: string }[];
     _count: { participants: number };
@@ -29,8 +31,10 @@ export function buildMyTournamentRows(params: {
   memberships: MembershipForTournamentRow[];
   activeInviteCode: string | null;
   sourceLabelByExternalId: Map<string, string>;
+  tournamentStartedByGameId: Map<string, boolean>;
 }): MyTournamentRow[] {
-  const { memberships, activeInviteCode, sourceLabelByExternalId } = params;
+  const { memberships, activeInviteCode, sourceLabelByExternalId, tournamentStartedByGameId } =
+    params;
   const multipleTournaments = memberships.length > 1;
 
   return memberships.map(({ game, role }) => {
@@ -42,6 +46,9 @@ export function buildMyTournamentRows(params: {
     const otherTournaments = memberships
       .filter((m) => m.game.id !== game.id)
       .map((m) => ({ inviteCode: m.game.inviteCode, title: m.game.title }));
+
+    const isOrganizer = role === GameParticipantRole.ORGANIZER;
+    const tournamentStarted = tournamentStartedByGameId.get(game.id) ?? false;
 
     return {
       id: game.id,
@@ -56,7 +63,12 @@ export function buildMyTournamentRows(params: {
       inviteCode: game.inviteCode,
       inviteLinkUrl: buildRegisterInviteUrl(game.inviteCode),
       createdAt: game.createdAt.toISOString(),
+      scoringRuleId: game.scoringRule.id,
       scoringRuleTitle: game.scoringRule.title,
+      accessMode: parseGameAccessModeInput(game.accessMode),
+      isOrganizer,
+      canChangeTournamentSettings: isOrganizer && !tournamentStarted,
+      tournamentStarted,
       participantsCount,
       canLeave: canLeaveGameMembership(
         role,

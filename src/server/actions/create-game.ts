@@ -79,7 +79,7 @@ export async function createGameAction(
 
   const createMode = String(formData.get("createMode") ?? "template");
   const accessMode = parseGameAccessModeInput(
-    String(formData.get("accessMode") ?? "OPEN"),
+    String(formData.get("accessMode") ?? "REQUEST"),
   );
 
   if (inviteCodeRaw) {

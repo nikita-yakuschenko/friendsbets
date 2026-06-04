@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { generateRandomInviteCode } from "@/lib/invite-code";
 import {
   GAME_ACCESS_MODE,
-  GAME_ACCESS_MODE_LABELS,
+  GAME_ACCESS_MODE_OPTIONS,
   type GameAccessModeValue,
 } from "@/lib/game-access-mode";
 import type { CreateGameMode } from "@/lib/tournament-templates";
@@ -59,7 +59,7 @@ export function CreateGameForm({
   const [scoringRuleId, setScoringRuleId] = useState(scoringRules[0]?.id ?? "");
   const [inviteCode, setInviteCode] = useState(() => generateRandomInviteCode());
   const [accessMode, setAccessMode] = useState<GameAccessModeValue>(
-    GAME_ACCESS_MODE.OPEN,
+    GAME_ACCESS_MODE.REQUEST,
   );
 
   const selectedRule = scoringRules.find((rule) => rule.id === scoringRuleId);
@@ -263,30 +263,21 @@ export function CreateGameForm({
       <div className="space-y-3">
         <Label>Доступ в турнир</Label>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setAccessMode(GAME_ACCESS_MODE.OPEN)}
-            className={cn(
-              "flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors",
-              accessMode === GAME_ACCESS_MODE.OPEN
-                ? "border-brand-lime bg-brand-lime/10 text-white"
-                : "border-brand-neutral text-brand-muted hover:border-brand-neutral/80",
-            )}
-          >
-            {GAME_ACCESS_MODE_LABELS[GAME_ACCESS_MODE.OPEN]}
-          </button>
-          <button
-            type="button"
-            onClick={() => setAccessMode(GAME_ACCESS_MODE.REQUEST)}
-            className={cn(
-              "flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors",
-              accessMode === GAME_ACCESS_MODE.REQUEST
-                ? "border-brand-lime bg-brand-lime/10 text-white"
-                : "border-brand-neutral text-brand-muted hover:border-brand-neutral/80",
-            )}
-          >
-            {GAME_ACCESS_MODE_LABELS[GAME_ACCESS_MODE.REQUEST]}
-          </button>
+          {GAME_ACCESS_MODE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setAccessMode(option.value)}
+              className={cn(
+                "flex-1 rounded-xl border px-3 py-2.5 text-sm transition-colors",
+                accessMode === option.value
+                  ? "border-brand-lime bg-brand-lime/10 text-white"
+                  : "border-brand-neutral text-brand-muted hover:border-brand-neutral/80",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
         <p className="text-xs text-brand-muted">
           {accessMode === GAME_ACCESS_MODE.OPEN
