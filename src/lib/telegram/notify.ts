@@ -1,18 +1,14 @@
-import { absoluteAppUrl } from "@/lib/app-origin";
 import { prisma } from "@/lib/db";
 import { sendTelegramMessage } from "@/lib/telegram/api";
 import { isTelegramConfigured } from "@/lib/telegram/config";
+import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 
 function logTelegramError(context: string, error: unknown) {
   console.error(`[telegram:${context}]`, error);
 }
 
 /** Персональное уведомление в Telegram (не блокирует основной поток). */
-export function pushTelegramToUser(
-  userId: string,
-  text: string,
-  appPath = "/notifications",
-): void {
+export function pushTelegramToUser(userId: string, text: string): void {
   if (!isTelegramConfigured()) return;
 
   void (async () => {
@@ -23,10 +19,9 @@ export function pushTelegramToUser(
       });
       if (!user?.telegramChatId) return;
 
-      const url = absoluteAppUrl(appPath);
       await sendTelegramMessage(
         user.telegramChatId,
-        `${text}\n\n${url}`,
+        appendTelegramChannelFooter(text),
       );
     } catch (error) {
       logTelegramError(`push:${userId}`, error);
@@ -34,13 +29,9 @@ export function pushTelegramToUser(
   })();
 }
 
-export function pushTelegramToUsers(
-  userIds: string[],
-  text: string,
-  appPath = "/notifications",
-): void {
+export function pushTelegramToUsers(userIds: string[], text: string): void {
   for (const userId of userIds) {
-    pushTelegramToUser(userId, text, appPath);
+    pushTelegramToUser(userId, text);
   }
 }
 
@@ -54,8 +45,7 @@ export function pushTelegramBroadcast(title: string, body: string): void {
         select: { telegramChatId: true },
       });
 
-      const url = absoluteAppUrl("/notifications");
-      const message = `${title}\n\n${body}\n\n${url}`;
+      const message = appendTelegramChannelFooter(`${title}\n\n${body}`);
 
       for (const user of users) {
         if (!user.telegramChatId) continue;

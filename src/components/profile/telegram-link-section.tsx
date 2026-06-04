@@ -59,6 +59,14 @@ export function TelegramLinkSection({ status }: { status: TelegramLinkStatus }) 
           Персональные уведомления: заявки, рассылки платформы и сообщения в
           приложении дублируются в бот.
         </p>
+        {status.needsLocalPolling ? (
+          <p className="mt-2 text-xs text-amber-200/90">
+            Локально бот не получает сообщения с сервера. В отдельном терминале:{" "}
+            <code className="rounded bg-black/40 px-1">npm run telegram:poll</code>
+            , затем снова «Привязать Telegram» и Start по ссылке (не просто /start в
+            чате).
+          </p>
+        ) : null}
       </div>
 
       {status.linked ? (

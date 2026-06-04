@@ -8,9 +8,19 @@ export function getTelegramBotUsername(): string | null {
   return username || null;
 }
 
+/** Telegram: только A–Z, a–z, 0–9, _, - (1–256 символов). */
+const WEBHOOK_SECRET_RE = /^[A-Za-z0-9_-]{1,256}$/;
+
 export function getTelegramWebhookSecret(): string | null {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
-  return secret || null;
+  if (!secret) return null;
+  if (!WEBHOOK_SECRET_RE.test(secret)) {
+    console.warn(
+      "[telegram] TELEGRAM_WEBHOOK_SECRET: недопустимые символы (нельзя +, =, / …). Используйте буквы, цифры, _ и -. Webhook без secret.",
+    );
+    return null;
+  }
+  return secret;
 }
 
 /** Достаточно токена; username можно не задавать — возьмём из getMe. */
@@ -46,4 +56,20 @@ export async function resolveTelegramBotUsername(): Promise<string | null> {
   }
 
   return cachedBotUsername;
+}
+
+/** ID канала: @username или -100… (бот — админ канала). */
+export function getTelegramChannelId(): string | null {
+  const id = process.env.TELEGRAM_CHANNEL_ID?.trim();
+  return id || null;
+}
+
+/** Ссылка для подписки (t.me/…), опционально. */
+export function getTelegramChannelUrl(): string | null {
+  const url = process.env.TELEGRAM_CHANNEL_URL?.trim();
+  return url || null;
+}
+
+export function isTelegramChannelConfigured(): boolean {
+  return Boolean(getTelegramBotToken() && getTelegramChannelId());
 }

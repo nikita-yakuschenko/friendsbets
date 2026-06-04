@@ -6,4 +6,9 @@ export async function register() {
 
   const { bootPlatformEssentials } = await import("@/lib/platform-essentials");
   await bootPlatformEssentials();
+
+  const { ensureTelegramWebhookRegistered } = await import(
+    "@/lib/telegram/register-webhook"
+  );
+  await ensureTelegramWebhookRegistered();
 }

@@ -105,7 +105,7 @@ export default async function AdminUserPage({
             />
           </section>
 
-          <section className="flex flex-wrap items-center gap-3 border-t border-brand-neutral/60 pt-5">
+          <section className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-neutral/60 pt-5">
             <div className="flex items-center gap-2">
               <SendTestEmailButton userId={user.id} email={user.email} />
               <span className="text-sm text-brand-muted">Тестовое письмо</span>

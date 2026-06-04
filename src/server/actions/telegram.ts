@@ -5,12 +5,17 @@ import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sendTelegramMessage } from "@/lib/telegram/api";
+import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 import { isTelegramConfigured } from "@/lib/telegram/config";
 import { isSuperadmin } from "@/lib/roles";
 import {
   createTelegramLinkForUser,
   unlinkTelegramForUser,
 } from "@/lib/telegram/link";
+import {
+  ensureTelegramWebhookRegistered,
+  isTelegramWebhookTargetLocal,
+} from "@/lib/telegram/register-webhook";
 import type { ActionResult } from "@/server/actions/auth";
 
 export type TelegramLinkStatus = {
@@ -18,6 +23,8 @@ export type TelegramLinkStatus = {
   linked: boolean;
   username: string | null;
   linkedAt: string | null;
+  /** На localhost webhook недоступен — нужен `npm run telegram:poll`. */
+  needsLocalPolling: boolean;
 };
 
 export async function getTelegramLinkStatusForUser(
@@ -37,6 +44,7 @@ export async function getTelegramLinkStatusForUser(
     linked: user?.telegramChatId != null,
     username: user?.telegramUsername ?? null,
     linkedAt: user?.telegramLinkedAt?.toISOString() ?? null,
+    needsLocalPolling: isTelegramConfigured() && isTelegramWebhookTargetLocal(),
   };
 }
 
@@ -59,6 +67,7 @@ export async function createTelegramLinkAction(): Promise<
   }
 
   try {
+    await ensureTelegramWebhookRegistered();
     const { deepLink } = await createTelegramLinkForUser(session.id);
     revalidatePath("/profile");
     return {
@@ -121,7 +130,10 @@ export async function sendAdminTelegramMessageAction(
   }
 
   try {
-    await sendTelegramMessage(user.telegramChatId, message);
+    await sendTelegramMessage(
+      user.telegramChatId,
+      appendTelegramChannelFooter(message),
+    );
 
     await prisma.userNotification.create({
       data: {

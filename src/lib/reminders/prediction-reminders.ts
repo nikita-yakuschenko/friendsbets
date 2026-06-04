@@ -4,6 +4,16 @@ import {
   PredictionReminderKind,
 } from "@/generated/prisma/client";
 import { sendEmail } from "@/lib/email";
+import { postTelegramChannelNews } from "@/lib/telegram/channel";
+import { appendTelegramChannelFooter } from "@/lib/telegram/format";
+import {
+  buildChannelMatchReminderText,
+  buildChannelMatchStartedText,
+  buildMatchStartedTelegramText,
+  buildMissingPredictionTelegramText,
+} from "@/lib/telegram/reminder-messages";
+import { sendTelegramMessage } from "@/lib/telegram/api";
+import { isTelegramConfigured } from "@/lib/telegram/config";
 import {
   buildAdminMissingPredictionsEmail,
   buildPredictionReminderEmail,
@@ -24,18 +34,28 @@ export const REMINDER_SCHEDULE = [
     adminKind: PredictionReminderKind.H3_ADMIN,
     minutesBefore: 180,
     label: "3 часа",
+    matchStarted: false,
   },
   {
     kind: PredictionReminderKind.H1,
     adminKind: PredictionReminderKind.H1_ADMIN,
     minutesBefore: 60,
     label: "1 час",
+    matchStarted: false,
   },
   {
     kind: PredictionReminderKind.M15,
     adminKind: PredictionReminderKind.M15_ADMIN,
     minutesBefore: 15,
     label: "15 минут",
+    matchStarted: false,
+  },
+  {
+    kind: PredictionReminderKind.LIVE,
+    adminKind: PredictionReminderKind.LIVE_ADMIN,
+    minutesBefore: 0,
+    label: "старт матча",
+    matchStarted: true,
   },
 ] as const;
 
@@ -66,6 +86,7 @@ type GameWithParticipants = {
       email: string;
       name: string;
       emailVerifiedAt: Date | null;
+      telegramChatId: bigint | null;
     };
   }>;
 };
@@ -194,9 +215,11 @@ async function processReminderBatch(params: {
   kind: PredictionReminderKind;
   adminKind: PredictionReminderKind;
   label: string;
+  matchStarted: boolean;
   result: ReminderRunResult;
 }) {
-  const { matches, kind, adminKind, label, result } = params;
+  const { matches, kind, adminKind, label, matchStarted, result } = params;
+  const telegramEnabled = isTelegramConfigured();
   if (matches.length === 0) return;
 
   const gameIds = new Set<string>();
@@ -236,6 +259,26 @@ async function processReminderBatch(params: {
   );
 
   for (const match of matches) {
+    const gameTitles = [
+      ...new Set(match.tournament.games.map((game) => game.title)),
+    ];
+
+    if (telegramEnabled) {
+      const channelText = matchStarted
+        ? buildChannelMatchStartedText({
+            homeTeam: match.homeTeam.name,
+            awayTeam: match.awayTeam.name,
+            gameTitles,
+          })
+        : buildChannelMatchReminderText({
+            homeTeam: match.homeTeam.name,
+            awayTeam: match.awayTeam.name,
+            timeLabel: label,
+            gameTitles,
+          });
+      postTelegramChannelNews(channelText);
+    }
+
     for (const game of match.tournament.games) {
       const missingParticipants = game.participants.filter(
         (participant) =>
@@ -244,7 +287,11 @@ async function processReminderBatch(params: {
           ),
       );
 
-      for (const participant of missingParticipants) {
+      const participantsToNotify = matchStarted
+        ? game.participants
+        : missingParticipants;
+
+      for (const participant of participantsToNotify) {
         result.checked++;
         const key = reminderKey(game.id, match.id, participant.userId, kind);
 
@@ -253,22 +300,77 @@ async function processReminderBatch(params: {
           continue;
         }
 
-        if (!participant.user.emailVerifiedAt) {
+        const isMissing = missingParticipants.some(
+          (p) => p.userId === participant.userId,
+        );
+
+        if (matchStarted && !isMissing) {
+          if (!participant.user.telegramChatId) {
+            result.skipped++;
+            continue;
+          }
+        } else if (!matchStarted && !isMissing) {
+          continue;
+        } else if (
+          !matchStarted &&
+          isMissing &&
+          !participant.user.emailVerifiedAt &&
+          !participant.user.telegramChatId
+        ) {
           result.skipped++;
           continue;
         }
 
+        let delivered = false;
+
         try {
-          await sendReminderEmail({
-            to: participant.user.email,
-            userName: participant.displayName,
-            gameTitle: game.title,
-            gameInviteCode: game.inviteCode,
-            homeTeam: match.homeTeam.name,
-            awayTeam: match.awayTeam.name,
-            startsAt: match.startsAt,
-            timeLabel: label,
-          });
+          if (participant.user.telegramChatId) {
+            const tgText = matchStarted
+              ? buildMatchStartedTelegramText({
+                  homeTeam: match.homeTeam.name,
+                  awayTeam: match.awayTeam.name,
+                  gameTitle: game.title,
+                  inviteCode: game.inviteCode,
+                })
+              : buildMissingPredictionTelegramText({
+                  displayName: participant.displayName,
+                  homeTeam: match.homeTeam.name,
+                  awayTeam: match.awayTeam.name,
+                  gameTitle: game.title,
+                  startsAt: match.startsAt,
+                  timeLabel: label,
+                  inviteCode: game.inviteCode,
+                });
+
+            await sendTelegramMessage(
+              participant.user.telegramChatId,
+              appendTelegramChannelFooter(tgText),
+            );
+            delivered = true;
+          }
+
+          if (
+            isMissing &&
+            !matchStarted &&
+            participant.user.emailVerifiedAt
+          ) {
+            await sendReminderEmail({
+              to: participant.user.email,
+              userName: participant.displayName,
+              gameTitle: game.title,
+              gameInviteCode: game.inviteCode,
+              homeTeam: match.homeTeam.name,
+              awayTeam: match.awayTeam.name,
+              startsAt: match.startsAt,
+              timeLabel: label,
+            });
+            delivered = true;
+          }
+
+          if (!delivered) {
+            result.skipped++;
+            continue;
+          }
 
           await prisma.predictionReminder.create({
             data: {
@@ -351,7 +453,13 @@ export async function sendDuePredictionReminders(
     errors: 0,
   };
 
-  for (const { kind, adminKind, minutesBefore, label } of REMINDER_SCHEDULE) {
+  for (const {
+    kind,
+    adminKind,
+    minutesBefore,
+    label,
+    matchStarted,
+  } of REMINDER_SCHEDULE) {
     const startsAt = matchReminderWindow(minutesBefore, now);
 
     const matches = await prisma.match.findMany({
@@ -386,6 +494,7 @@ export async function sendDuePredictionReminders(
                         email: true,
                         name: true,
                         emailVerifiedAt: true,
+                        telegramChatId: true,
                       },
                     },
                   },
@@ -402,6 +511,7 @@ export async function sendDuePredictionReminders(
       kind,
       adminKind,
       label,
+      matchStarted,
       result,
     });
   }

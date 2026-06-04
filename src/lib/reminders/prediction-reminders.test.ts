@@ -7,8 +7,10 @@ import {
 describe("prediction reminders", () => {
   const now = new Date("2026-06-10T15:00:00Z");
 
-  it("имеет расписание 3ч / 1ч / 15м", () => {
-    expect(REMINDER_SCHEDULE.map((s) => s.minutesBefore)).toEqual([180, 60, 15]);
+  it("имеет расписание 3ч / 1ч / 15м / старт", () => {
+    expect(REMINDER_SCHEDULE.map((s) => s.minutesBefore)).toEqual([
+      180, 60, 15, 0,
+    ]);
   });
 
   it("строит окно вокруг kickoff − 3 часа", () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { IconBrandTelegram } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,23 +28,24 @@ export function AdminSendTelegramForm({
   if (!telegramConfigured) {
     return (
       <p className="text-xs text-brand-muted">
-        Telegram-бот не настроен на сервере.
+        Telegram-бот не настроен (TELEGRAM_BOT_TOKEN).
       </p>
     );
   }
 
-  if (!telegramLinked) {
-    return (
-      <p className="text-xs text-brand-muted">
-        {userName} не привязал Telegram (Профиль → Привязать Telegram).
-      </p>
-    );
-  }
+  const linkedLabel = telegramUsername ? `@${telegramUsername}` : "привязан";
+  const canSend = telegramLinked;
 
   function handleSubmit() {
     const text = message.trim();
     if (!text) {
       toast.error("Введите текст сообщения.");
+      return;
+    }
+    if (!canSend) {
+      toast.error(
+        `${userName} не привязал Telegram. Попросите: Профиль → Привязать Telegram.`,
+      );
       return;
     }
 
@@ -58,28 +60,44 @@ export function AdminSendTelegramForm({
     });
   }
 
-  const linkedLabel = telegramUsername ? `@${telegramUsername}` : "привязан";
-
   if (compact) {
     return (
       <div className="w-full space-y-2 border-t border-brand-neutral/50 pt-3">
-        <p className="text-xs font-medium text-brand-muted">
-          Telegram ({linkedLabel})
-        </p>
+        <div className="flex items-center gap-2">
+          <IconBrandTelegram
+            className="size-4 shrink-0 text-brand-cyan"
+            stroke={1.75}
+            aria-hidden
+          />
+          <p className="text-xs font-medium text-brand-muted">
+            Telegram
+            {telegramLinked ? ` (${linkedLabel})` : " — не привязан"}
+          </p>
+        </div>
+        {!telegramLinked ? (
+          <p className="text-xs text-brand-muted">
+            Личное сообщение недоступно, пока пользователь не привяжет бота в
+            профиле.
+          </p>
+        ) : null}
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           rows={2}
           maxLength={4000}
           disabled={pending}
-          placeholder="Сообщение в бот…"
-          className="w-full resize-y rounded-lg border border-brand-neutral bg-brand-bg px-3 py-2 text-sm text-white placeholder:text-brand-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime"
+          placeholder={
+            canSend
+              ? "Личное сообщение в бот…"
+              : "Сначала пользователь привяжет Telegram"
+          }
+          className="w-full resize-y rounded-lg border border-brand-neutral bg-brand-bg px-3 py-2 text-sm text-white placeholder:text-brand-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime disabled:opacity-60"
         />
         <Button
           type="button"
           size="sm"
           className="w-full"
-          disabled={pending || !message.trim()}
+          disabled={pending || !message.trim() || !canSend}
           onClick={handleSubmit}
         >
           {pending ? "Отправляем…" : "Отправить в Telegram"}
@@ -90,19 +108,36 @@ export function AdminSendTelegramForm({
 
   return (
     <div className="space-y-3">
-      <div>
-        <h2 className="text-sm font-medium text-white">Сообщение в Telegram</h2>
-        <p className="mt-1 text-xs text-brand-muted">
-          Личное сообщение через бота. Получатель: {userName}
-          {telegramUsername ? (
-            <>
-              {" "}
-              <span className="text-brand-lime">@{telegramUsername}</span>
-            </>
-          ) : null}
-          . Копия появится в уведомлениях на сайте.
-        </p>
+      <div className="flex items-start gap-2">
+        <IconBrandTelegram
+          className="mt-0.5 size-5 shrink-0 text-brand-cyan"
+          stroke={1.75}
+          aria-hidden
+        />
+        <div>
+          <h2 className="text-sm font-medium text-white">Сообщение в Telegram</h2>
+          <p className="mt-1 text-xs text-brand-muted">
+            Личное сообщение через бота для {userName}
+            {telegramLinked ? (
+              <>
+                {" "}
+                (<span className="text-brand-lime">{linkedLabel}</span>)
+              </>
+            ) : (
+              <> — Telegram не привязан</>
+            )}
+            . Копия появится в уведомлениях на сайте.
+          </p>
+        </div>
       </div>
+
+      {!telegramLinked ? (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
+          Пользователь ещё не нажал «Привязать Telegram» в профиле. Общие
+          рассылки ему могут не приходить, пока нет привязки.
+        </p>
+      ) : null}
+
       <div className="space-y-2">
         <Label htmlFor={`tg-msg-${userId}`}>Текст</Label>
         <textarea
@@ -118,7 +153,7 @@ export function AdminSendTelegramForm({
       </div>
       <Button
         type="button"
-        disabled={pending || !message.trim()}
+        disabled={pending || !message.trim() || !canSend}
         onClick={handleSubmit}
       >
         {pending ? "Отправляем…" : "Отправить в Telegram"}

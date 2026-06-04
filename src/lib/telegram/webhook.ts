@@ -6,6 +6,7 @@ import {
   unlinkTelegramForUser,
 } from "@/lib/telegram/link";
 import { isTelegramConfigured } from "@/lib/telegram/config";
+import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 
 type TelegramUser = {
   id: number;
@@ -37,7 +38,9 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
   if (text === "/help" || text === "/start") {
     await sendTelegramMessage(
       chatId,
-      "Привязка к FriendsBets:\n1. Откройте профиль на сайте\n2. Нажмите «Привязать Telegram»\n3. Откройте выданную ссылку в Telegram\n\nКоманда /unlink — отвязать этот чат.",
+      appendTelegramChannelFooter(
+        "Привязка к FriendsBets:\n1. Откройте профиль на сайте\n2. Нажмите «Привязать Telegram»\n3. Откройте выданную ссылку в Telegram\n\nКоманда /unlink — отвязать этот чат.",
+      ),
     );
     return;
   }
@@ -76,7 +79,9 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
   if (result.ok) {
     await sendTelegramMessage(
       chatId,
-      `Готово! Telegram привязан к профилю «${result.userName}». Уведомления FriendsBets будут приходить сюда.`,
+      appendTelegramChannelFooter(
+        `Готово! Telegram привязан к профилю «${result.userName}». Уведомления FriendsBets будут приходить сюда.`,
+      ),
     );
     return;
   }

@@ -53,9 +53,11 @@ enum PredictionReminderKind {
   H3
   H1
   M15
+  LIVE
   H3_ADMIN
   H1_ADMIN
   M15_ADMIN
+  LIVE_ADMIN
 }
 
 model User {

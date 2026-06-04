@@ -11,6 +11,7 @@ import type {
   UserNotificationKindValue,
 } from "@/lib/notification-types";
 import { prisma } from "@/lib/db";
+import { postTelegramChannelNews } from "@/lib/telegram/channel";
 import {
   pushTelegramBroadcast,
   pushTelegramToUser,
@@ -224,6 +225,8 @@ export async function broadcastPlatformNotification(
   });
 
   pushTelegramBroadcast(trimmedTitle, trimmedBody);
+
+  postTelegramChannelNews(`${trimmedTitle}\n\n${trimmedBody}`);
 
   return result.count;
 }
