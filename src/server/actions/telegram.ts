@@ -11,7 +11,6 @@ import {
   createTelegramLinkForUser,
   unlinkTelegramForUser,
 } from "@/lib/telegram/link";
-import { isTelegramConfigured } from "@/lib/telegram/config";
 import type { ActionResult } from "@/server/actions/auth";
 
 export type TelegramLinkStatus = {
