@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useNotificationUnread } from "@/components/notifications/notification-unread-provider";
 import { gamePath } from "@/lib/game-path";
 import type { NotificationListItem } from "@/lib/notifications";
@@ -235,9 +235,12 @@ function NotificationRow({
       >
         <p className="whitespace-pre-wrap text-brand-muted">{item.body}</p>
         {predictionsHref ? (
-          <Button asChild size="sm" className="mt-1">
-            <Link href={predictionsHref}>{PREDICTION_CTA_LABEL}</Link>
-          </Button>
+          <Link
+            href={predictionsHref}
+            className={cn(buttonVariants({ size: "sm" }), "mt-1 w-fit")}
+          >
+            {PREDICTION_CTA_LABEL}
+          </Link>
         ) : null}
       </NotificationShell>
     );
