@@ -22,17 +22,27 @@ function formatResultMessage(result: {
   inApp: number;
   telegram: number;
   telegramFallbackInApp: number;
+  email: number;
+  emailSkippedUnverified: number;
 }): string {
   const parts = [`получателей: ${result.recipients}`];
   if (result.inApp > 0) {
-    parts.push(`в приложении: ${result.inApp}`);
+    parts.push(`на сайте: ${result.inApp}`);
   }
   if (result.telegram > 0) {
     parts.push(`в Telegram: ${result.telegram}`);
   }
   if (result.telegramFallbackInApp > 0) {
     parts.push(
-      `без Telegram (в приложении): ${result.telegramFallbackInApp}`,
+      `без Telegram (на сайте): ${result.telegramFallbackInApp}`,
+    );
+  }
+  if (result.email > 0) {
+    parts.push(`на email: ${result.email}`);
+  }
+  if (result.emailSkippedUnverified > 0) {
+    parts.push(
+      `без подтверждённого email: ${result.emailSkippedUnverified}`,
     );
   }
   return `Отправлено (${parts.join(", ")}).`;
@@ -52,6 +62,7 @@ export async function broadcastPlatformNotificationAction(
   const audience = parseAudience(String(formData.get("audience") ?? ""));
   const channelInApp = formData.get("channelInApp") === "on";
   const channelTelegram = formData.get("channelTelegram") === "on";
+  const channelEmail = formData.get("channelEmail") === "on";
   const personalUserIds = formData
     .getAll("userIds")
     .map((id) => String(id).trim())
@@ -72,7 +83,7 @@ export async function broadcastPlatformNotificationAction(
   if (!audience) {
     return { error: "Выберите аудиторию." };
   }
-  if (!channelInApp && !channelTelegram) {
+  if (!channelInApp && !channelTelegram && !channelEmail) {
     return { error: "Выберите хотя бы один канал доставки." };
   }
   if (channelTelegram && !isTelegramConfigured()) {
@@ -88,7 +99,11 @@ export async function broadcastPlatformNotificationAction(
       body,
       audience,
       personalUserIds,
-      channels: { inApp: channelInApp, telegram: channelTelegram },
+      channels: {
+        inApp: channelInApp,
+        telegram: channelTelegram,
+        email: channelEmail,
+      },
     });
 
     if (result.recipients === 0) {

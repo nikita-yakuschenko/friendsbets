@@ -212,7 +212,7 @@ export async function broadcastPlatformNotification(
     title,
     body,
     audience: "all",
-    channels: { inApp: true, telegram: true },
+    channels: { inApp: true, telegram: true, email: false },
   });
   return result.inApp + result.telegram;
 }

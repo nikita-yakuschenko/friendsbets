@@ -1,28 +1,44 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { InfoHint } from "@/components/ui/info-hint";
 import type { TelegramLinkStatus } from "@/server/actions/telegram";
 import {
   createTelegramLinkAction,
   unlinkTelegramAction,
 } from "@/server/actions/telegram";
+import { cn } from "@/lib/utils";
 
-export function TelegramLinkSection({ status }: { status: TelegramLinkStatus }) {
+const TELEGRAM_INFO =
+  "Уведомления о заявках, рассылки и сообщения с сайта приходят в бот после привязки.";
+
+const actionLinkClass =
+  "shrink-0 text-sm font-medium text-brand-lime underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime/60 disabled:cursor-not-allowed disabled:opacity-50";
+
+function telegramStatusBadgeText(status: TelegramLinkStatus): string {
+  if (!status.linked) return "Не привязан";
+  if (status.username) return `@${status.username.replace(/^@/, "")}`;
+  return "Привязан";
+}
+
+export function TelegramLinkSection({
+  status,
+  className,
+}: {
+  status: TelegramLinkStatus;
+  className?: string;
+}) {
   const [pending, startTransition] = useTransition();
-  const [deepLink, setDeepLink] = useState<string | null>(null);
 
-  if (!status.configured) {
-    return (
-      <section className="mt-6 space-y-2 rounded-xl border border-brand-neutral/60 bg-brand-surface/30 p-4 text-left">
-        <h2 className="text-sm font-medium text-white">Telegram</h2>
-        <p className="text-sm text-brand-muted">
-          Уведомления в Telegram пока не настроены на сервере.
-        </p>
-      </section>
-    );
-  }
+  const shellClass = cn(
+    "rounded-xl border border-brand-neutral/60 bg-brand-surface/30 px-4 py-3 md:px-5",
+    className,
+  );
+
+  const linked = status.linked;
+  const badgeText = telegramStatusBadgeText(status);
 
   function handleLink() {
     startTransition(async () => {
@@ -32,7 +48,6 @@ export function TelegramLinkSection({ status }: { status: TelegramLinkStatus }) 
         return;
       }
       if (result.deepLink) {
-        setDeepLink(result.deepLink);
         window.open(result.deepLink, "_blank", "noopener,noreferrer");
         toast.success(result.message ?? "Откройте Telegram и нажмите Start");
       }
@@ -46,76 +61,47 @@ export function TelegramLinkSection({ status }: { status: TelegramLinkStatus }) 
         toast.error(result.error);
         return;
       }
-      setDeepLink(null);
       toast.success(result.message ?? "Telegram отвязан");
     });
   }
 
-  return (
-    <section className="mt-6 space-y-3 rounded-xl border border-brand-neutral/60 bg-brand-surface/30 p-4 text-left">
-      <div>
-        <h2 className="text-sm font-medium text-white">Telegram</h2>
-        <p className="mt-1 text-sm text-brand-muted">
-          Персональные уведомления: заявки, рассылки платформы и сообщения в
-          приложении дублируются в бот.
-        </p>
-        {status.needsLocalPolling ? (
-          <p className="mt-2 text-xs text-amber-200/90">
-            Локально бот не получает сообщения с сервера. В отдельном терминале:{" "}
-            <code className="rounded bg-black/40 px-1">npm run telegram:poll</code>
-            , затем снова «Привязать Telegram» и Start по ссылке (не просто /start в
-            чате).
-          </p>
-        ) : null}
-      </div>
+  if (!status.configured) {
+    return (
+      <section className={shellClass}>
+        <div className="flex min-h-9 flex-nowrap items-center gap-2 sm:gap-3">
+          <span className="shrink-0 text-sm font-medium text-white">Telegram</span>
+          <Badge variant="secondary" className="shrink-0">
+            Недоступен
+          </Badge>
+        </div>
+      </section>
+    );
+  }
 
-      {status.linked ? (
-        <div className="space-y-3">
-          <p className="text-sm text-white">
-            Привязан
-            {status.username ? (
-              <>
-                {" "}
-                <span className="text-brand-lime">@{status.username}</span>
-              </>
-            ) : null}
-          </p>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={pending}
-            onClick={handleUnlink}
-          >
-            {pending ? "…" : "Отвязать Telegram"}
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <Button
-            type="button"
-            size="sm"
-            disabled={pending}
-            onClick={handleLink}
-          >
-            {pending ? "Готовим ссылку…" : "Привязать Telegram"}
-          </Button>
-          {deepLink ? (
-            <p className="text-xs text-brand-muted">
-              Ссылка действует 15 минут. Если Telegram не открылся —{" "}
-              <a
-                href={deepLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-brand-cyan hover:underline"
-              >
-                откройте вручную
-              </a>
-              .
-            </p>
-          ) : null}
-        </div>
-      )}
+  return (
+    <section className={shellClass}>
+      <div className="flex min-h-9 flex-nowrap items-center gap-2 sm:gap-3">
+        <InfoHint title="Уведомления в Telegram" className="shrink-0">
+          {TELEGRAM_INFO}
+        </InfoHint>
+        <span className="shrink-0 text-sm font-medium text-white">Telegram</span>
+        <Badge
+          variant={linked ? "default" : "destructive"}
+          className="max-w-[11rem] shrink-0 truncate"
+          title={badgeText}
+        >
+          {badgeText}
+        </Badge>
+        <span className="min-w-0 flex-1" aria-hidden />
+        <button
+          type="button"
+          className={actionLinkClass}
+          disabled={pending}
+          onClick={linked ? handleUnlink : handleLink}
+        >
+          {pending ? "…" : linked ? "Отвязать" : "Привязать"}
+        </button>
+      </div>
     </section>
   );
 }

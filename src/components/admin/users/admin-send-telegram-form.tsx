@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { IconBrandTelegram } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { InfoHint } from "@/components/ui/info-hint";
 import { Label } from "@/components/ui/label";
 import { sendAdminTelegramMessageAction } from "@/server/actions/telegram";
 
@@ -108,33 +109,31 @@ export function AdminSendTelegramForm({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-2">
-        <IconBrandTelegram
-          className="mt-0.5 size-5 shrink-0 text-brand-cyan"
-          stroke={1.75}
-          aria-hidden
-        />
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <IconBrandTelegram
+            className="size-5 shrink-0 text-brand-cyan"
+            stroke={1.75}
+            aria-hidden
+          />
           <h2 className="text-sm font-medium text-white">Сообщение в Telegram</h2>
-          <p className="mt-1 text-xs text-brand-muted">
-            Личное сообщение через бота для {userName}
-            {telegramLinked ? (
-              <>
-                {" "}
-                (<span className="text-brand-lime">{linkedLabel}</span>)
-              </>
-            ) : (
-              <> — Telegram не привязан</>
-            )}
-            . Копия появится в уведомлениях на сайте.
-          </p>
+          <InfoHint title="Личное сообщение в бот">
+            Сообщение уйдёт пользователю {userName} в Telegram. Копия появится в
+            разделе «Уведомления» на сайте.
+          </InfoHint>
         </div>
+        <span
+          className={
+            telegramLinked ? "text-sm text-brand-lime" : "text-sm text-brand-muted"
+          }
+        >
+          {telegramLinked ? linkedLabel : "Не привязан"}
+        </span>
       </div>
 
       {!telegramLinked ? (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
-          Пользователь ещё не нажал «Привязать Telegram» в профиле. Общие
-          рассылки ему могут не приходить, пока нет привязки.
+          Пользователь не привязал Telegram в профиле — отправка недоступна.
         </p>
       ) : null}
 

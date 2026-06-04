@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  IconHome,
+  IconBallFootball,
   IconSoccerField,
   IconTarget,
   IconTrophy,
@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 
 function buildGameLinks(oversight: boolean) {
   return [
-    { href: "base", label: "Турнир", icon: IconHome },
+    { href: "base", label: "Турнир", icon: IconBallFootball },
     oversight
       ? { href: "control", label: "Контроль", icon: IconClipboardList }
       : { href: "predictions", label: "Прогнозы", icon: IconTarget },

@@ -93,7 +93,7 @@ export function AssignGameOrganizerControl({
   }
 
   return (
-    <div className={cn("flex w-full max-w-xs flex-col gap-2", className)}>
+    <div className={cn("flex w-full max-w-xs flex-col gap-2 md:max-w-none", className)}>
       <div className="space-y-1.5">
         <Label htmlFor={`assign-org-${userId}`} className="text-xs text-brand-muted">
           Турнир для {userName.split(" ")[0]}

@@ -11,6 +11,14 @@ function routeRecipient(
   return "none";
 }
 
+function routeEmail(
+  verified: boolean,
+  channelEmail: boolean,
+): "email" | "skip" | "none" {
+  if (!channelEmail) return "none";
+  return verified ? "email" : "skip";
+}
+
 describe("platform broadcast routing", () => {
   it("только TG + привязан → telegram", () => {
     expect(routeRecipient(true, { inApp: false, telegram: true })).toBe(
@@ -40,5 +48,20 @@ describe("platform broadcast routing", () => {
     expect(routeRecipient(true, { inApp: true, telegram: false })).toBe(
       "inApp",
     );
+  });
+
+  it("email + подтверждён → email", () => {
+    expect(routeEmail(true, true)).toBe("email");
+  });
+
+  it("email + не подтверждён → skip", () => {
+    expect(routeEmail(false, true)).toBe("skip");
+  });
+
+  it("TG + привязан и email параллельно", () => {
+    expect(routeRecipient(true, { inApp: false, telegram: true })).toBe(
+      "telegram",
+    );
+    expect(routeEmail(true, true)).toBe("email");
   });
 });

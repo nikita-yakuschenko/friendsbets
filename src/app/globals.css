@@ -50,6 +50,28 @@ body {
   display: none;
 }
 
+.scrollbar-brand-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(42 48 56) transparent;
+}
+
+.scrollbar-brand-thin::-webkit-scrollbar {
+  width: 5px;
+}
+
+.scrollbar-brand-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-brand-thin::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgb(42 48 56);
+}
+
+.scrollbar-brand-thin::-webkit-scrollbar-thumb:hover {
+  background: rgb(139 147 158 / 0.55);
+}
+
 .min-h-leaderboard {
   min-height: 11rem;
 }

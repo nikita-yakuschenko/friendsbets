@@ -154,7 +154,7 @@ export function ProfileSettingsForm({ user }: { user: ProfileUser }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto w-full max-w-md space-y-5"
+      className="w-full space-y-5"
     >
       <input type="hidden" name="removeAvatar" value={removeAvatar ? "1" : "0"} />
 
