@@ -16,7 +16,6 @@ import type { AdminGameOption, AdminUserRow } from "@/components/admin/users/typ
 import { UserAvatar } from "@/components/user/user-avatar";
 import { UserRoleBadge } from "@/components/user/user-role-badge";
 import { Button } from "@/components/ui/button";
-import { formatDateTime } from "@/lib/utils";
 
 function SortableHeader({
   column,
@@ -61,7 +60,7 @@ export function useAdminUsersColumns(
         cell: ({ row }) => (
           <Link
             href={`/admin/users/${row.original.id}`}
-            className="flex min-w-0 max-w-56 items-center gap-2.5 rounded-lg transition-colors hover:bg-brand-neutral/20"
+            className="flex min-w-0 max-w-44 items-center gap-2.5 rounded-lg transition-colors hover:bg-brand-neutral/20"
           >
             <UserAvatar
               name={row.original.name}
@@ -124,17 +123,6 @@ export function useAdminUsersColumns(
           />
         ),
         enableSorting: false,
-      },
-      {
-        accessorKey: "createdAt",
-        header: ({ column }) => (
-          <SortableHeader column={column} title="Регистрация" />
-        ),
-        cell: ({ row }) => (
-          <span className="whitespace-nowrap text-xs text-brand-muted tabular-nums">
-            {formatDateTime(new Date(row.original.createdAt))}
-          </span>
-        ),
       },
       {
         id: "actions",

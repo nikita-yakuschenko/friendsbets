@@ -2,6 +2,7 @@
 export function resolveDesktopHeaderTitle(pathname: string): string | null {
   if (pathname === "/") return "Мои турниры";
   if (pathname === "/profile") return "Профиль";
+  if (pathname === "/notifications") return "Уведомления";
   if (pathname === "/join") return "Добавить турнир";
   if (pathname === "/add-tournament") return "Добавить турнир";
   if (pathname === "/create") return "Создать турнир";

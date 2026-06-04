@@ -2,6 +2,7 @@ import { UserNotificationKind } from "@/generated/prisma/client";
 import { getGameOrganizerUserIds } from "@/lib/game-organizer-users";
 import {
   formatNotificationMessage,
+  globalNotificationsHref,
   notificationHref,
   type UnreadNotificationPreview,
 } from "@/lib/notification-preview";
@@ -19,6 +20,8 @@ export type UnreadNotificationSnapshot = {
 export type NotificationListItem = {
   id: string;
   kind: UserNotificationKindValue;
+  title: string | null;
+  body: string | null;
   readAt: string | null;
   createdAt: string;
   joinRequest: {
@@ -70,8 +73,14 @@ export async function getUnreadNotificationSnapshot(
         kind: row.kind,
         applicantName: row.joinRequest?.user.name,
         gameTitle,
+        broadcastTitle: row.title,
       }),
-      href: inviteCode ? notificationHref(inviteCode) : "/",
+      href:
+        row.kind === UserNotificationKind.PLATFORM_BROADCAST
+          ? globalNotificationsHref()
+          : inviteCode
+            ? notificationHref(inviteCode)
+            : globalNotificationsHref(),
     },
   };
 }
@@ -96,6 +105,8 @@ export async function listUserNotifications(
   return rows.map((row) => ({
     id: row.id,
     kind: row.kind,
+    title: row.title,
+    body: row.body,
     readAt: row.readAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     joinRequest: row.joinRequest
@@ -148,6 +159,38 @@ export async function notifyJoinRequestRejected(
       kind: UserNotificationKind.JOIN_REQUEST_REJECTED,
       joinRequestId,
     },
+  });
+}
+
+export async function broadcastPlatformNotification(
+  title: string,
+  body: string,
+): Promise<number> {
+  const trimmedTitle = title.trim();
+  const trimmedBody = body.trim();
+  if (!trimmedTitle || !trimmedBody) {
+    throw new Error("TITLE_AND_BODY_REQUIRED");
+  }
+
+  const users = await prisma.user.findMany({ select: { id: true } });
+  if (users.length === 0) return 0;
+
+  const result = await prisma.userNotification.createMany({
+    data: users.map((user) => ({
+      userId: user.id,
+      kind: UserNotificationKind.PLATFORM_BROADCAST,
+      title: trimmedTitle,
+      body: trimmedBody,
+    })),
+  });
+
+  return result.count;
+}
+
+export async function markAllNotificationsRead(userId: string): Promise<void> {
+  await prisma.userNotification.updateMany({
+    where: { userId, readAt: null },
+    data: { readAt: new Date() },
   });
 }
 

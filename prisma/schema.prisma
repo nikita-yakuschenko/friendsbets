@@ -46,6 +46,7 @@ enum UserNotificationKind {
   JOIN_REQUEST_RECEIVED
   JOIN_REQUEST_APPROVED
   JOIN_REQUEST_REJECTED
+  PLATFORM_BROADCAST
 }
 
 enum PredictionReminderKind {
@@ -176,6 +177,8 @@ model UserNotification {
   userId        String
   kind          UserNotificationKind
   joinRequestId String?
+  title         String?
+  body          String?
   readAt        DateTime?
   createdAt     DateTime             @default(now())
 

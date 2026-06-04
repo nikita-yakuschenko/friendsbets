@@ -145,6 +145,21 @@ export function NotificationList({ items }: { items: NotificationListItem[] }) {
           );
         }
 
+        if (item.kind === USER_NOTIFICATION_KIND.PLATFORM_BROADCAST) {
+          return (
+            <li key={item.id}>
+              <NotificationMessageCard item={item}>
+                <span className="block font-medium text-white">
+                  {item.title ?? "FriendsBets"}
+                </span>
+                <span className="mt-2 block whitespace-pre-wrap text-brand-muted">
+                  {item.body}
+                </span>
+              </NotificationMessageCard>
+            </li>
+          );
+        }
+
         if (!item.joinRequest) {
           return null;
         }

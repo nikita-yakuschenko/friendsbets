@@ -13,8 +13,9 @@ export function formatNotificationMessage(input: {
   kind: UserNotificationKindValue;
   applicantName?: string;
   gameTitle?: string;
+  broadcastTitle?: string | null;
 }): string {
-  const { kind, applicantName, gameTitle } = input;
+  const { kind, applicantName, gameTitle, broadcastTitle } = input;
   const game = gameTitle ? `«${gameTitle}»` : "турнир";
 
   switch (kind) {
@@ -24,9 +25,15 @@ export function formatNotificationMessage(input: {
       return `Вас приняли в ${game}`;
     case USER_NOTIFICATION_KIND.JOIN_REQUEST_REJECTED:
       return `Заявку в ${game} отклонили`;
+    case USER_NOTIFICATION_KIND.PLATFORM_BROADCAST:
+      return broadcastTitle?.trim() || "Сообщение от FriendsBets";
     default:
       return "Новое уведомление";
   }
+}
+
+export function globalNotificationsHref(): string {
+  return "/notifications";
 }
 
 export function notificationHref(inviteCode: string): string {

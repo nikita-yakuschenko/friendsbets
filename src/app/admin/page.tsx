@@ -4,6 +4,7 @@ import { AdminGamesPanel } from "@/components/admin/panels/games-panel";
 import { AdminIntegrationsPanel } from "@/components/admin/panels/integrations-panel";
 import { AdminMatchesPanel } from "@/components/admin/panels/matches-panel";
 import { AdminTournamentsPanel } from "@/components/admin/panels/tournaments-panel";
+import { AdminNotificationsPanel } from "@/components/admin/panels/notifications-panel";
 import { AdminUsersPanel } from "@/components/admin/panels/users-panel";
 import { NoGamesPrompt } from "@/components/game/no-games-prompt";
 import { AppShell } from "@/components/layout/app-shell";
@@ -85,6 +86,10 @@ export default async function AdminPage({
               inviteCode: g.inviteCode,
             }))}
           />
+        )}
+
+        {activeTab === "notifications" && isPlatformSuperadmin && (
+          <AdminNotificationsPanel />
         )}
 
         {activeTab === "tournaments" && (

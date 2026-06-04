@@ -95,6 +95,16 @@ export function DesktopSidebar({
           <IconUser className="h-4 w-4 shrink-0" stroke={1.75} />
           Профиль
         </Link>
+        <Link
+          href="/notifications"
+          className={navLinkClass(pathname === "/notifications")}
+        >
+          <span className="relative inline-flex shrink-0">
+            <IconBell className="h-4 w-4" stroke={1.75} />
+            {unreadCount > 0 ? <NavBadge count={unreadCount} /> : null}
+          </span>
+          Уведомления
+        </Link>
 
         {showAdminLink && !hasGames && isPlatformAdmin ? (
           <>
@@ -139,18 +149,6 @@ export function DesktopSidebar({
                 </Link>
               );
             })}
-            <Link
-              href={gameHref("more/notifications")}
-              className={navLinkClass(
-                /\/more\/notifications\/?$/.test(pathname),
-              )}
-            >
-              <span className="relative inline-flex shrink-0">
-                <IconBell className="h-4 w-4" stroke={1.75} />
-                {unreadCount > 0 ? <NavBadge count={unreadCount} /> : null}
-              </span>
-              Уведомления
-            </Link>
           </>
         ) : null}
 

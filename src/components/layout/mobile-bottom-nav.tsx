@@ -15,6 +15,7 @@ import {
   IconCirclePlus,
   IconLayoutGrid,
   IconShield,
+  IconBell,
 } from "@tabler/icons-react";
 import { LiveNavLabel } from "@/components/layout/live-nav-label";
 import { useNotificationUnread } from "@/components/notifications/notification-unread-provider";
@@ -54,14 +55,14 @@ export function MobileBottomNav({
   if (!hasGames && isPlatformAdmin) {
     items = [
       { href: "/", label: "Мои", icon: IconLayoutGrid },
+      { href: "/notifications", label: "Уведомл.", icon: IconBell },
       { href: "/admin", label: "Платформа", icon: IconShield },
-      { href: "/create", label: "Создать", icon: IconCirclePlus },
       { href: "/profile", label: "Профиль", icon: IconUser },
     ];
   } else if (!hasGames) {
     items = [
       { href: "/", label: "Мои", icon: IconLayoutGrid },
-      { href: "/create", label: "Создать", icon: IconCirclePlus },
+      { href: "/notifications", label: "Уведомл.", icon: IconBell },
       { href: "/join", label: "Найти", icon: IconUserPlus },
       { href: "/profile", label: "Профиль", icon: IconUser },
     ];
@@ -120,7 +121,8 @@ export function MobileBottomNav({
               : pathname === hrefBase;
           const Icon = item.icon;
           const showUnreadBadge =
-            item.label === "Ещё" && unreadCount > 0;
+            (item.label === "Ещё" || item.href === "/notifications") &&
+            unreadCount > 0;
           return (
             <Link
               key={item.href}

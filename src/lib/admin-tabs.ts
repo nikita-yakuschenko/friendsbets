@@ -1,5 +1,6 @@
 export const ADMIN_TAB_IDS = [
   "users",
+  "notifications",
   "tournaments",
   "games",
   "matches",
@@ -10,6 +11,7 @@ export type AdminTabId = (typeof ADMIN_TAB_IDS)[number];
 
 export const ADMIN_TABS: { id: AdminTabId; label: string }[] = [
   { id: "users", label: "Пользователи" },
+  { id: "notifications", label: "Уведомления" },
   { id: "tournaments", label: "Турниры и шаблоны" },
   { id: "games", label: "Игры" },
   { id: "matches", label: "Матчи и результаты" },
