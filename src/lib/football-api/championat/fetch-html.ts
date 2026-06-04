@@ -1,4 +1,4 @@
-import { Agent } from "undici";
+import { Agent, fetch as undiciFetch } from "undici";
 
 const FETCH_USER_AGENT =
   "FriendsBets/1.0 (+https://github.com/friendsbets; match sync)";
@@ -55,15 +55,14 @@ export async function fetchChampionatHtml(
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
-      const response = await fetch(url, {
+      const response = await undiciFetch(url, {
         headers: {
           "User-Agent": FETCH_USER_AGENT,
           Accept: "text/html,application/xhtml+xml",
         },
         cache: "no-store",
         signal: AbortSignal.timeout(timeoutMs),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        dispatcher: championatFetchDispatcher as any,
+        dispatcher: championatFetchDispatcher,
       });
 
       if (!response.ok) {
