@@ -13,19 +13,18 @@ import { PickActiveTournamentDialog } from "@/components/my-tournaments/pick-act
 import type { TournamentPickOption } from "@/components/my-tournaments/types";
 import { useEndTournamentMembership } from "@/components/my-tournaments/use-end-tournament-membership";
 import { leaveGameAction } from "@/server/actions/leave-game";
+import { TournamentActionButton } from "@/components/my-tournaments/tournament-action-link";
 
 export function LeaveGameButton({
   gameId,
   gameTitle,
   isActive,
   otherTournaments,
-  className,
 }: {
   gameId: string;
   gameTitle: string;
   isActive: boolean;
   otherTournaments: TournamentPickOption[];
-  className?: string;
 }) {
   const {
     confirmOpen,
@@ -48,16 +47,9 @@ export function LeaveGameButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setConfirmOpen(true)}
-        className={
-          className ??
-          "text-sm font-medium text-brand-red transition-colors hover:text-brand-red/80"
-        }
-      >
+      <TournamentActionButton variant="danger" onClick={() => setConfirmOpen(true)}>
         Покинуть
-      </button>
+      </TournamentActionButton>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>

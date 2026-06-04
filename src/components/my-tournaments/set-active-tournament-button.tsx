@@ -2,30 +2,22 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
+import { TournamentActionButton } from "@/components/my-tournaments/tournament-action-link";
 import { setActiveGameAction } from "@/server/actions/active-game";
-import { Button } from "@/components/ui/button";
 
 export function SetActiveTournamentButton({
   inviteCode,
   gameTitle,
-  className,
 }: {
   inviteCode: string;
   gameTitle: string;
-  className?: string;
 }) {
   const [pending, startTransition] = useTransition();
 
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
+    <TournamentActionButton
+      variant="secondary"
       disabled={pending}
-      className={
-        className ??
-        "h-auto min-h-0 px-0 py-0 text-sm font-medium text-brand-cyan hover:text-brand-lime"
-      }
       onClick={() => {
         startTransition(async () => {
           const result = await setActiveGameAction(inviteCode);
@@ -38,6 +30,6 @@ export function SetActiveTournamentButton({
       }}
     >
       {pending ? "…" : "Сделать текущим"}
-    </Button>
+    </TournamentActionButton>
   );
 }

@@ -13,6 +13,7 @@ import { PickActiveTournamentDialog } from "@/components/my-tournaments/pick-act
 import type { TournamentPickOption } from "@/components/my-tournaments/types";
 import { useEndTournamentMembership } from "@/components/my-tournaments/use-end-tournament-membership";
 import { deleteSoloTournamentAction } from "@/server/actions/delete-solo-tournament";
+import { TournamentActionButton } from "@/components/my-tournaments/tournament-action-link";
 
 export function DeleteTournamentButton({
   gameId,
@@ -20,14 +21,12 @@ export function DeleteTournamentButton({
   inviteCode,
   isActive,
   otherTournaments,
-  className,
 }: {
   gameId: string;
   gameTitle: string;
   inviteCode: string;
   isActive: boolean;
   otherTournaments: TournamentPickOption[];
-  className?: string;
 }) {
   const {
     confirmOpen,
@@ -50,16 +49,9 @@ export function DeleteTournamentButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setConfirmOpen(true)}
-        className={
-          className ??
-          "text-sm font-medium text-brand-red transition-colors hover:text-brand-red/80"
-        }
-      >
+      <TournamentActionButton variant="danger" onClick={() => setConfirmOpen(true)}>
         Удалить
-      </button>
+      </TournamentActionButton>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
