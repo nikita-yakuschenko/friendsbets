@@ -42,8 +42,10 @@
 
 ### Документация в репозитории
 - `README.md` — стек, dev, cron, Dokploy
+- **`docs/DATABASE.md`** — БД отдельно от app, `DATABASE_URL`, локально / prod
 - `docs/TESTING.md` / `docs/TESTING_REPORT.md` — тесты
-- `.env.example` — шаблон переменных
+- `.env.example` — локальная разработка
+- `deploy.env.example` — Dokploy Environment (только app)
 
 ---
 
@@ -54,7 +56,7 @@
 | # | Что не готово «из коробки» | Почему важно | Блокер? |
 |---|---------------------------|--------------|---------|
 | 1 | Миграции на **боевой** БД (индексы + `CronRun`) | Perf reminders/sync, health/cron | **Да** |
-| 2 | Уникальные `SESSION_SECRET`, `CRON_SECRET`, `POSTGRES_PASSWORD` | Безопасность | **Да** |
+| 2 | Уникальные `SESSION_SECRET`, `CRON_SECRET`, пароль БД в `DATABASE_URL` | Безопасность | **Да** |
 | 3 | Пароль админа ≠ дефолт `admin123456` | Любой знает пример из README | **Да** |
 | 4 | `NEXT_PUBLIC_APP_URL` = реальный HTTPS URL | Ссылки в письмах и invite | **Да** |
 | 5 | SMTP (если нужны письма) | Без SMTP — только `[email:mock]` в логах | **Да**, если ждёте email |
@@ -70,15 +72,13 @@
 
 Отмечайте `[x]` по мере выполнения.
 
-### 4.1. Секреты и окружение
+### 4.1. База данных (отдельно) и секреты app
 
-**Где:** Dokploy → Environment **или** файл `.env` рядом с `docker-compose.yml` **или** локальный `.env` при своём деплое.
+**Сначала БД:** Dokploy → **Databases** → PostgreSQL (`friendsbets`, `postgres:16-alpine`, без external port).  
+Подробно: **`docs/DATABASE.md`**.
 
-Скопируйте шаблон:
-
-```powershell
-Copy-Item .env.example .env
-```
+**Потом app:** Dokploy → **Docker Compose** → `docker-compose.yml` (только сервис `app`).  
+Шаблон env: **`deploy.env.example`**.
 
 Сгенерировать случайную строку (PowerShell):
 
@@ -86,20 +86,20 @@ Copy-Item .env.example .env
 [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }) -as [byte[]])
 ```
 
-| Переменная | Обязательно | Что указать | Где используется |
-|------------|-------------|-------------|------------------|
-| `POSTGRES_PASSWORD` | Да (Dokploy) | Случайный, ≠ пример | БД в Docker |
-| `POSTGRES_USER` | Да | `friendsbets` | БД |
-| `POSTGRES_DB` | Да | `friendsbets` | БД |
-| `SESSION_SECRET` | Да | ≥ 32 символа, случайный | `src/lib/auth.ts` — подпись cookie |
-| `CRON_SECRET` | Да | Случайный | `/api/cron/*` — без секрета 401 |
-| `NEXT_PUBLIC_APP_URL` | Да | `https://ваш-домен.ru` без `/` в конце | Письма, invite-ссылки |
-| `ADMIN_EMAIL` | Да | Ваш реальный email | Seed / вход суперадмина |
-| `ADMIN_PASSWORD` | Да | Свой, не из примера | Seed; после смены см. ниже |
-| `RUN_DB_SEED` | Первый деплой | `true`, потом **`false`** | Entrypoint контейнера |
-| `SKIP_CHAMPIONAT_SEED` | Рекомендуется | `true` на prod | Seed не качает Championat при каждом рестарте |
+| Переменная | Обязательно | Что указать | Где |
+|------------|-------------|-------------|-----|
+| `DATABASE_URL` | **Да (app)** | Internal URL из Databases + `?schema=public` | Prisma, entrypoint |
+| `SESSION_SECRET` | Да | ≥ 32 символа, случайный | Cookie |
+| `CRON_SECRET` | Да | Случайный | `/api/cron/*` |
+| `NEXT_PUBLIC_APP_URL` | Да | `https://ваш-домен.ru` без `/` | Письма, invite |
+| `ADMIN_EMAIL` | Да | Реальный email | Seed |
+| `ADMIN_PASSWORD` | Да | Свой, не из примера | Seed |
+| `RUN_DB_SEED` | Первый деплой | `true`, потом **`false`** | Entrypoint |
+| `SKIP_CHAMPIONAT_SEED` | Рекомендуется | `true` на prod | Seed |
 
-**Не нужно в Dokploy:** `DATABASE_URL` — собирается из `POSTGRES_*` внутри compose.
+`POSTGRES_*` в Environment **app не нужны** — только в карточке Databases при создании БД.
+
+**Миграции до деплоя app (опционально):** локально `npm run db:migrate:deploy` с `DATABASE_URL` на prod (туннель / временный port) — см. `docs/DATABASE.md`.
 
 **Опционально (есть дефолты, для 15 users можно не трогать):**
 
@@ -244,8 +244,8 @@ curl -H "Authorization: Bearer $env:CRON_SECRET" "https://ваш-домен/api/
 **Где:** хостинг / Dokploy / ручной cron на VPS.
 
 ```powershell
-# Пример: дамп из контейнера postgres (имя сервиса уточните в docker-compose.yml)
-docker compose exec postgres pg_dump -U friendsbets friendsbets > backup_$(Get-Date -Format 'yyyy-MM-dd').sql
+# Локально: docker compose -f docker-compose.db.yml exec postgres pg_dump ...
+# Prod: Dokploy → Databases → Backups или docker exec в контейнер БД
 ```
 
 Частота для 15 users: **раз в 2–3 дня** или перед каждым турнирным этапом.
@@ -256,19 +256,18 @@ docker compose exec postgres pg_dump -U friendsbets friendsbets > backup_$(Get-D
 
 ### Dokploy (из README)
 
-1. Проект → **Docker Compose** → репозиторий, `docker-compose.yml`
-2. **Environment** — все переменные из раздела 4.1 (построчно)
-3. Домен + HTTPS на сервис **app**, порт **3000**
-4. Deploy → проверить health (4.6)
-5. `RUN_DB_SEED=false` после первого успешного старта
-6. Scheduled tasks — cron из раздела 4.5
+1. **Databases** → PostgreSQL (отдельно)
+2. **Docker Compose** → `docker-compose.yml` (только app), `deploy.env.example`
+3. Домен + HTTPS на **app**, порт **3000**
+4. Deploy → health (4.6)
+5. `RUN_DB_SEED=false` после первого старта
+6. Scheduled tasks — cron (4.5)
 
-### Локальный production-образ (проверка перед Dokploy)
+### Локальный production-образ
 
 ```powershell
 Copy-Item .env.example .env
-# заполнить .env
-docker compose up -d --build
+npm run docker:up
 ```
 
 Приложение: `http://localhost:3000` (или `APP_PORT`).

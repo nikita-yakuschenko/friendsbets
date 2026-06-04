@@ -15,6 +15,8 @@
 
 Перед открытием турнира для друзей: **[docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md)** — секреты, миграции, SMTP, cron (`quick` / `full`), health, бэкап.
 
+**База данных отдельно от приложения:** **[docs/DATABASE.md](docs/DATABASE.md)** — Dokploy Databases, `docker-compose.db.yml`, `DATABASE_URL`, удалённые миграции.
+
 ## Быстрый старт
 
 ### 1. Установка зависимостей
@@ -23,13 +25,13 @@
 npm install
 ```
 
-### 2. PostgreSQL через Docker (только БД для локальной разработки)
+### 2. PostgreSQL (отдельно от app)
 
 ```powershell
-docker compose up -d postgres
+npm run docker:db
 ```
 
-Для dev: `docker compose up -d postgres` и свой `DATABASE_URL` в `.env` (см. `.env.example`).
+Файл `docker-compose.db.yml` — только БД на порту **5433**. Приложение в dev: `npm run dev` (не в этом compose).
 
 ### 3. Настройка окружения
 
@@ -227,43 +229,27 @@ curl -H "Authorization: Bearer $env:CRON_SECRET" "http://localhost:3000/api/cron
 
 **Стадионы:** город и арена подтягиваются со страницы каждого матча (календарь их не содержит). При синке заполняются только пустые `venueName` / `venueCity`.
 
-## Деплой в Dokploy (один проход)
+## Деплой в Dokploy
 
-В репозитории есть `Dockerfile` и `docker-compose.yml` с сервисами **postgres** + **app**. При старте контейнера приложения автоматически выполняются миграции Prisma и (опционально) seed.
+**Два шага:** (1) **Databases** → PostgreSQL, (2) **Docker Compose** → только app (`docker-compose.yml`).
 
-### 1. Подготовка секретов
+Подробно: **[docs/DATABASE.md](docs/DATABASE.md)**. Шаблон env для app: **`deploy.env.example`**.
 
-Скопируйте шаблон и заполните **все** пустые поля (без стандартных паролей):
+### 1. PostgreSQL (Dokploy → Databases)
 
-```powershell
-Copy-Item .env.example .env
-```
+- PostgreSQL 16, user/database `friendsbets`, свой пароль
+- **External port** не публиковать
+- Internal Host → подставить в `DATABASE_URL` (например `friendsbetsdb-p8dn1v`)
 
-Сгенерировать случайные секреты (PowerShell):
+### 2. Приложение (Docker Compose)
 
-```powershell
-[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }) -as [byte[]])
-```
-
-Используйте отдельные значения для `POSTGRES_PASSWORD`, `SESSION_SECRET`, `CRON_SECRET`, `ADMIN_PASSWORD`.
-
-### 2. Dokploy
-
-1. Новый проект → **Docker Compose**
-2. Репозиторий + ветка
-3. Путь к compose: `docker-compose.yml`
-4. **Environment** (обязательно): вставьте переменные **построчно** (как в `.env.example`).  
-   Dokploy должен создать файл `.env` рядом с `docker-compose.yml` на сервере.  
-   Без этого шага будет ошибка `CRON_SECRET is missing` или падение при старте контейнера.
-5. Домен и HTTPS на сервис **app**, порт **3000**
-6. Deploy
-
-Минимальный набор (все со своими значениями, не оставляйте пустым):
+1. Проект → **Docker Compose** → репозиторий, `docker-compose.yml`
+2. **Environment** — из `deploy.env.example` (обязательно **`DATABASE_URL`** + секреты)
+3. Домен + HTTPS на **app**, порт **3000**
+4. Deploy → entrypoint: migrate, essentials, seed
 
 ```env
-POSTGRES_USER=friendsbets
-POSTGRES_PASSWORD=<случайный>
-POSTGRES_DB=friendsbets
+DATABASE_URL=postgresql://friendsbets:ПАРОЛЬ@friendsbetsdb-p8dn1v:5432/friendsbets?schema=public
 SESSION_SECRET=<случайный>
 NEXT_PUBLIC_APP_URL=https://ваш-домен
 CRON_SECRET=<случайный>
@@ -273,34 +259,18 @@ RUN_DB_SEED=true
 SKIP_CHAMPIONAT_SEED=true
 ```
 
-`DATABASE_URL` в Dokploy **не нужен** — собирается внутри контейнера из `POSTGRES_*`.
+После первого успешного деплоя: `RUN_DB_SEED=false`, настроить cron (см. чеклист).
 
-### 3. После первого успешного деплоя
-
-| Действие | Зачем |
-|----------|--------|
-| `RUN_DB_SEED=false` | Seed идемпотентный, но Championat при seed не нужен на каждый рестарт |
-| Cron в Dokploy / внешний | `GET /api/cron/prediction-reminders` и `/api/cron/sync-matches` с заголовком `Authorization: Bearer <CRON_SECRET>` каждые 5–15 мин |
-| `npm run sync:championat` (опционально) | Разово загрузить матчи, если `SKIP_CHAMPIONAT_SEED=true` |
-
-Вход: `ADMIN_EMAIL` / `ADMIN_PASSWORD` из `.env`.
-
-### 4. Тома данных
-
-- `friendsbets_pg_data` — база
-- `friendsbets_avatars` — загруженные аватары
-
-PostgreSQL **не** проброшен на хост (только внутренняя сеть compose).
+Том app: `friendsbets_avatars`. Данные PostgreSQL — в томе сервиса **Databases**, не в compose app.
 
 ### Локальная проверка production-образа
 
 ```powershell
 Copy-Item .env.example .env
-# заполните .env
-docker compose up -d --build
+npm run docker:up
 ```
 
-Приложение: `http://localhost:3000` (или `APP_PORT` из `.env`).
+БД: `docker-compose.db.yml`, app: `docker-compose.yml`. Приложение: `http://localhost:3000`.
 
 ## NPM scripts
 
@@ -314,6 +284,8 @@ docker compose up -d --build
 | `npm run db:seed` | Seed database |
 | `npm run reminders:send` | Отправить due email-напоминания |
 | `npm run sync:championat` | Синхронизировать матчи с Championat (env / первый ACTIVE) |
+| `npm run docker:db` | Локально: только PostgreSQL |
+| `npm run docker:up` | Локально: БД + production-образ app |
 | `npm run db:push` | Prisma db push |
 
 ## Роли пользователей

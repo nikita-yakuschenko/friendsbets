@@ -1,0 +1,29 @@
+# Локальная PostgreSQL для разработки (аналог Dokploy → Databases).
+# Не используется при деплое app в Dokploy — там БД уже отдельный сервис.
+#
+# Запуск:
+#   docker compose -f docker-compose.db.yml up -d
+# DATABASE_URL в .env: localhost:5433 (см. .env.example)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - friendsbets_pg_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\"",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  friendsbets_pg_data:

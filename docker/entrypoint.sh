@@ -1,24 +1,27 @@
 #!/bin/sh
 set -e
 
-missing=""
-for var in POSTGRES_PASSWORD SESSION_SECRET CRON_SECRET ADMIN_PASSWORD NEXT_PUBLIC_APP_URL ADMIN_EMAIL; do
+# Обязательные переменные приложения (не БД)
+for var in SESSION_SECRET CRON_SECRET ADMIN_PASSWORD NEXT_PUBLIC_APP_URL ADMIN_EMAIL; do
   eval "val=\$$var"
   if [ -z "$val" ]; then
-    missing="$missing $var"
+    echo "[entrypoint] ERROR: не задана переменная: $var"
+    echo "[entrypoint] Dokploy → Environment или .env (см. .env.example, deploy.env.example)"
+    exit 1
   fi
 done
 
-if [ -n "$missing" ]; then
-  echo "[entrypoint] ERROR: не заданы переменные:$missing"
-  echo "[entrypoint] Dokploy: вкладка Environment → вставьте все ключи из .env.example"
-  exit 1
-fi
-
 if [ -z "$DATABASE_URL" ]; then
+  if [ -z "$POSTGRES_PASSWORD" ]; then
+    echo "[entrypoint] ERROR: задайте DATABASE_URL (Dokploy / prod) или POSTGRES_PASSWORD (локальный postgres)"
+    exit 1
+  fi
   export POSTGRES_USER="${POSTGRES_USER:-friendsbets}"
   export POSTGRES_DB="${POSTGRES_DB:-friendsbets}"
   export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
+  echo "[entrypoint] DATABASE_URL → host postgres (docker-compose.db.yml + app в одном проекте)"
+else
+  echo "[entrypoint] DATABASE_URL → внешняя БД (Dokploy Databases и т.п.)"
 fi
 
 echo "[entrypoint] Prisma migrate deploy…"
