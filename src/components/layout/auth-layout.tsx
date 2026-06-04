@@ -20,7 +20,7 @@ export function AuthLayout({
 }) {
   return (
     <div
-      className="relative min-h-dvh overflow-x-hidden bg-brand-bg text-white"
+      className="relative h-dvh min-h-dvh overflow-x-hidden overflow-y-auto bg-brand-bg text-white"
     >
       {landingBackground ? (
         <>
@@ -34,7 +34,7 @@ export function AuthLayout({
         />
       )}
 
-      <div className="relative z-10 flex min-h-dvh flex-col">
+      <div className="relative z-10 flex min-h-full flex-col">
         <header
           className={cn(
             "px-4 py-5 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-6",

@@ -33,7 +33,7 @@ export default async function AdminPage({
     session.id,
     session.role,
   );
-  if (manageableGames.length === 0) {
+  if (manageableGames.length === 0 && !isPlatformSuperadmin) {
     return (
       <AppShell user={session}>
         <ContentContainer>
@@ -66,7 +66,8 @@ export default async function AdminPage({
       user={session}
       gameInviteCode={defaultGame?.inviteCode}
       isPlatformAdmin={isPlatformSuperadmin}
-      canManageGame
+      canManageGame={manageableGames.length > 0}
+      hasGamesOrOversight={isPlatformSuperadmin || manageableGames.length > 0}
     >
       <ContentContainer>
         <PageHeader

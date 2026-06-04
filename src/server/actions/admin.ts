@@ -216,7 +216,15 @@ export async function deleteGameAction(gameId: string): Promise<ActionResult> {
 export async function getAdminDashboardData(userId: string, role: UserRole) {
   const manageableGames = await getMissingPredictionsGames(userId, role);
   if (manageableGames.length === 0) {
-    throw new Error("FORBIDDEN");
+    if (!isSuperadmin(role)) {
+      throw new Error("FORBIDDEN");
+    }
+    const [tournaments, platformMatches, templates] = await Promise.all([
+      prisma.tournament.findMany({ orderBy: { createdAt: "desc" } }),
+      listAdminPlatformMatches(userId, role),
+      listTournamentTemplatesForUi(),
+    ]);
+    return { tournaments, games: [], matches: platformMatches, templates };
   }
 
   const games = await prisma.game.findMany({

@@ -12,6 +12,8 @@ import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { buildTournamentSourceLabelMap } from "@/lib/tournament-source-label";
 import { NoGamesPrompt } from "@/components/game/no-games-prompt";
+import { PlatformAdminHomePrompt } from "@/components/game/platform-admin-home-prompt";
+import { isSuperadmin } from "@/lib/roles";
 import { MyTournamentsDataTable } from "@/components/my-tournaments/my-tournaments-data-table";
 import { TournamentsAddMenu } from "@/components/my-tournaments/tournaments-add-menu";
 
@@ -50,17 +52,27 @@ export default async function HomePage() {
     sourceLabelByExternalId,
   });
 
+  const isPlatformSuperadmin = isSuperadmin(session.role);
+
   return (
     <AppShell user={session}>
       <ContentContainer>
         <PageHeader
           title="Мои турниры"
-          description="Выберите турнир, создайте новый или подключитесь по invite-коду."
+          description={
+            isPlatformSuperadmin && memberships.length === 0
+              ? "Турниры участников и управление платформой."
+              : "Выберите турнир, создайте новый или подключитесь по invite-коду."
+          }
           action={memberships.length > 0 ? <TournamentsAddMenu /> : undefined}
         />
 
         {memberships.length === 0 ? (
-          <NoGamesPrompt />
+          isPlatformSuperadmin ? (
+            <PlatformAdminHomePrompt />
+          ) : (
+            <NoGamesPrompt />
+          )
         ) : (
           <MyTournamentsDataTable data={tournamentRows} />
         )}

@@ -222,17 +222,9 @@ input[type="number"]::-webkit-outer-spin-button {
   --error-bg: #1f1416;
   --error-border: #ff4d60;
   --error-text: #ff4d60;
-  --offset-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
-  --mobile-offset-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
-}
-
-@media (min-width: 768px) {
-  [data-sonner-toaster].app-toaster[data-y-position="bottom"] {
-    top: 1rem !important;
-    bottom: auto !important;
-    --offset-top: 1rem;
-    --mobile-offset-top: 1rem;
-  }
+  --offset-top: calc(4.25rem + env(safe-area-inset-top, 0px));
+  --mobile-offset-top: calc(4.25rem + env(safe-area-inset-top, 0px));
+  z-index: 100;
 }
 
 [data-sonner-toaster].app-toaster .fb-toast {

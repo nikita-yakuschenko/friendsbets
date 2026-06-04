@@ -39,10 +39,10 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`${inter.variable} ${ibmPlexSans.variable} h-full`}
+      className={`${inter.variable} ${ibmPlexSans.variable} h-dvh overflow-hidden`}
     >
       <body
-        className={`${inter.className} min-h-full bg-brand-bg text-white antialiased`}
+        className={`${inter.className} h-dvh overflow-hidden bg-brand-bg text-white antialiased`}
         suppressHydrationWarning
       >
         {children}

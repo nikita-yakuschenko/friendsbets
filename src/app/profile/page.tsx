@@ -18,10 +18,11 @@ export default async function ProfilePage() {
 
   return (
     <AppShell user={session}>
-      <ContentContainer className="max-w-md">
+      <ContentContainer className="max-w-md pb-4">
         <PageHeader
           title="Профиль"
           description="Имя и аватар видят друзья в турнире."
+          className="mb-4"
         />
         <ProfileSettingsForm
           user={{
@@ -31,7 +32,10 @@ export default async function ProfilePage() {
             updatedAt: profile.updatedAt.toISOString(),
           }}
         />
-        <form action={logoutAction} className="mt-8 border-t border-brand-neutral/60 pt-6">
+        <form
+          action={logoutAction}
+          className="mt-5 border-t border-brand-neutral/60 pt-5"
+        >
           <Button type="submit" variant="secondary" size="sm">
             Выйти
           </Button>

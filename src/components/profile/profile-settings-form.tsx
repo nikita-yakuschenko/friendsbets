@@ -140,11 +140,11 @@ export function ProfileSettingsForm({ user }: { user: ProfileUser }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto w-full max-w-md space-y-8"
+      className="mx-auto w-full max-w-md space-y-5"
     >
       <input type="hidden" name="removeAvatar" value={removeAvatar ? "1" : "0"} />
 
-      <section className="flex flex-col items-center gap-5 text-center">
+      <section className="flex flex-col items-center gap-4 text-center">
         {showAvatarImage && previewUrl ? (
           <img
             src={previewUrl}
@@ -225,7 +225,7 @@ export function ProfileSettingsForm({ user }: { user: ProfileUser }) {
         </div>
       </section>
 
-      <section className="space-y-4 border-t border-brand-neutral/60 pt-8 text-left">
+      <section className="space-y-4 border-t border-brand-neutral/60 pt-5 text-left">
         <div>
           <Label htmlFor="email">Email</Label>
           <Input
@@ -253,7 +253,7 @@ export function ProfileSettingsForm({ user }: { user: ProfileUser }) {
         </div>
       </section>
 
-      <div className="border-t border-brand-neutral/60 pt-8">
+      <div className="border-t border-brand-neutral/60 pt-5">
         <Button
           type="submit"
           className="w-full sm:w-auto"

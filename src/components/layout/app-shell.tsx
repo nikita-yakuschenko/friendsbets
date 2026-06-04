@@ -162,6 +162,7 @@ export async function AppShell({
           gameInviteCode={activeInviteCode}
           gameOversightMode={gameOversightMode}
           hasGames={showGameNav}
+          isPlatformAdmin={userIsPlatformAdmin}
         />
       ) : null}
       </NotificationUnreadProvider>

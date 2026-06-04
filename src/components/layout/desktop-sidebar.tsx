@@ -69,9 +69,10 @@ export function DesktopSidebar({
       ? gamePlatformViewPath(activeInviteCode, segment)
       : gamePath(activeInviteCode!, segment);
   const showAdminLink =
-    hasGames &&
-    (isPlatformAdmin || canManageGame) &&
-    (Boolean(activeInviteCode) || pathname.startsWith("/admin"));
+    isPlatformAdmin ||
+    (hasGames &&
+      canManageGame &&
+      (Boolean(activeInviteCode) || pathname.startsWith("/admin")));
 
   return (
     <aside className="hidden md:flex md:h-full md:max-h-full md:w-64 md:shrink-0 md:flex-col md:overflow-hidden md:border-r md:border-brand-neutral md:bg-brand-surface/50">
@@ -93,6 +94,16 @@ export function DesktopSidebar({
           <IconUser className="h-4 w-4 shrink-0" stroke={1.75} />
           Профиль
         </Link>
+
+        {showAdminLink && !hasGames && isPlatformAdmin ? (
+          <>
+            <div className="my-2 h-px bg-brand-neutral/60" aria-hidden="true" />
+            <Link href="/admin" className={navLinkClass(pathname.startsWith("/admin"))}>
+              <IconShield className="h-4 w-4 shrink-0" stroke={1.75} />
+              Платформа
+            </Link>
+          </>
+        ) : null}
 
         {!hasGames ? (
           <>
@@ -154,7 +165,7 @@ export function DesktopSidebar({
           </>
         ) : null}
 
-        {showAdminLink ? (
+        {showAdminLink && (hasGames || !isPlatformAdmin) ? (
           <>
             {activeInviteCode ? (
               <div className="my-2 h-px bg-brand-neutral/60" aria-hidden="true" />

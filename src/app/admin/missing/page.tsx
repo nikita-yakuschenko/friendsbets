@@ -24,16 +24,26 @@ export default async function AdminMissingPage({
   const session = await getSession();
   if (!session) redirect("/");
 
+  const isPlatformSuperadmin = isSuperadmin(session.role);
   const games = await getMissingPredictionsGames(session.id, session.role);
   if (games.length === 0) {
     return (
-      <AppShell user={session}>
+      <AppShell user={session} isPlatformAdmin={isPlatformSuperadmin}>
         <ContentContainer>
           <PageHeader
             title="Кто не поставил"
             description="Участники без прогноза на ближайшие матчи."
           />
-          <NoGamesPrompt />
+          {isPlatformSuperadmin ? (
+            <p className={ADMIN_LIST_EMPTY_CLASS}>
+              На платформе пока нет турниров.{" "}
+              <Link href="/admin?tab=games" className="text-brand-cyan hover:underline">
+                Админка платформы
+              </Link>
+            </p>
+          ) : (
+            <NoGamesPrompt />
+          )}
         </ContentContainer>
       </AppShell>
     );
@@ -50,13 +60,11 @@ export default async function AdminMissingPage({
     ) ?? games[0];
 
   const items = await getAdminMissingPredictions(selectedGame.inviteCode);
-  const isPlatformAdmin = isSuperadmin(session.role);
-
   return (
     <AppShell
       user={session}
       gameInviteCode={selectedGame.inviteCode}
-      isPlatformAdmin={isPlatformAdmin}
+      isPlatformAdmin={isPlatformSuperadmin}
       canManageGame
     >
       <ContentContainer>

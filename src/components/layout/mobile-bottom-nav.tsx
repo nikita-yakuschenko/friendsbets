@@ -14,6 +14,7 @@ import {
   IconUserPlus,
   IconCirclePlus,
   IconLayoutGrid,
+  IconShield,
 } from "@tabler/icons-react";
 import { LiveNavLabel } from "@/components/layout/live-nav-label";
 import { useNotificationUnread } from "@/components/notifications/notification-unread-provider";
@@ -34,10 +35,12 @@ export function MobileBottomNav({
   gameInviteCode,
   gameOversightMode = false,
   hasGames,
+  isPlatformAdmin = false,
 }: {
   gameInviteCode?: string;
   gameOversightMode?: boolean;
   hasGames: boolean;
+  isPlatformAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const { unreadCount } = useNotificationUnread();
@@ -48,7 +51,14 @@ export function MobileBottomNav({
 
   let items: NavItem[];
 
-  if (!hasGames) {
+  if (!hasGames && isPlatformAdmin) {
+    items = [
+      { href: "/", label: "Мои", icon: IconLayoutGrid },
+      { href: "/admin", label: "Платформа", icon: IconShield },
+      { href: "/create", label: "Создать", icon: IconCirclePlus },
+      { href: "/profile", label: "Профиль", icon: IconUser },
+    ];
+  } else if (!hasGames) {
     items = [
       { href: "/", label: "Мои", icon: IconLayoutGrid },
       { href: "/create", label: "Создать", icon: IconCirclePlus },

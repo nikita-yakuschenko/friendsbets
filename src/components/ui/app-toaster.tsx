@@ -2,8 +2,7 @@
 
 import { Toaster } from "sonner";
 
-const navClearance =
-  "calc(6rem + env(safe-area-inset-bottom, 0px))";
+const topOffset = "calc(4.25rem + env(safe-area-inset-top, 0px))";
 
 export function AppToaster() {
   return (
@@ -12,10 +11,10 @@ export function AppToaster() {
       richColors
       closeButton={false}
       duration={2800}
-      position="bottom-center"
+      position="top-center"
       className="app-toaster"
-      offset={{ bottom: navClearance }}
-      mobileOffset={{ bottom: navClearance }}
+      offset={{ top: topOffset }}
+      mobileOffset={{ top: topOffset }}
       toastOptions={{
         classNames: {
           toast: "fb-toast",

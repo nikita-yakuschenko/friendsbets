@@ -5,12 +5,14 @@ export function PageHeader({
   description,
   action,
   keepTitleOnDesktop = false,
+  className,
 }: {
   title: React.ReactNode;
   description?: string;
   action?: React.ReactNode;
   /** Game home keeps the title in page content on desktop. */
   keepTitleOnDesktop?: boolean;
+  className?: string;
 }) {
   const hideTitleOnDesktop = !keepTitleOnDesktop;
   const showBlockOnDesktop = Boolean(description || action || keepTitleOnDesktop);
@@ -20,6 +22,7 @@ export function PageHeader({
       className={cn(
         "mb-5 flex items-start justify-between gap-4",
         hideTitleOnDesktop && !showBlockOnDesktop && "md:hidden",
+        className,
       )}
     >
       <div className="min-w-0">

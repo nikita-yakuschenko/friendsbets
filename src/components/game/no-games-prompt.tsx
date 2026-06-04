@@ -8,7 +8,8 @@ export function NoGamesPrompt() {
       <CardContent className="space-y-5 py-8 text-center">
         <p className="text-brand-muted">
           Вы пока не в турнире. Создайте турнир прогнозов или подключитесь по
-          invite-коду от друга — после этого откроются разделы игры и админка.
+          invite-коду от друга — после этого откроются прогнозы, таблица и
+          остальные разделы.
         </p>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
           <Link href="/create">
