@@ -4,6 +4,7 @@ import { MatchStatus } from "@/generated/prisma/client";
 import { requireAuth } from "@/lib/auth";
 import {
   assertGameParticipant,
+  canManageGame,
   isGameOrganizer,
   isGameParticipant,
   requireGameViewByRoute,
@@ -25,7 +26,13 @@ export async function getGameOversightOverview(
   platformView = false,
 ) {
   const view = await requireGameViewByRoute(routeParam, platformView);
-  if (!view?.access.isPlatformOversight) return null;
+  if (!view) return null;
+  if (
+    !view.access.isPlatformOversight &&
+    !(await canManageGame(view.session, view.gameId))
+  ) {
+    return null;
+  }
 
   const game = await prisma.game.findUnique({
     where: { id: view.gameId },

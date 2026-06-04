@@ -13,6 +13,7 @@ import {
 import { isSuperadmin } from "@/lib/roles";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
+import { buildMissingPredictionReminderText } from "@/lib/missing-prediction-reminder";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import type { ActionResult } from "@/server/actions/auth";
 import {
@@ -339,9 +340,7 @@ export async function getAdminMissingPredictions(routeParam: string) {
   const gameId = await resolveGameIdFromRoute(routeParam);
   if (!gameId) return [];
 
-  const allowed =
-    isSuperadmin(session.role) || (await isGameOrganizer(session.id, gameId));
-  if (!allowed) return [];
+  if (!(await canManageGame(session, gameId))) return [];
 
   const game = await prisma.game.findUnique({
     where: { id: gameId },
@@ -372,14 +371,42 @@ export async function getAdminMissingPredictions(routeParam: string) {
 
   return upcomingMatches.filter(isMatchPredictable).map((match) => {
     const predictedUserIds = new Set(match.predictions.map((p) => p.userId));
-    const missingParticipants = game.participants.filter(
-      (participant) => !predictedUserIds.has(participant.userId),
-    );
+    const missingParticipants = game.participants
+      .filter((participant) => !predictedUserIds.has(participant.userId))
+      .map((participant) => ({
+        userId: participant.userId,
+        displayName: participant.displayName,
+      }));
+
+    const reminderText = buildMissingPredictionReminderText({
+      homeTeam: {
+        name: match.homeTeam.name,
+        countryCode: match.homeTeam.countryCode,
+      },
+      awayTeam: {
+        name: match.awayTeam.name,
+        countryCode: match.awayTeam.countryCode,
+      },
+      startsAt: match.startsAt,
+      inviteCode: game.inviteCode,
+    });
 
     return {
-      match,
+      match: {
+        id: match.id,
+        startsAt: match.startsAt,
+        homeTeam: {
+          name: match.homeTeam.name,
+          countryCode: match.homeTeam.countryCode,
+        },
+        awayTeam: {
+          name: match.awayTeam.name,
+          countryCode: match.awayTeam.countryCode,
+        },
+      },
       missingParticipants,
-      reminderText: `Не сделали прогноз на матч ${match.homeTeam.name} — ${match.awayTeam.name}: ${missingParticipants.map((p) => p.displayName).join(", ") || "все сделали"}`,
+      reminderText,
+      inviteCode: game.inviteCode,
     };
   });
 }

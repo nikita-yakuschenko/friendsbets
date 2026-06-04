@@ -9,7 +9,11 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { gamePath } from "@/lib/game-access";
+import {
+  canManageGame,
+  gamePath,
+  resolveGameIdFromRoute,
+} from "@/lib/game-access";
 import { isPlatformViewQuery } from "@/lib/game-platform-view";
 import { parseGameOversightTab } from "@/lib/game-oversight-tabs";
 import { getSession } from "@/lib/auth";
@@ -57,9 +61,11 @@ export default async function GamePage({
     );
   }
 
-  const [overview, liveNow] = await Promise.all([
+  const gameId = await resolveGameIdFromRoute(routeParam);
+  const [overview, liveNow, canManage] = await Promise.all([
     getGameOverview(routeParam, session.id),
     getLiveMatches(routeParam),
+    gameId ? canManageGame(session, gameId) : Promise.resolve(false),
   ]);
   if (!overview) return notFound();
 
@@ -165,7 +171,9 @@ export default async function GamePage({
                 : "Все ближайшие прогнозы сделаны"}
             </Badge>
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div
+            className={`grid grid-cols-1 gap-2 sm:grid-cols-2 ${canManage ? "lg:grid-cols-4" : "sm:grid-cols-3"}`}
+          >
             <Link href={gamePath(game.inviteCode, "predictions")}>
               <Button className="w-full">Сделать прогноз</Button>
             </Link>
@@ -179,6 +187,13 @@ export default async function GamePage({
                 Лайв
               </Button>
             </Link>
+            {canManage ? (
+              <Link href={gamePath(game.inviteCode, "control")}>
+                <Button variant="secondary" className="w-full">
+                  Кто не поставил
+                </Button>
+              </Link>
+            ) : null}
           </div>
         </CardContent>
       </Card>

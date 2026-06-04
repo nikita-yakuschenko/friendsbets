@@ -1,6 +1,7 @@
 "use client";
 
 import { CopyReminderButton } from "@/components/admin/copy-reminder-button";
+import { SendMissingReminderButton } from "@/components/admin/send-missing-reminder-button";
 import {
   AdminCardDetails,
   AdminCardFooter,
@@ -12,17 +13,21 @@ import { Badge } from "@/components/ui/badge";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
 
 type MissingCardProps = {
+  routeParam: string;
+  inviteCode: string;
   match: {
     id: string;
     startsAt: Date;
-    homeTeam: { name: string };
-    awayTeam: { name: string };
+    homeTeam: { name: string; countryCode: string | null };
+    awayTeam: { name: string; countryCode: string | null };
   };
-  missingParticipants: Array<{ displayName: string }>;
+  missingParticipants: Array<{ userId: string; displayName: string }>;
   reminderText: string;
 };
 
 export function MissingPredictionCard({
+  routeParam,
+  inviteCode,
   match,
   missingParticipants,
   reminderText,
@@ -53,7 +58,7 @@ export function MissingPredictionCard({
             <ul className="flex flex-wrap gap-1.5">
               {missingParticipants.map((participant) => (
                 <li
-                  key={participant.displayName}
+                  key={participant.userId}
                   className="rounded-md border border-brand-neutral/80 bg-brand-surface px-2 py-0.5 text-white"
                 >
                   {participant.displayName}
@@ -65,7 +70,12 @@ export function MissingPredictionCard({
       </AdminCardDetails>
 
       {missingParticipants.length > 0 ? (
-        <AdminCardFooter>
+        <AdminCardFooter stack>
+          <SendMissingReminderButton
+            routeParam={routeParam}
+            inviteCode={inviteCode}
+            matchId={match.id}
+          />
           <CopyReminderButton text={reminderText} />
         </AdminCardFooter>
       ) : null}

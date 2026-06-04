@@ -109,6 +109,8 @@ export default async function AdminMissingPage({
             {items.map((item) => (
               <MissingPredictionCard
                 key={item.match.id}
+                routeParam={selectedGame.inviteCode}
+                inviteCode={item.inviteCode}
                 match={item.match}
                 missingParticipants={item.missingParticipants}
                 reminderText={item.reminderText}

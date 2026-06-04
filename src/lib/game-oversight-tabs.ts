@@ -1,3 +1,4 @@
+import { gamePath } from "@/lib/game-path";
 import { gamePlatformViewPath } from "@/lib/game-platform-view";
 
 export type GameOversightTabId =
@@ -22,14 +23,22 @@ export function parseGameOversightTab(
 export function gameOversightTabHref(
   inviteCode: string,
   tab: GameOversightTabId,
+  platformTabLinks = true,
 ): string {
+  const path = (segment?: string) =>
+    platformTabLinks
+      ? gamePlatformViewPath(inviteCode, segment)
+      : segment
+        ? gamePath(inviteCode, segment)
+        : gamePath(inviteCode);
+
   if (tab === "leaderboard") {
-    return gamePlatformViewPath(inviteCode, "leaderboard");
+    return path("leaderboard");
   }
   if (tab === "missing") {
-    return gamePlatformViewPath(inviteCode, "control");
+    return path("control");
   }
-  const base = gamePlatformViewPath(inviteCode);
+  const base = path();
   if (tab === "general") return base;
-  return `${base}&tab=participants`;
+  return platformTabLinks ? `${base}&tab=participants` : `${base}?tab=participants`;
 }

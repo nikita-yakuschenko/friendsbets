@@ -5,16 +5,25 @@ import type { GameOversightTabId } from "@/lib/game-oversight-tabs";
 export function GameOversightShell({
   inviteCode,
   activeTab,
+  platformTabLinks = true,
+  bannerVariant = "platform",
   children,
 }: {
   inviteCode: string;
   activeTab: GameOversightTabId;
+  /** false — организатор турнира (обычные URL без ?as=platform). */
+  platformTabLinks?: boolean;
+  bannerVariant?: "platform" | "organizer";
   children: React.ReactNode;
 }) {
   return (
     <>
-      <GameOversightBanner />
-      <GameOversightTabNav inviteCode={inviteCode} activeTab={activeTab} />
+      <GameOversightBanner variant={bannerVariant} />
+      <GameOversightTabNav
+        inviteCode={inviteCode}
+        activeTab={activeTab}
+        platformTabLinks={platformTabLinks}
+      />
       <div className="min-w-0">{children}</div>
     </>
   );

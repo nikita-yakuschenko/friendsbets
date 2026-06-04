@@ -209,6 +209,27 @@ export async function canManageGame(
   return isGameOrganizer(user.id, gameId);
 }
 
+/** Суперадмин (надзор) или организатор турнира — управление и рассылки. */
+export async function requireTournamentManagementByRoute(
+  routeParam: string,
+  platformView = false,
+) {
+  const view = await requireGameViewByRoute(routeParam, platformView);
+  if (!view) return null;
+
+  if (!(await canManageGame(view.session, view.gameId))) {
+    return null;
+  }
+
+  return {
+    ...view,
+    isPlatformOversight: view.access.isPlatformOversight,
+    /** Ссылки вкладок: ?as=platform только для режима надзора платформы. */
+    usePlatformTabLinks:
+      platformView || view.access.isPlatformOversight,
+  };
+}
+
 export async function requireGameOrganizerOrPlatformAdmin(gameId: string) {
   const session = await requireAuth();
   if (await canManageGame(session, gameId)) return session;
