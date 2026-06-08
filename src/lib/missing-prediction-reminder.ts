@@ -1,4 +1,5 @@
 import { UserNotificationKind } from "@/generated/prisma/client";
+import { createUserNotification } from "@/lib/create-user-notification";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import {
@@ -42,14 +43,12 @@ async function createInAppNotification(
   userId: string,
   payload: ReminderPayload,
 ): Promise<void> {
-  await prisma.userNotification.create({
-    data: {
-      userId,
-      kind: UserNotificationKind.MISSING_PREDICTION,
-      title: payload.title,
-      body: payload.inAppBody,
-      actionInviteCode: payload.inviteCode,
-    },
+  await createUserNotification({
+    userId,
+    kind: UserNotificationKind.MISSING_PREDICTION,
+    title: payload.title,
+    body: payload.inAppBody,
+    actionInviteCode: payload.inviteCode,
   });
 }
 

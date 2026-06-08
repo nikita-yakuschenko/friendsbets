@@ -1,0 +1,1 @@
+ALTER TYPE "PredictionReminderKind" ADD VALUE IF NOT EXISTS 'H18_NIGHT';

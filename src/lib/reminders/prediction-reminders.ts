@@ -23,6 +23,7 @@ import { gamePath } from "@/lib/game-path";
 import { logOperation, logOperationError, maskEmail } from "@/lib/logger";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
+import { sendNightBatchPredictionReminders } from "@/lib/reminders/night-match-reminders";
 import { formatDateTime } from "@/lib/utils";
 
 /** Окно отправки относительно целевого времени (cron каждые ~5–10 мин). */
@@ -517,12 +518,19 @@ export async function sendDuePredictionReminders(
     });
   }
 
+  const nightResult = await sendNightBatchPredictionReminders(now);
+  result.checked += nightResult.checked;
+  result.sent += nightResult.sent;
+  result.skipped += nightResult.skipped;
+  result.errors += nightResult.errors;
+
   logOperation("reminders:run", {
     durationMs: Date.now() - started,
     checked: result.checked,
     sent: result.sent,
     skipped: result.skipped,
     errors: result.errors,
+    nightSent: nightResult.sent,
   });
 
   return result;

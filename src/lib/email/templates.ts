@@ -5,6 +5,7 @@ import {
   renderMatchCard,
   renderNameList,
 } from "@/lib/email/layout";
+import { NOTIFICATION_SIGNOFF } from "@/lib/notification-signoff";
 import { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
 
 export type EmailContent = { text: string; html: string };
@@ -21,7 +22,7 @@ export function buildEmailVerificationContent(params: {
     "",
     "Ссылка действует 24 часа.",
     "",
-    "— FriendsBets",
+    NOTIFICATION_SIGNOFF,
   ].join("\n");
 
   const html = renderEmailLayout({
@@ -50,7 +51,7 @@ export function buildPasswordResetContent(params: {
     "",
     "Ссылка действует 1 час. Если вы не запрашивали сброс, проигнорируйте письмо.",
     "",
-    "— FriendsBets",
+    NOTIFICATION_SIGNOFF,
   ].join("\n");
 
   const html = renderEmailLayout({
@@ -77,7 +78,7 @@ export function buildTestEmailContent(userName: string): EmailContent {
     "",
     "Напоминания о прогнозах приходят с того же отправителя.",
     "",
-    "— FriendsBets",
+    NOTIFICATION_SIGNOFF,
   ].join("\n");
 
   const html = renderEmailLayout({
@@ -114,7 +115,7 @@ export function buildPredictionReminderEmail(params: {
     "",
     `${PREDICTION_CTA_LABEL}: ${params.link}`,
     "",
-    "— FriendsBets",
+    NOTIFICATION_SIGNOFF,
   ].join("\n");
 
   const html = renderEmailLayout({
@@ -162,7 +163,7 @@ export function buildAdminMissingPredictionsEmail(params: {
     "",
     params.link,
     "",
-    "— FriendsBets",
+    NOTIFICATION_SIGNOFF,
   ].join("\n");
 
   const html = renderEmailLayout({

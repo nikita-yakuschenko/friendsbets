@@ -1,5 +1,6 @@
 import { absoluteAppUrl } from "@/lib/app-origin";
 import { escapeHtml } from "@/lib/email/escape";
+import { NOTIFICATION_SIGNOFF } from "@/lib/notification-signoff";
 
 /** Шрифт Inter + системные запасные (для клиентов без веб-шрифтов). */
 export const EMAIL_FONT =
@@ -86,7 +87,8 @@ function emailFooter(footnote?: string): string {
 <tr>
   <td align="left" style="padding:24px 40px 36px;border-top:1px solid ${EMAIL_BRAND.divider};${cellFont()}font-size:13px;line-height:1.55;color:${EMAIL_BRAND.muted};">
     ${note}
-    <p style="margin:16px 0 0;font-size:12px;color:${EMAIL_BRAND.muted};">© FriendsBets</p>
+    <p style="margin:16px 0 0;font-size:13px;color:${EMAIL_BRAND.muted};">${escapeHtml(NOTIFICATION_SIGNOFF)}</p>
+    <p style="margin:8px 0 0;font-size:12px;color:${EMAIL_BRAND.muted};">© FriendsBets</p>
   </td>
 </tr>`;
 }

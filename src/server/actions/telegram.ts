@@ -3,6 +3,8 @@
 import { UserNotificationKind } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
+import { createUserNotification } from "@/lib/create-user-notification";
+import { withNotificationSignoff } from "@/lib/notification-signoff";
 import { prisma } from "@/lib/db";
 import { sendTelegramMessage } from "@/lib/telegram/api";
 import { appendTelegramChannelFooter } from "@/lib/telegram/format";
@@ -124,18 +126,18 @@ export async function sendAdminTelegramMessageAction(
   }
 
   try {
+    const signedMessage = withNotificationSignoff(message);
+
     await sendTelegramMessage(
       user.telegramChatId,
-      appendTelegramChannelFooter(message),
+      appendTelegramChannelFooter(signedMessage),
     );
 
-    await prisma.userNotification.create({
-      data: {
-        userId,
-        kind: UserNotificationKind.PLATFORM_BROADCAST,
-        title: "Сообщение от FriendsBets",
-        body: message,
-      },
+    await createUserNotification({
+      userId,
+      kind: UserNotificationKind.PLATFORM_BROADCAST,
+      title: "Сообщение от FriendsBets",
+      body: signedMessage,
     });
 
     revalidatePath("/admin");

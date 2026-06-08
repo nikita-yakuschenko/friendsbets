@@ -5,6 +5,7 @@ import {
   predictionsLinkFromEnv,
 } from "@/lib/prediction-reminder-content";
 import { escapeHtml } from "@/lib/email/escape";
+import { NOTIFICATION_SIGNOFF } from "@/lib/notification-signoff";
 
 /** Нет прогноза до старта матча (HTML, ссылка-кнопка). */
 export function buildMissingPredictionTelegramText(params: {
@@ -30,7 +31,8 @@ export function buildMatchStartedTelegramText(params: {
   return (
     `▶️ Матч начался: ${escapeHtml(params.homeTeam)} — ${escapeHtml(params.awayTeam)}\n` +
     `Турнир «${escapeHtml(params.gameTitle)}».\n` +
-    `<a href="${link.replace(/"/g, "%22")}">${escapeHtml(PREDICTION_CTA_LABEL)}</a>`
+    `<a href="${link.replace(/"/g, "%22")}">${escapeHtml(PREDICTION_CTA_LABEL)}</a>\n\n` +
+    NOTIFICATION_SIGNOFF
   );
 }
 

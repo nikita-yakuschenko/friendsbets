@@ -3,6 +3,7 @@ import { championatLivePhaseToMatchStatus } from "@/lib/football-api/championat/
 import type { ChampionatMatchLiveSnapshot } from "@/lib/football-api/championat/match-live-snapshot";
 import { championatFinishedTrackingPatch } from "@/lib/football-api/championat/championat-tracking";
 import { prisma } from "@/lib/db";
+import { notifyMatchResultParticipants } from "@/lib/match-result-notifications";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
 import { deriveWinnerTeamId } from "@/lib/utils";
 
@@ -146,6 +147,17 @@ export async function applyChampionatSnapshotToMatch(
     } catch (err) {
       console.warn(
         `[championat] score recalc failed match=${match.id}`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
+  if (becameFinished) {
+    try {
+      await notifyMatchResultParticipants(match.tournamentId, match.id);
+    } catch (err) {
+      console.warn(
+        `[championat] match result notify failed match=${match.id}`,
         err instanceof Error ? err.message : err,
       );
     }

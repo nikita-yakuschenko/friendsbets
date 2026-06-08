@@ -24,6 +24,7 @@ import { championatFinishedTrackingPatch } from "@/lib/football-api/championat/c
 import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
 import { MATCH_LIVE_TRACKING_MAX_MS } from "@/lib/match-prediction-state";
 import { logOperation } from "@/lib/logger";
+import { handleMatchFinished } from "@/lib/match-result-notifications";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import { CHAMPIONAT_WORLD_CUP_2026 } from "@/lib/football-api/championat/constants";
@@ -186,12 +187,25 @@ async function upsertExternalMatch(
 
   if (unchanged) return "unchanged";
 
+  const becameFinished =
+    data.status === MatchStatus.FINISHED &&
+    existing.status !== MatchStatus.FINISHED;
+
   await prisma.match.update({
     where: { id: existing.id },
     data,
   });
 
-  if (data.status === MatchStatus.FINISHED) {
+  if (becameFinished) {
+    try {
+      await handleMatchFinished(tournamentId, existing.id);
+    } catch (err) {
+      console.warn(
+        `[championat-sync] match finished handling failed match=${existing.id}`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  } else if (data.status === MatchStatus.FINISHED) {
     try {
       await recalculateMatchScoresForTournament(tournamentId, existing.id);
     } catch (err) {

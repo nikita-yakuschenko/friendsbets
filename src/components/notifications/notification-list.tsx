@@ -23,6 +23,8 @@ import {
   markAllNotificationsReadAction,
   markNotificationReadAction,
 } from "@/server/actions/notifications";
+import { NotificationSignoff } from "@/components/notifications/notification-signoff";
+import { bodyHasNotificationSignoff } from "@/lib/notification-signoff";
 import { cn } from "@/lib/utils";
 
 type InboxTab = "new" | "read";
@@ -180,6 +182,7 @@ function JoinRequestReceivedBody({
             : "Заявка отклонена"}
         </p>
       )}
+      <NotificationSignoff />
     </>
   );
 }
@@ -220,9 +223,15 @@ function NotificationRow({
     );
   }
 
-  if (item.kind === USER_NOTIFICATION_KIND.MISSING_PREDICTION) {
+  if (
+    item.kind === USER_NOTIFICATION_KIND.MISSING_PREDICTION ||
+    item.kind === USER_NOTIFICATION_KIND.MATCH_RESULT
+  ) {
     const predictionsHref = item.actionInviteCode
       ? gamePath(item.actionInviteCode, "predictions")
+      : null;
+    const leaderboardHref = item.actionInviteCode
+      ? gamePath(item.actionInviteCode, "leaderboard")
       : null;
 
     return (
@@ -234,14 +243,25 @@ function NotificationRow({
         onToggle={onToggle}
       >
         <p className="whitespace-pre-wrap text-brand-muted">{item.body}</p>
-        {predictionsHref ? (
-          <Link
-            href={predictionsHref}
-            className={cn(buttonVariants({ size: "sm" }), "mt-1 w-fit")}
-          >
-            {PREDICTION_CTA_LABEL}
-          </Link>
-        ) : null}
+        {!bodyHasNotificationSignoff(item.body) ? <NotificationSignoff /> : null}
+        <div className="mt-1 flex flex-wrap gap-2">
+          {leaderboardHref && item.kind === USER_NOTIFICATION_KIND.MATCH_RESULT ? (
+            <Link
+              href={leaderboardHref}
+              className={cn(buttonVariants({ size: "sm", variant: "outline" }), "w-fit")}
+            >
+              Таблица
+            </Link>
+          ) : null}
+          {predictionsHref ? (
+            <Link
+              href={predictionsHref}
+              className={cn(buttonVariants({ size: "sm" }), "w-fit")}
+            >
+              {PREDICTION_CTA_LABEL}
+            </Link>
+          ) : null}
+        </div>
       </NotificationShell>
     );
   }
@@ -257,6 +277,7 @@ function NotificationRow({
       >
         <p className="font-medium">{item.title ?? "FriendsBets"}</p>
         <p className="whitespace-pre-wrap text-brand-muted">{item.body}</p>
+        {!bodyHasNotificationSignoff(item.body) ? <NotificationSignoff /> : null}
       </NotificationShell>
     );
   }
@@ -283,6 +304,7 @@ function NotificationRow({
             Открыть турнир
           </Link>
         </p>
+        <NotificationSignoff />
       </NotificationShell>
     );
   }
@@ -300,6 +322,7 @@ function NotificationRow({
           Организатор отклонил вашу заявку на вступление в турнир «
           {joinRequest.game.title}».
         </p>
+        <NotificationSignoff />
       </NotificationShell>
     );
   }

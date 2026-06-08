@@ -19,6 +19,7 @@ vi.mock("@/lib/db", () => ({
       findMany: vi.fn(),
       create: vi.fn(),
     },
+    userNotification: { create: vi.fn() },
   },
 }));
 
@@ -108,6 +109,7 @@ describe("sendDuePredictionReminders", () => {
     vi.mocked(prisma.prediction.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.predictionReminder.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.predictionReminder.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.userNotification.create).mockResolvedValue({} as never);
   });
 
   it("отправляет напоминание участнику без прогноза", async () => {

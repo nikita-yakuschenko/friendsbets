@@ -15,6 +15,7 @@ import {
   userNeedsEmailVerification,
 } from "@/lib/email-verification";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { notifyOpeningMatchOnTournamentJoin } from "@/lib/tournament-opening-reminder";
 
 export type ActionResult = {
   error?: string;
@@ -167,6 +168,10 @@ export async function registerAction(
     await sendEmailVerificationMessage(user);
   } catch (err) {
     console.error("[auth:register] verification email failed", err);
+  }
+
+  if (game) {
+    await notifyOpeningMatchOnTournamentJoin(user.id, game.id);
   }
 
   await setSession(user.id);

@@ -29,6 +29,8 @@ export function formatNotificationMessage(input: {
       return broadcastTitle?.trim() || "Сообщение от FriendsBets";
     case USER_NOTIFICATION_KIND.MISSING_PREDICTION:
       return broadcastTitle?.trim() || "Напоминание: сделайте прогноз";
+    case USER_NOTIFICATION_KIND.MATCH_RESULT:
+      return broadcastTitle?.trim() || "Результат матча";
     default:
       return "Новое уведомление";
   }

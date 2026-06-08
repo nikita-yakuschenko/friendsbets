@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { sendTelegramMessage } from "@/lib/telegram/api";
 import { isTelegramConfigured } from "@/lib/telegram/config";
+import { withNotificationSignoff } from "@/lib/notification-signoff";
 import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 
 function logTelegramError(context: string, error: unknown) {
@@ -21,7 +22,7 @@ export function pushTelegramToUser(userId: string, text: string): void {
 
       await sendTelegramMessage(
         user.telegramChatId,
-        appendTelegramChannelFooter(text),
+        appendTelegramChannelFooter(withNotificationSignoff(text)),
       );
     } catch (error) {
       logTelegramError(`push:${userId}`, error);
@@ -45,7 +46,9 @@ export function pushTelegramBroadcast(title: string, body: string): void {
         select: { telegramChatId: true },
       });
 
-      const message = appendTelegramChannelFooter(`${title}\n\n${body}`);
+      const message = appendTelegramChannelFooter(
+        withNotificationSignoff(`${title}\n\n${body}`),
+      );
 
       for (const user of users) {
         if (!user.telegramChatId) continue;

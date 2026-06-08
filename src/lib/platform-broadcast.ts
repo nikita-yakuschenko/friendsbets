@@ -1,6 +1,11 @@
 import { GameParticipantRole, UserNotificationKind } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import {
+  mapUserNotificationsWithSignoff,
+  createUserNotification,
+} from "@/lib/create-user-notification";
+import { withNotificationSignoff } from "@/lib/notification-signoff";
 import { postTelegramChannelNews } from "@/lib/telegram/channel";
 import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 import { sendTelegramMessage } from "@/lib/telegram/api";
@@ -54,7 +59,7 @@ export async function sendPlatformNotificationBroadcast(params: {
   channels: BroadcastChannels;
 }): Promise<PlatformBroadcastResult> {
   const trimmedTitle = params.title.trim();
-  const trimmedBody = params.body.trim();
+  const trimmedBody = withNotificationSignoff(params.body.trim());
   if (!trimmedTitle || !trimmedBody) {
     throw new Error("TITLE_AND_BODY_REQUIRED");
   }
@@ -126,12 +131,14 @@ export async function sendPlatformNotificationBroadcast(params: {
   let inApp = 0;
   if (inAppUserIds.length > 0) {
     const result = await prisma.userNotification.createMany({
-      data: inAppUserIds.map((userId) => ({
-        userId,
-        kind: UserNotificationKind.PLATFORM_BROADCAST,
-        title: trimmedTitle,
-        body: trimmedBody,
-      })),
+      data: mapUserNotificationsWithSignoff(
+        inAppUserIds.map((userId) => ({
+          userId,
+          kind: UserNotificationKind.PLATFORM_BROADCAST,
+          title: trimmedTitle,
+          body: trimmedBody,
+        })),
+      ),
     });
     inApp = result.count;
   }
@@ -149,13 +156,11 @@ export async function sendPlatformNotificationBroadcast(params: {
       } catch (error) {
         console.error(`[broadcast:telegram:${user.id}]`, error);
         if (!params.channels.inApp) {
-          await prisma.userNotification.create({
-            data: {
-              userId: user.id,
-              kind: UserNotificationKind.PLATFORM_BROADCAST,
-              title: trimmedTitle,
-              body: trimmedBody,
-            },
+          await createUserNotification({
+            userId: user.id,
+            kind: UserNotificationKind.PLATFORM_BROADCAST,
+            title: trimmedTitle,
+            body: trimmedBody,
           });
           inApp++;
           telegramFallbackInApp++;

@@ -82,7 +82,8 @@ export async function getUnreadNotificationSnapshot(
         broadcastTitle: row.title,
       }),
       href:
-        row.kind === UserNotificationKind.MISSING_PREDICTION &&
+        (row.kind === UserNotificationKind.MISSING_PREDICTION ||
+          row.kind === UserNotificationKind.MATCH_RESULT) &&
         row.actionInviteCode
           ? gamePath(row.actionInviteCode, "predictions")
           : row.kind === UserNotificationKind.PLATFORM_BROADCAST

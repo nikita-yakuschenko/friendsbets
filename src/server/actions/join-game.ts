@@ -19,6 +19,7 @@ import {
   validateInviteCodeFormat,
 } from "@/lib/invite-code";
 import { prisma } from "@/lib/db";
+import { notifyOpeningMatchOnTournamentJoin } from "@/lib/tournament-opening-reminder";
 import type { ActionResult } from "@/server/actions/auth";
 
 export type LookupGameResult = ActionResult & {
@@ -92,6 +93,8 @@ export async function confirmJoinGameAction(
       role: GameParticipantRole.PARTICIPANT,
     },
   });
+
+  await notifyOpeningMatchOnTournamentJoin(session.id, game.id);
 
   await setActiveGameInviteCookie(game.inviteCode);
   await revalidateGamePaths(game.id);

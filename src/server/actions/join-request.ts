@@ -25,6 +25,7 @@ import {
   validateInviteCodeFormat,
 } from "@/lib/invite-code";
 import { prisma } from "@/lib/db";
+import { notifyOpeningMatchOnTournamentJoin } from "@/lib/tournament-opening-reminder";
 import type { ActionResult } from "@/server/actions/auth";
 
 export async function requestJoinGameAction(
@@ -173,6 +174,10 @@ export async function respondToJoinRequestAction(
     ]);
 
     await notifyJoinRequestApproved(joinRequest.userId, joinRequestId);
+    await notifyOpeningMatchOnTournamentJoin(
+      joinRequest.userId,
+      joinRequest.gameId,
+    );
     await markJoinRequestOrganizerNotificationsRead(joinRequestId);
     await revalidateGamePaths(joinRequest.gameId);
   } else {

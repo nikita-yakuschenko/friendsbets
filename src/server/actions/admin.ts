@@ -16,6 +16,7 @@ import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { buildMissingPredictionReminderText } from "@/lib/missing-prediction-reminder";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import type { ActionResult } from "@/server/actions/auth";
+import { handleMatchFinished } from "@/lib/match-result-notifications";
 import {
   listAdminPlatformMatches,
   listTemplateTournamentIdsForRecalc,
@@ -79,7 +80,7 @@ export async function updateMatchResultAction(
     },
   });
 
-  await recalculateMatchScoresForTournament(match.tournamentId, matchId);
+  await handleMatchFinished(match.tournamentId, matchId);
 
   const gameIds = await prisma.game.findMany({
     where: { tournamentId: match.tournamentId },
