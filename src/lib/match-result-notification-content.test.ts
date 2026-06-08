@@ -49,7 +49,9 @@ describe("match result notification content", () => {
       ...base,
       origin: "https://friendsbets.ru",
     });
-    expect(html).toContain("Матч завершён");
+    expect(html).toContain("Матч завершён:");
+    expect(html).toContain("Начислено");
+    expect(html).toContain("Ты на");
     expect(html).toContain('href="https://friendsbets.ru/game/TEST01/predictions"');
   });
 });

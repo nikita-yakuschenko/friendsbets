@@ -10,6 +10,11 @@ import { gamePath } from "@/lib/game-path";
 import { NOTIFICATION_SIGNOFF } from "@/lib/notification-signoff";
 import { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
 import { formatPredictionMatchLine } from "@/lib/prediction-reminder-content";
+import {
+  buildTelegramNotificationHtml,
+  formatPointsAccruedLabel,
+  formatRankLine,
+} from "@/lib/telegram/notification-layout";
 import { formatDateTimeMoscow, formatRelativeTime } from "@/lib/utils";
 
 export type MatchResultNotificationInput = {
@@ -51,11 +56,6 @@ function predictionsUrl(inviteCode: string, origin?: string): string {
 
 function leaderboardUrl(inviteCode: string, origin?: string): string {
   return absoluteAppUrl(gamePath(inviteCode, "leaderboard"), origin);
-}
-
-function telegramHtmlLink(href: string, label: string): string {
-  const safeHref = href.replace(/"/g, "%22");
-  return `<a href="${safeHref}">${escapeHtml(label)}</a>`;
 }
 
 function buildResultLines(params: MatchResultNotificationInput): string[] {
@@ -112,66 +112,32 @@ export function buildMatchResultInAppBody(
 export function buildMatchResultTelegramHtml(
   params: MatchResultNotificationInput,
 ): string {
-  const link = predictionsUrl(params.inviteCode, params.origin);
-  const matchLine = formatPredictionMatchLine(
-    params.homeTeam,
-    params.awayTeam,
-  );
+  const nextMatch = params.nextMatch
+    ? {
+        headerLine: `Следующий матч: ${formatPredictionMatchLine(
+          params.nextMatch.homeTeam,
+          params.nextMatch.awayTeam,
+        )}`,
+        startsAt: params.nextMatch.startsAt,
+      }
+    : undefined;
 
-  const blocks = [
-    `<b>${escapeHtml(`Матч завершён: ${matchLine}`)}</b>`,
-    escapeHtml(`Счёт: ${params.homeScore}:${params.awayScore}`),
-  ];
-
-  if (params.predictedHome != null && params.predictedAway != null) {
-    blocks.push(
-      escapeHtml(
-        `Ваш прогноз: ${params.predictedHome}:${params.predictedAway}`,
-      ),
-      escapeHtml(
-        `Заработано: ${formatPointsLabel(params.matchPoints)} (${params.matchPointsReason})`,
-      ),
-    );
-  } else {
-    blocks.push(escapeHtml("Вы не сделали прогноз на этот матч"));
-  }
-
-  blocks.push(
-    "",
-    escapeHtml(
-      `Вы на ${params.rank} месте из ${params.participantsCount} (всего ${formatPointsLabel(params.totalPoints)})`,
-    ),
-  );
-
-  if (params.nextMatch) {
-    const nextLine = formatPredictionMatchLine(
-      params.nextMatch.homeTeam,
-      params.nextMatch.awayTeam,
-    );
-    blocks.push(
-      "",
-      escapeHtml("Следующий матч:"),
-      escapeHtml(nextLine),
-      escapeHtml(
-        `начнётся ${formatDateTimeMoscow(params.nextMatch.startsAt)}`,
-      ),
-      escapeHtml(
-        `до начала ${formatRelativeTime(params.nextMatch.startsAt)}`,
-      ),
-    );
-    if (!params.nextMatch.hasPrediction) {
-      blocks.push(escapeHtml("Не забудьте сделать прогноз!"));
-    }
-  }
-
-  blocks.push(
-    "",
-    telegramHtmlLink(link, PREDICTION_CTA_LABEL),
-    "",
-    NOTIFICATION_SIGNOFF,
-  );
-
-  return blocks.join("\n");
+  return buildTelegramNotificationHtml({
+    eventLine: "Матч завершён:",
+    eventBold: true,
+    teams: {
+      homeTeam: params.homeTeam,
+      awayTeam: params.awayTeam,
+    },
+    detailLine: `Счёт: ${params.homeScore}:${params.awayScore}`,
+    stats: {
+      pointsLine: formatPointsAccruedLabel(params.matchPoints),
+      rankLine: formatRankLine(params.rank, params.totalPoints),
+    },
+    schedule: nextMatch,
+    inviteCode: params.inviteCode,
+    origin: params.origin,
+  });
 }
 
 export function buildMatchResultEmailContent(

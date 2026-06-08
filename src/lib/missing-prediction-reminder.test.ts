@@ -41,14 +41,15 @@ describe("prediction reminder content", () => {
       origin: "https://friendsbets.ru",
     });
 
-    expect(html).toContain("<b>Ты не сделал прогноз на матч</b>");
+    expect(html).toContain("Ты не сделал прогноз на матч");
     expect(html).toContain("Мексика");
     expect(html).toContain("ЮАР");
     expect(html).toContain("МСК");
     expect(html).toContain(`<a href="https://friendsbets.ru/game/TEST01/predictions">`);
     expect(html).toContain(PREDICTION_CTA_LABEL);
     expect(html).toContain("FriendsBets 💚");
-    expect(html).not.toContain("https://friendsbets.ru/game/TEST01/predictions</a>");
-    expect(html.split("\n")[4]).toBe("");
+    expect(html).toContain("начнётся");
+    expect(html).toContain("до начала");
+    expect(html).toContain('href="https://friendsbets.ru/game/TEST01/predictions"');
   });
 });

@@ -35,6 +35,8 @@ describe("night batch reminder content", () => {
       origin: "https://friendsbets.ru",
     });
     expect(html).toContain("Ты не сделал прогноз на предстоящие матчи");
+    expect(html).toContain("начнётся");
+    expect(html).toContain("до начала");
     expect(html).toContain('href="https://friendsbets.ru/game/ABC123/predictions"');
   });
 });

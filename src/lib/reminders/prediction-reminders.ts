@@ -95,8 +95,8 @@ type GameWithParticipants = {
 type ReminderMatchRow = {
   id: string;
   startsAt: Date;
-  homeTeam: { name: string };
-  awayTeam: { name: string };
+  homeTeam: { name: string; countryCode: string | null };
+  awayTeam: { name: string; countryCode: string | null };
   tournament: { games: GameWithParticipants[] };
 };
 
@@ -237,7 +237,13 @@ async function processReminderBatch(params: {
       gameId: { in: [...gameIds] },
       matchId: { in: [...matchIds] },
     },
-    select: { gameId: true, matchId: true, userId: true },
+    select: {
+      gameId: true,
+      matchId: true,
+      userId: true,
+      homeScore: true,
+      awayScore: true,
+    },
   });
 
   const predictedKeys = new Set(
@@ -326,18 +332,23 @@ async function processReminderBatch(params: {
 
         try {
           if (participant.user.telegramChatId) {
+            const prediction = predictions.find(
+              (p) =>
+                p.gameId === game.id &&
+                p.matchId === match.id &&
+                p.userId === participant.userId,
+            );
             const tgText = matchStarted
               ? buildMatchStartedTelegramText({
-                  homeTeam: match.homeTeam.name,
-                  awayTeam: match.awayTeam.name,
-                  gameTitle: game.title,
+                  homeTeam: match.homeTeam,
+                  awayTeam: match.awayTeam,
                   inviteCode: game.inviteCode,
+                  predictedHome: prediction?.homeScore ?? null,
+                  predictedAway: prediction?.awayScore ?? null,
                 })
               : buildMissingPredictionTelegramText({
-                  displayName: participant.displayName,
-                  homeTeam: match.homeTeam.name,
-                  awayTeam: match.awayTeam.name,
-                  gameTitle: game.title,
+                  homeTeam: match.homeTeam,
+                  awayTeam: match.awayTeam,
                   startsAt: match.startsAt,
                   timeLabel: label,
                   inviteCode: game.inviteCode,

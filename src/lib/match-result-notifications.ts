@@ -86,11 +86,12 @@ export async function notifyMatchResultParticipants(
   if (games.length === 0) return result;
 
   const gameIds = games.map((game) => game.id);
+  const now = new Date();
   const upcomingMatches = await prisma.match.findMany({
     where: {
       tournamentId,
       status: MatchStatus.SCHEDULED,
-      startsAt: { gt: match.startsAt },
+      startsAt: { gt: now },
     },
     include: {
       homeTeam: { select: { name: true, countryCode: true, externalId: true } },

@@ -1,18 +1,12 @@
-import { formatDateTime } from "@/lib/utils";
-import { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
 import {
   buildMissingPredictionTelegramHtml,
-  predictionsLinkFromEnv,
 } from "@/lib/prediction-reminder-content";
-import { escapeHtml } from "@/lib/email/escape";
-import { NOTIFICATION_SIGNOFF } from "@/lib/notification-signoff";
+import { buildTelegramNotificationHtml } from "@/lib/telegram/notification-layout";
 
 /** Нет прогноза до старта матча (HTML, ссылка-кнопка). */
 export function buildMissingPredictionTelegramText(params: {
-  displayName: string;
-  homeTeam: string;
-  awayTeam: string;
-  gameTitle: string;
+  homeTeam: { name: string; countryCode: string | null };
+  awayTeam: { name: string; countryCode: string | null };
   startsAt: Date;
   timeLabel: string;
   inviteCode: string;
@@ -20,20 +14,29 @@ export function buildMissingPredictionTelegramText(params: {
   return buildMissingPredictionTelegramHtml(params);
 }
 
-/** Старт матча — всем участникам (пока с явной ссылкой). */
+/** Старт матча — всем участникам с прогнозом. */
 export function buildMatchStartedTelegramText(params: {
-  homeTeam: string;
-  awayTeam: string;
-  gameTitle: string;
+  homeTeam: { name: string; countryCode: string | null };
+  awayTeam: { name: string; countryCode: string | null };
   inviteCode: string;
+  predictedHome?: number | null;
+  predictedAway?: number | null;
 }): string {
-  const link = predictionsLinkFromEnv(params.inviteCode);
-  return (
-    `▶️ Матч начался: ${escapeHtml(params.homeTeam)} — ${escapeHtml(params.awayTeam)}\n` +
-    `Турнир «${escapeHtml(params.gameTitle)}».\n` +
-    `<a href="${link.replace(/"/g, "%22")}">${escapeHtml(PREDICTION_CTA_LABEL)}</a>\n\n` +
-    NOTIFICATION_SIGNOFF
-  );
+  const detailLine =
+    params.predictedHome != null && params.predictedAway != null
+      ? `Прогноз: ${params.predictedHome}:${params.predictedAway}`
+      : "Прогноз не сделан";
+
+  return buildTelegramNotificationHtml({
+    eventLine: "Матч начался:",
+    eventBold: true,
+    teams: {
+      homeTeam: params.homeTeam,
+      awayTeam: params.awayTeam,
+    },
+    detailLine,
+    inviteCode: params.inviteCode,
+  });
 }
 
 /** Пост в канал о предстоящем матче. */
