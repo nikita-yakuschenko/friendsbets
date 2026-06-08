@@ -58,10 +58,10 @@ export async function notifyOpeningMatchOnTournamentJoin(
 
     const existingPrediction = await prisma.prediction.findUnique({
       where: {
-        gameId_userId_matchId: {
+        gameId_matchId_userId: {
           gameId: game.id,
-          userId,
           matchId: match.id,
+          userId,
         },
       },
       select: { id: true },
