@@ -20,7 +20,12 @@ export type GameOversightHomeData = {
   participants: Array<{
     displayName: string;
     role: GameParticipantRoleValue;
-    user: { id: string; email: string };
+    user: {
+      id: string;
+      email: string;
+      avatarUrl: string | null;
+      updatedAt: Date;
+    };
     joinedAt: Date;
   }>;
 };
@@ -125,6 +130,8 @@ function GameOversightParticipantsPanel({
         userId: p.user.id,
         displayName: p.displayName,
         email: p.user.email,
+        avatarUrl: p.user.avatarUrl,
+        updatedAt: p.user.updatedAt,
         role:
           p.role === GAME_PARTICIPANT_ROLE.ORGANIZER
             ? GAME_PARTICIPANT_ROLE.ORGANIZER

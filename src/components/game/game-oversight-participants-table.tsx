@@ -10,6 +10,7 @@ import {
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { InviteCodeCopyCell } from "@/components/admin/games/invite-code-copy-cell";
+import { UserAvatar } from "@/components/user/user-avatar";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -33,6 +34,8 @@ export type OversightParticipantRow = {
   userId: string;
   displayName: string;
   email: string;
+  avatarUrl: string | null;
+  updatedAt: Date | string | number;
   role: GameParticipantRoleValue;
 };
 
@@ -324,26 +327,29 @@ export function GameOversightParticipantsTable({
                     {index + 1}
                   </td>
                   <td className="px-3 py-2.5 sm:px-4 sm:py-3">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      {isOrganizer ? (
-                        <IconStarFilled
-                          className="size-4 shrink-0 text-brand-lime"
-                          title="Организатор"
-                          aria-hidden
-                        />
-                      ) : (
-                        <span
-                          className="inline-block size-4 shrink-0"
-                          aria-hidden
-                        />
-                      )}
+                    <div className="flex min-w-0 items-center gap-2">
+                      <UserAvatar
+                        name={p.displayName}
+                        avatarUrl={p.avatarUrl}
+                        updatedAt={p.updatedAt}
+                        size="sm"
+                      />
                       <div className="min-w-0">
-                        <span
-                          className="block truncate font-medium text-white"
-                          title={p.displayName}
-                        >
-                          {p.displayName}
-                        </span>
+                        <div className="flex min-w-0 items-center gap-1">
+                          {isOrganizer ? (
+                            <IconStarFilled
+                              className="size-4 shrink-0 text-brand-lime"
+                              title="Организатор"
+                              aria-hidden
+                            />
+                          ) : null}
+                          <span
+                            className="truncate font-medium text-white"
+                            title={p.displayName}
+                          >
+                            {p.displayName}
+                          </span>
+                        </div>
                         <span
                           className="mt-0.5 block truncate text-[11px] text-brand-muted md:hidden"
                           title={p.email}
