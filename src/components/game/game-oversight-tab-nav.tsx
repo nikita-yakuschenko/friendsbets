@@ -17,7 +17,7 @@ export function GameOversightTabNav({
 }) {
   return (
     <nav
-      className="mb-4 flex w-full justify-between gap-1 rounded-xl border border-brand-neutral bg-brand-surface/50 p-1"
+      className="mb-4 inline-flex max-w-full flex-wrap gap-1 overflow-x-auto rounded-xl border border-brand-neutral bg-brand-surface/50 p-1"
       aria-label="Разделы просмотра турнира"
     >
       {GAME_OVERSIGHT_TABS.map((tab) => {
