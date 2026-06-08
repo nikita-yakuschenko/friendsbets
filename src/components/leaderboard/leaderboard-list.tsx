@@ -1,3 +1,4 @@
+import { UserAvatar } from "@/components/user/user-avatar";
 import { cn } from "@/lib/utils";
 import type { LeaderboardColumn, ScoringRuleLegendItem } from "@/lib/scoring/catalog";
 import type { ScoreTier } from "@/lib/scoring/rules";
@@ -5,6 +6,8 @@ import type { ScoreTier } from "@/lib/scoring/rules";
 export type LeaderboardRow = {
   userId: string;
   displayName: string;
+  avatarUrl: string | null;
+  updatedAt: Date | string | number;
   rank: number;
   totalPoints: number;
   predictionsCount: number;
@@ -89,16 +92,26 @@ export function LeaderboardTable({
                     {row.rank}
                   </td>
                   <td className="px-3 py-2.5 sm:px-4 sm:py-3">
-                    <span
-                      className={cn(
-                        "block truncate font-medium",
-                        isCurrent ? "text-white" : "text-brand-muted",
-                      )}
-                      title={row.displayName}
-                    >
-                      {row.displayName}
-                    </span>
-                    <LeaderboardRowStats row={row} columns={columns} />
+                    <div className="flex min-w-0 items-center gap-2">
+                      <UserAvatar
+                        name={row.displayName}
+                        avatarUrl={row.avatarUrl}
+                        updatedAt={row.updatedAt}
+                        size="sm"
+                      />
+                      <div className="min-w-0">
+                        <span
+                          className={cn(
+                            "block truncate font-medium",
+                            isCurrent ? "text-white" : "text-brand-muted",
+                          )}
+                          title={row.displayName}
+                        >
+                          {row.displayName}
+                        </span>
+                        <LeaderboardRowStats row={row} columns={columns} />
+                      </div>
+                    </div>
                   </td>
                   <td className="hidden px-3 py-2.5 tabular-nums text-brand-muted sm:table-cell sm:px-4 sm:py-3">
                     {row.predictionsCount} из {row.totalMatches}

@@ -183,6 +183,8 @@ export async function getLeaderboardData(routeParam: string) {
           user: {
             select: {
               id: true,
+              avatarUrl: true,
+              updatedAt: true,
               predictions: {
                 where: { gameId },
                 include: {
@@ -234,6 +236,8 @@ export async function getLeaderboardData(routeParam: string) {
       return {
         userId: participant.userId,
         displayName: participant.displayName,
+        avatarUrl: participant.user.avatarUrl,
+        updatedAt: participant.user.updatedAt,
         totalPoints,
         predictionsCount: predictions.length,
         totalMatches,

@@ -336,6 +336,12 @@ export function GameOversightParticipantsTable({
                       />
                       <div className="min-w-0">
                         <div className="flex min-w-0 items-center gap-1">
+                          <span
+                            className="truncate font-medium text-white"
+                            title={p.displayName}
+                          >
+                            {p.displayName}
+                          </span>
                           {isOrganizer ? (
                             <IconStarFilled
                               className="size-4 shrink-0 text-brand-lime"
@@ -343,12 +349,6 @@ export function GameOversightParticipantsTable({
                               aria-hidden
                             />
                           ) : null}
-                          <span
-                            className="truncate font-medium text-white"
-                            title={p.displayName}
-                          >
-                            {p.displayName}
-                          </span>
                         </div>
                         <span
                           className="mt-0.5 block truncate text-[11px] text-brand-muted md:hidden"
