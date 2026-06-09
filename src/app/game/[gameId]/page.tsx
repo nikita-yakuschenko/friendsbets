@@ -17,6 +17,7 @@ import {
 import { isPlatformViewQuery } from "@/lib/game-platform-view";
 import { parseGameOversightTab } from "@/lib/game-oversight-tabs";
 import { getSession } from "@/lib/auth";
+import { isSuperadmin } from "@/lib/roles";
 import { GameOversightHome } from "@/components/game/game-oversight-home";
 import { GameOversightShell } from "@/components/game/game-oversight-shell";
 import { PlatformOversightBackButton } from "@/components/game/platform-oversight-back-button";
@@ -59,7 +60,11 @@ export default async function GamePage({
             oversight.isPlatformOversight ? "platform" : "organizer"
           }
         >
-          <GameOversightHome data={oversight} activeTab={activeTab} />
+          <GameOversightHome
+            data={oversight}
+            activeTab={activeTab}
+            canRenameGameTitle={isSuperadmin(session.role)}
+          />
         </GameOversightShell>
       </ContentContainer>
     );

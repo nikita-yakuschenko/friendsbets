@@ -114,6 +114,7 @@ export default async function AdminPage({
           <AdminGamesPanel
             games={data.games}
             platformOversightOpen={isPlatformSuperadmin}
+            canRenameGameTitle={isPlatformSuperadmin}
           />
         )}
 

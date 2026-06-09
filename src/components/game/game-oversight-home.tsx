@@ -1,4 +1,5 @@
 import { InviteCodeCopyCell } from "@/components/admin/games/invite-code-copy-cell";
+import { RenameGameTitleButton } from "@/components/admin/rename-game-title-button";
 import { GameOversightParticipantsTable } from "@/components/game/game-oversight-participants-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildRegisterInviteUrl } from "@/lib/game-invite";
@@ -33,9 +34,11 @@ export type GameOversightHomeData = {
 export function GameOversightHome({
   data,
   activeTab,
+  canRenameGameTitle = false,
 }: {
   data: GameOversightHomeData;
   activeTab: "general" | "participants";
+  canRenameGameTitle?: boolean;
 }) {
   const { game, participants } = data;
 
@@ -43,15 +46,23 @@ export function GameOversightHome({
     return <GameOversightParticipantsPanel game={game} participants={participants} />;
   }
 
-  return <GameOversightGeneralPanel game={game} participants={participants} />;
+  return (
+    <GameOversightGeneralPanel
+      game={game}
+      participants={participants}
+      canRenameGameTitle={canRenameGameTitle}
+    />
+  );
 }
 
 function GameOversightGeneralPanel({
   game,
   participants,
+  canRenameGameTitle = false,
 }: {
   game: GameOversightHomeData["game"];
   participants: GameOversightHomeData["participants"];
+  canRenameGameTitle?: boolean;
 }) {
   const organizers = participants.filter(
     (p) => p.role === GAME_PARTICIPANT_ROLE.ORGANIZER,
@@ -64,7 +75,17 @@ function GameOversightGeneralPanel({
           <CardTitle className="text-base">Турнир</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-white">
-          <p>{game.tournament.title}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-medium">{game.title}</p>
+            {canRenameGameTitle ? (
+              <RenameGameTitleButton
+                gameId={game.id}
+                gameTitle={game.title}
+                variant="inline"
+              />
+            ) : null}
+          </div>
+          <p className="text-brand-muted">{game.tournament.title}</p>
           {game.entryFeeText ? (
             <p className="text-brand-muted">Взнос: {game.entryFeeText}</p>
           ) : null}

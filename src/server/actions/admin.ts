@@ -215,6 +215,52 @@ export async function deleteGameAction(gameId: string): Promise<ActionResult> {
   return { success: true };
 }
 
+const GAME_TITLE_MAX_LENGTH = 120;
+
+/** Суперадмин: переименовать любой турнир (Game.title), без участия в игре. */
+export async function updateGameTitleBySuperadminAction(
+  gameId: string,
+  titleRaw: string,
+): Promise<ActionResult> {
+  const session = await requireAuth();
+  if (!isSuperadmin(session.role)) {
+    return { error: "Нет доступа." };
+  }
+
+  const title = titleRaw.trim();
+  if (!title) {
+    return { error: "Укажите название турнира." };
+  }
+  if (title.length > GAME_TITLE_MAX_LENGTH) {
+    return {
+      error: `Название не длиннее ${GAME_TITLE_MAX_LENGTH} символов.`,
+    };
+  }
+
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    select: { id: true, inviteCode: true, title: true },
+  });
+  if (!game) {
+    return { error: "Турнир не найден." };
+  }
+
+  if (game.title === title) {
+    return { success: true, message: "Название без изменений." };
+  }
+
+  await prisma.game.update({
+    where: { id: gameId },
+    data: { title },
+  });
+
+  await revalidateGamePaths(gameId);
+  revalidatePath("/admin");
+  revalidatePath("/");
+
+  return { success: true, message: `Турнир переименован в «${title}».` };
+}
+
 export async function getAdminDashboardData(userId: string, role: UserRole) {
   const manageableGames = await getMissingPredictionsGames(userId, role);
   if (manageableGames.length === 0) {

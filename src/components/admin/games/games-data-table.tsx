@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AdminGameCard } from "@/components/admin/games/admin-game-card";
-import { adminGamesColumns } from "@/components/admin/games/columns";
+import { createAdminGamesColumns } from "@/components/admin/games/columns";
 import type { AdminGameRow } from "@/components/admin/games/types";
 import { AdminListShell } from "@/components/admin/admin-list-shell";
 import { DataTable } from "@/components/ui/data-table";
@@ -26,12 +26,23 @@ function sortGames(rows: AdminGameRow[]) {
 const tableClassName =
   "font-ibm-plex text-sm [&_table]:table-fixed [&_td]:px-2 [&_td]:py-2 [&_td]:text-sm [&_th]:h-9 [&_th]:px-2 [&_th]:py-2 [&_th]:text-xs";
 
-export function AdminGamesDataTable({ data }: { data: AdminGameRow[] }) {
+export function AdminGamesDataTable({
+  data,
+  canRenameGameTitle = false,
+}: {
+  data: AdminGameRow[];
+  canRenameGameTitle?: boolean;
+}) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(
     () => sortGames(filterGames(data, query)),
     [data, query],
+  );
+
+  const columns = useMemo(
+    () => createAdminGamesColumns({ canRenameGameTitle }),
+    [canRenameGameTitle],
   );
 
   return (
@@ -42,11 +53,15 @@ export function AdminGamesDataTable({ data }: { data: AdminGameRow[] }) {
       emptyMessage="Нет игр."
       count={filtered.length}
       mobile={filtered.map((game) => (
-        <AdminGameCard key={game.id} game={game} />
+        <AdminGameCard
+          key={game.id}
+          game={game}
+          canRenameGameTitle={canRenameGameTitle}
+        />
       ))}
       desktop={
         <DataTable
-          columns={adminGamesColumns}
+          columns={columns}
           data={filtered}
           emptyMessage="Нет игр."
           tableClassName={tableClassName}

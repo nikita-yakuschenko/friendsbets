@@ -11,7 +11,7 @@ vi.mock("@/lib/auth", () => ({
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    game: { findMany: vi.fn() },
+    game: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
   },
 }));
 
@@ -32,7 +32,10 @@ import {
   recalculateAllScoresForTournament,
   userCanManageTournament,
 } from "@/lib/template-match-admin";
-import { recalculateAllScoresAction } from "@/server/actions/admin";
+import {
+  recalculateAllScoresAction,
+  updateGameTitleBySuperadminAction,
+} from "@/server/actions/admin";
 
 describe("recalculateAllScoresAction", () => {
   beforeEach(() => {
@@ -83,5 +86,48 @@ describe("recalculateAllScoresAction", () => {
     });
 
     expect(result.error).toMatch(/нет доступа/i);
+  });
+});
+
+describe("updateGameTitleBySuperadminAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("суперадмин переименовывает турнир", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      id: "admin",
+      email: "a@b.c",
+      name: "A",
+      role: UserRole.ADMIN,
+    });
+    vi.mocked(prisma.game.findUnique).mockResolvedValue({
+      id: "g1",
+      inviteCode: "ABC",
+      title: "Старое",
+    } as never);
+    vi.mocked(prisma.game.update).mockResolvedValue({} as never);
+
+    const result = await updateGameTitleBySuperadminAction("g1", "Новое имя");
+
+    expect(result.success).toBe(true);
+    expect(prisma.game.update).toHaveBeenCalledWith({
+      where: { id: "g1" },
+      data: { title: "Новое имя" },
+    });
+  });
+
+  it("участник без прав — ошибка", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      id: "u1",
+      email: "u@t.c",
+      name: "U",
+      role: UserRole.PARTICIPANT,
+    });
+
+    const result = await updateGameTitleBySuperadminAction("g1", "Новое");
+
+    expect(result.error).toMatch(/нет доступа/i);
+    expect(prisma.game.update).not.toHaveBeenCalled();
   });
 });

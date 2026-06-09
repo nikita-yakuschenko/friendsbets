@@ -9,6 +9,7 @@ import {
 } from "@tabler/icons-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DeleteGameButton } from "@/components/admin/delete-game-button";
+import { RenameGameTitleButton } from "@/components/admin/rename-game-title-button";
 import { InviteCodeCopyCell } from "@/components/admin/games/invite-code-copy-cell";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/utils";
@@ -49,7 +50,12 @@ function SortableHeader({
 const iconLinkClass =
   "inline-flex size-8 shrink-0 items-center justify-center rounded-md text-brand-muted transition-colors hover:bg-brand-neutral/40 hover:text-brand-lime focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime/60";
 
-export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
+export function createAdminGamesColumns(options?: {
+  canRenameGameTitle?: boolean;
+}): ColumnDef<AdminGameRow>[] {
+  const canRenameGameTitle = options?.canRenameGameTitle ?? false;
+
+  return [
   {
     accessorKey: "title",
     header: ({ column }) => (
@@ -134,6 +140,9 @@ export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
       const game = row.original;
       return (
         <div className="flex items-center justify-end gap-0.5">
+          {canRenameGameTitle ? (
+            <RenameGameTitleButton gameId={game.id} gameTitle={game.title} />
+          ) : null}
           <Link
             href={game.openHref}
             className={iconLinkClass}
@@ -153,3 +162,4 @@ export const adminGamesColumns: ColumnDef<AdminGameRow>[] = [
     enableSorting: false,
   },
 ];
+}

@@ -49,9 +49,11 @@ function toRows(games: AdminGame[], platformOversightOpen: boolean): AdminGameRo
 export function AdminGamesPanel({
   games,
   platformOversightOpen = false,
+  canRenameGameTitle = false,
 }: {
   games: AdminGame[];
   platformOversightOpen?: boolean;
+  canRenameGameTitle?: boolean;
 }) {
   const defaultGame = games[0];
   const rows = toRows(games, platformOversightOpen);
@@ -73,7 +75,10 @@ export function AdminGamesPanel({
         ) : null}
       </AdminPanelActions>
 
-      <AdminGamesDataTable data={rows} />
+      <AdminGamesDataTable
+        data={rows}
+        canRenameGameTitle={canRenameGameTitle}
+      />
     </div>
   );
 }
