@@ -24,6 +24,7 @@ import { logOperation, logOperationError, maskEmail } from "@/lib/logger";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { sendNightBatchPredictionReminders } from "@/lib/reminders/night-match-reminders";
+import { sendOpeningMatchH24Reminders } from "@/lib/reminders/opening-match-h24-reminder";
 import { formatDateTime } from "@/lib/utils";
 
 /** Окно отправки относительно целевого времени (cron каждые ~5–10 мин). */
@@ -535,6 +536,12 @@ export async function sendDuePredictionReminders(
   result.skipped += nightResult.skipped;
   result.errors += nightResult.errors;
 
+  const openingH24Result = await sendOpeningMatchH24Reminders(now);
+  result.checked += openingH24Result.checked;
+  result.sent += openingH24Result.sent;
+  result.skipped += openingH24Result.skipped;
+  result.errors += openingH24Result.errors;
+
   logOperation("reminders:run", {
     durationMs: Date.now() - started,
     checked: result.checked,
@@ -542,6 +549,7 @@ export async function sendDuePredictionReminders(
     skipped: result.skipped,
     errors: result.errors,
     nightSent: nightResult.sent,
+    openingH24Sent: openingH24Result.sent,
   });
 
   return result;

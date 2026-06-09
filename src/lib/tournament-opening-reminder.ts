@@ -13,18 +13,22 @@ import { sendTelegramMessage } from "@/lib/telegram/api";
 import { isTelegramConfigured } from "@/lib/telegram/config";
 import { formatRelativeTime } from "@/lib/utils";
 
-/** Ближайший предсказуемый матч турнира (матч открытия). */
-export async function findOpeningMatchForGame(gameId: string) {
-  const game = await prisma.game.findUnique({
-    where: { id: gameId },
-    select: { id: true, title: true, inviteCode: true, tournamentId: true },
-  });
-  if (!game) return null;
+type OpeningMatchTeams = {
+  id: string;
+  startsAt: Date;
+  homeTeam: { name: string; countryCode: string | null; externalId: string | null };
+  awayTeam: { name: string; countryCode: string | null; externalId: string | null };
+};
 
+/** Ближайший предсказуемый матч турнира (матч открытия). */
+export async function findOpeningMatchForTournament(
+  tournamentId: string,
+  referenceNow = new Date(),
+): Promise<OpeningMatchTeams | null> {
   const matches = await prisma.match.findMany({
     where: {
-      tournamentId: game.tournamentId,
-      startsAt: { gt: new Date() },
+      tournamentId,
+      startsAt: { gt: referenceNow },
       status: MatchStatus.SCHEDULED,
     },
     include: {
@@ -40,6 +44,20 @@ export async function findOpeningMatchForGame(gameId: string) {
   });
 
   const match = matches.find(isMatchPredictable);
+  if (!match) return null;
+
+  return match;
+}
+
+/** Ближайший предсказуемый матч турнира (матч открытия). */
+export async function findOpeningMatchForGame(gameId: string) {
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    select: { id: true, title: true, inviteCode: true, tournamentId: true },
+  });
+  if (!game) return null;
+
+  const match = await findOpeningMatchForTournament(game.tournamentId);
   if (!match) return null;
 
   return { game, match };

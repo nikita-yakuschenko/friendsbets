@@ -11,7 +11,7 @@ import type { TournamentTemplateUi } from "@/lib/tournament-templates";
 
 function sortMatches(rows: AdminMatchRow[]) {
   return [...rows].sort(
-    (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime(),
+    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
   );
 }
 

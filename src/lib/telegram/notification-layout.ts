@@ -59,6 +59,9 @@ export function buildTelegramNotificationHtml(params: {
   inviteCode: string;
   origin?: string;
   eventBold?: boolean;
+  signoff?: string;
+  /** false — без ссылки на прогнозы (по умолчанию true). */
+  showPredictionsLink?: boolean;
 }): string {
   const lines: string[] = [];
   const matchLine = formatPredictionMatchLine(
@@ -93,10 +96,12 @@ export function buildTelegramNotificationHtml(params: {
   }
 
   const link = predictionsAbsoluteUrl(params.inviteCode, params.origin);
+  if (params.showPredictionsLink !== false) {
+    lines.push("");
+    lines.push(telegramHtmlLink(link, PREDICTION_CTA_LABEL));
+  }
   lines.push("");
-  lines.push(telegramHtmlLink(link, PREDICTION_CTA_LABEL));
-  lines.push("");
-  lines.push(NOTIFICATION_SIGNOFF);
+  lines.push(params.signoff ?? NOTIFICATION_SIGNOFF);
 
   return lines.join("\n");
 }

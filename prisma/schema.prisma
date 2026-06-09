@@ -57,6 +57,7 @@ enum PredictionReminderKind {
   M15
   LIVE
   H18_NIGHT
+  H24_OPENING
   MATCH_FINISHED
   H3_ADMIN
   H1_ADMIN
