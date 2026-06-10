@@ -145,7 +145,7 @@ export async function registerAction(
   const passwordHash = await bcrypt.hash(password, 12);
 
   let user: {
-    id: number;
+    id: string;
     email: string;
     name: string;
     role: UserRole;
