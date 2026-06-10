@@ -5,6 +5,7 @@ import { buildTelegramNotificationHtml } from "@/lib/telegram/notification-layou
 
 /** Нет прогноза до старта матча (HTML, ссылка-кнопка). */
 export function buildMissingPredictionTelegramText(params: {
+  gameTitle: string;
   homeTeam: { name: string; countryCode: string | null };
   awayTeam: { name: string; countryCode: string | null };
   startsAt: Date;
@@ -16,6 +17,7 @@ export function buildMissingPredictionTelegramText(params: {
 
 /** Старт матча — всем участникам с прогнозом. */
 export function buildMatchStartedTelegramText(params: {
+  gameTitle: string;
   homeTeam: { name: string; countryCode: string | null };
   awayTeam: { name: string; countryCode: string | null };
   inviteCode: string;
@@ -28,6 +30,7 @@ export function buildMatchStartedTelegramText(params: {
       : "Прогноз не сделан";
 
   return buildTelegramNotificationHtml({
+    gameTitle: params.gameTitle,
     eventLine: "Матч начался:",
     eventBold: true,
     teams: {

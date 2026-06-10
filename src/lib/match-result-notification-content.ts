@@ -15,6 +15,7 @@ import {
   formatPointsAccruedLabel,
   formatRankLine,
 } from "@/lib/telegram/notification-layout";
+import { withTournamentNotificationLead } from "@/lib/tournament-notification-lead";
 import { formatDateTimeMoscow, formatRelativeTime } from "@/lib/utils";
 
 export type MatchResultNotificationInput = {
@@ -100,7 +101,7 @@ function buildResultLines(params: MatchResultNotificationInput): string[] {
   }
 
   lines.push("", NOTIFICATION_SIGNOFF);
-  return lines;
+  return withTournamentNotificationLead(params.gameTitle, lines);
 }
 
 export function buildMatchResultInAppBody(
@@ -123,6 +124,7 @@ export function buildMatchResultTelegramHtml(
     : undefined;
 
   return buildTelegramNotificationHtml({
+    gameTitle: params.gameTitle,
     eventLine: "Матч завершён:",
     eventBold: true,
     teams: {

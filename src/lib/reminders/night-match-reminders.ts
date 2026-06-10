@@ -207,8 +207,12 @@ export async function sendNightBatchPredictionReminders(
         ? `Прогноз: ${batch.matches[0]!.homeTeam.name} — ${batch.matches[0]!.awayTeam.name}`
         : `Прогноз: ${batch.matches.length} предстоящих матча`;
 
-    const inAppBody = buildNightBatchInAppBody({ matches: matchBlocks });
+    const inAppBody = buildNightBatchInAppBody({
+      gameTitle: batch.game.title,
+      matches: matchBlocks,
+    });
     const telegramHtml = buildNightBatchTelegramPersonalHtml({
+      gameTitle: batch.game.title,
       matches: matchBlocks,
       inviteCode: batch.game.inviteCode,
     });

@@ -13,6 +13,7 @@ describe("opening match welcome reminder", () => {
       startsAt: new Date("2026-06-11T19:00:00.000Z"),
     });
 
+    expect(text).toContain("В турнире «Авангард 2026»");
     expect(text).toContain("Добро пожаловать");
     expect(text).toContain("Авангард 2026");
     expect(text).toContain("матч открытия");

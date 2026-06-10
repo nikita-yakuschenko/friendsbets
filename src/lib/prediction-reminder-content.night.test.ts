@@ -19,7 +19,11 @@ describe("night batch reminder content", () => {
   ];
 
   it("in-app содержит общую фразу и блоки по матчам", () => {
-    const body = buildNightBatchInAppBody({ matches });
+    const body = buildNightBatchInAppBody({
+      gameTitle: "Ночной турнир",
+      matches,
+    });
+    expect(body).toContain("В турнире «Ночной турнир»");
     expect(body).toContain(
       "Ты не сделал прогноз на предстоящие матчи, не забудь это сделать",
     );
@@ -30,10 +34,12 @@ describe("night batch reminder content", () => {
 
   it("telegram содержит CTA-ссылку на прогнозы", () => {
     const html = buildNightBatchTelegramPersonalHtml({
+      gameTitle: "Ночной турнир",
       matches,
       inviteCode: "ABC123",
       origin: "https://friendsbets.ru",
     });
+    expect(html).toContain("В турнире «Ночной турнир»");
     expect(html).toContain("Ты не сделал прогноз на предстоящие матчи");
     expect(html).toContain("начнётся");
     expect(html).toContain("до начала");

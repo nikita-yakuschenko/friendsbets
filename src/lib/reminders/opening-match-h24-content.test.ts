@@ -18,6 +18,7 @@ const base = {
 describe("opening match h24 content", () => {
   it("с прогнозом — напоминание про часовой пояс", () => {
     const text = buildOpeningH24InAppBody({ ...base, hasPrediction: true });
+    expect(text).toContain("В турнире «Друзья 2026»");
     expect(text).toContain("24 часа");
     expect(text).toContain(OPENING_H24_WITH_PREDICTION_TEXT);
     expect(text).toContain(OPENING_H24_SIGNOFF);

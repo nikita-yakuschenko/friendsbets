@@ -18,6 +18,7 @@ import { formatDateTimeMoscow, formatRelativeTime } from "@/lib/utils";
 
 import { NOTIFICATION_SIGNOFF } from "@/lib/notification-signoff";
 import { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
+import { joinTournamentNotificationBody } from "@/lib/tournament-notification-lead";
 
 export { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
 
@@ -57,7 +58,7 @@ export function buildOpeningMatchInAppBody(params: {
 }): string {
   const startsAt = new Date(params.startsAt);
 
-  return [
+  return joinTournamentNotificationBody(params.gameTitle, [
     `Добро пожаловать в турнир «${params.gameTitle}»!`,
     "",
     "Сделай прогноз на матч открытия:",
@@ -66,7 +67,7 @@ export function buildOpeningMatchInAppBody(params: {
     `до начала матча ${formatRelativeTime(startsAt)}`,
     "",
     NOTIFICATION_SIGNOFF,
-  ].join("\n");
+  ]);
 }
 
 /** Telegram HTML: приветствие при вступлении в турнир. */
@@ -79,6 +80,7 @@ export function buildOpeningMatchTelegramPersonalHtml(params: {
   origin?: string;
 }): string {
   return buildTelegramNotificationHtml({
+    gameTitle: params.gameTitle,
     eventLine: `Добро пожаловать в «${params.gameTitle}»! Сделай прогноз на матч открытия:`,
     eventBold: true,
     teams: {
@@ -115,14 +117,15 @@ const NIGHT_BATCH_INTRO =
 
 /** Пакетное напоминание в 18:00 МСК для ночных матчей (in-app / email text). */
 export function buildNightBatchInAppBody(params: {
+  gameTitle: string;
   matches: ReminderMatchBlock[];
 }): string {
-  return [
+  return joinTournamentNotificationBody(params.gameTitle, [
     NIGHT_BATCH_INTRO,
     "",
     ...buildMatchReminderBlocks(params.matches),
     NOTIFICATION_SIGNOFF,
-  ].join("\n");
+  ]);
 }
 
 /** Email: пакет ночных матчей (как in-app + CTA-ссылка). */
@@ -134,7 +137,10 @@ export function buildNightBatchEmailContent(params: {
   origin?: string;
 }): EmailContent {
   const link = predictionsAbsoluteUrl(params.inviteCode, params.origin);
-  const body = buildNightBatchInAppBody({ matches: params.matches });
+  const body = buildNightBatchInAppBody({
+    gameTitle: params.gameTitle,
+    matches: params.matches,
+  });
   const text = [
     `Привет, ${params.userName}!`,
     "",
@@ -176,11 +182,13 @@ export function buildNightBatchEmailContent(params: {
 
 /** Telegram HTML: пакет ночных матчей. */
 export function buildNightBatchTelegramPersonalHtml(params: {
+  gameTitle: string;
   matches: ReminderMatchBlock[];
   inviteCode: string;
   origin?: string;
 }): string {
   return buildTelegramBatchNotificationHtml({
+    gameTitle: params.gameTitle,
     eventLine: NIGHT_BATCH_INTRO,
     matches: params.matches,
     inviteCode: params.inviteCode,
@@ -190,24 +198,26 @@ export function buildNightBatchTelegramPersonalHtml(params: {
 
 /** Текст для раздела «Уведомления» на сайте (без URL). */
 export function buildMissingPredictionInAppBody(params: {
+  gameTitle: string;
   homeTeam: { name: string; countryCode: string | null };
   awayTeam: { name: string; countryCode: string | null };
   startsAt: Date;
 }): string {
   const startsAt = new Date(params.startsAt);
 
-  return [
+  return joinTournamentNotificationBody(params.gameTitle, [
     "Ты не сделал прогноз на матч",
     formatPredictionMatchLine(params.homeTeam, params.awayTeam),
     `матч начнётся ${formatDateTimeMoscow(startsAt)}`,
     `до начала матча ${formatRelativeTime(startsAt)}`,
     "",
     NOTIFICATION_SIGNOFF,
-  ].join("\n");
+  ]);
 }
 
 /** Текст для копирования организатором (с подписанной ссылкой). */
 export function buildMissingPredictionCopyText(params: {
+  gameTitle: string;
   homeTeam: { name: string; countryCode: string | null };
   awayTeam: { name: string; countryCode: string | null };
   startsAt: Date;
@@ -252,6 +262,7 @@ export function buildMissingPredictionEmailContent(params: {
  * Telegram (ручная рассылка / in-app тот же текст): жирный заголовок, флаги, отступы, 💚, CTA-ссылка.
  */
 export function buildMissingPredictionTelegramPersonalHtml(params: {
+  gameTitle: string;
   homeTeam: { name: string; countryCode: string | null };
   awayTeam: { name: string; countryCode: string | null };
   startsAt: Date;
@@ -259,6 +270,7 @@ export function buildMissingPredictionTelegramPersonalHtml(params: {
   origin?: string;
 }): string {
   return buildTelegramNotificationHtml({
+    gameTitle: params.gameTitle,
     eventLine: "Ты не сделал прогноз на матч",
     eventBold: true,
     teams: {
@@ -274,6 +286,7 @@ export function buildMissingPredictionTelegramPersonalHtml(params: {
 
 /** Telegram (cron): краткое напоминание с именем и турниром. */
 export function buildMissingPredictionTelegramHtml(params: {
+  gameTitle: string;
   homeTeam: { name: string; countryCode: string | null };
   awayTeam: { name: string; countryCode: string | null };
   startsAt: Date;
@@ -282,6 +295,7 @@ export function buildMissingPredictionTelegramHtml(params: {
   origin?: string;
 }): string {
   return buildTelegramNotificationHtml({
+    gameTitle: params.gameTitle,
     eventLine: `Через ${params.timeLabel} матч. Ты не сделал прогноз:`,
     eventBold: true,
     teams: {
@@ -297,6 +311,7 @@ export function buildMissingPredictionTelegramHtml(params: {
 
 /** @deprecated Используйте buildMissingPredictionInAppBody / buildMissingPredictionCopyText */
 export function buildMissingPredictionReminderText(params: {
+  gameTitle: string;
   homeTeam: { name: string; countryCode: string | null };
   awayTeam: { name: string; countryCode: string | null };
   startsAt: Date;

@@ -214,11 +214,13 @@ export async function sendMissingPredictionReminders(params: {
 
     const displayName = participant.displayName || user.name;
     const inAppBody = buildMissingPredictionInAppBody({
+      gameTitle: game.title,
       homeTeam: match.homeTeam,
       awayTeam: match.awayTeam,
       startsAt: match.startsAt,
     });
     const telegramHtml = buildMissingPredictionTelegramPersonalHtml({
+      gameTitle: game.title,
       homeTeam: match.homeTeam,
       awayTeam: match.awayTeam,
       startsAt: match.startsAt,

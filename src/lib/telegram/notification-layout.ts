@@ -1,5 +1,6 @@
 import { escapeHtml } from "@/lib/email/escape";
 import { NOTIFICATION_SIGNOFF } from "@/lib/notification-signoff";
+import { formatTournamentNotificationLead } from "@/lib/tournament-notification-lead";
 import { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
 import {
   formatPredictionMatchLine,
@@ -47,6 +48,7 @@ export function formatRankLine(rank: number, totalPoints: number): string {
  * Единый шаблон Telegram-уведомления (15 строк с пропусками).
  */
 export function buildTelegramNotificationHtml(params: {
+  gameTitle?: string;
   eventLine: string;
   teams: TelegramMatchTeams;
   detailLine: string;
@@ -68,6 +70,12 @@ export function buildTelegramNotificationHtml(params: {
     params.teams.homeTeam,
     params.teams.awayTeam,
   );
+
+  const tournamentLead = formatTournamentNotificationLead(params.gameTitle ?? "");
+  if (tournamentLead) {
+    lines.push(escapeHtml(tournamentLead));
+    lines.push("");
+  }
 
   lines.push(
     params.eventBold
@@ -108,14 +116,19 @@ export function buildTelegramNotificationHtml(params: {
 
 /** Несколько матчей под одним событием (ночной batch). */
 export function buildTelegramBatchNotificationHtml(params: {
+  gameTitle?: string;
   eventLine: string;
   matches: Array<TelegramMatchTeams & { startsAt: Date }>;
   inviteCode: string;
   origin?: string;
 }): string {
-  const lines: string[] = [
-    `<b>${escapeHtml(params.eventLine)}</b>`,
-  ];
+  const lines: string[] = [];
+  const tournamentLead = formatTournamentNotificationLead(params.gameTitle ?? "");
+  if (tournamentLead) {
+    lines.push(escapeHtml(tournamentLead));
+    lines.push("");
+  }
+  lines.push(`<b>${escapeHtml(params.eventLine)}</b>`);
 
   for (const match of params.matches) {
     const matchLine = formatPredictionMatchLine(match.homeTeam, match.awayTeam);

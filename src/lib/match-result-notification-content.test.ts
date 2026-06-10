@@ -36,6 +36,7 @@ describe("match result notification content", () => {
 
   it("in-app содержит результат, очки, место и следующий матч", () => {
     const body = buildMatchResultInAppBody(base);
+    expect(body).toContain("В турнире «ЧМ 2026»");
     expect(body).toContain("Матч завершён");
     expect(body).toContain("Счёт: 2:1");
     expect(body).toContain("Заработано: 1 очко");
@@ -49,6 +50,7 @@ describe("match result notification content", () => {
       ...base,
       origin: "https://friendsbets.ru",
     });
+    expect(html).toContain("В турнире «ЧМ 2026»");
     expect(html).toContain("Матч завершён:");
     expect(html).toContain("Начислено");
     expect(html).toContain("Ты на");

@@ -7,6 +7,7 @@ import {
 } from "@/lib/prediction-reminder-content";
 
 const matchTeams = {
+  gameTitle: "Авангард 2026",
   homeTeam: { name: "Мексика", countryCode: "mx" },
   awayTeam: { name: "ЮАР", countryCode: "za" },
   startsAt: new Date("2026-06-11T19:00:00.000Z"),
@@ -17,6 +18,7 @@ describe("prediction reminder content", () => {
   it("in-app: матч и время без URL", () => {
     const text = buildMissingPredictionInAppBody(matchTeams);
 
+    expect(text).toContain("В турнире «Авангард 2026»");
     expect(text).toContain("Ты не сделал прогноз на матч");
     expect(text).toContain("Мексика");
     expect(text).toContain("ЮАР");

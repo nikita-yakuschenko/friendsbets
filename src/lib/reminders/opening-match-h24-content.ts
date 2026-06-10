@@ -11,6 +11,7 @@ import {
 } from "@/lib/prediction-reminder-content";
 import { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
 import { buildTelegramNotificationHtml } from "@/lib/telegram/notification-layout";
+import { joinTournamentNotificationBody } from "@/lib/tournament-notification-lead";
 
 export const OPENING_H24_TITLE = "Турнир через 24 часа";
 
@@ -51,14 +52,14 @@ function buildOpeningH24PlainBody(params: OpeningH24ContentInput): string {
     params.homeTeam,
     params.awayTeam,
   );
-  return [
+  return joinTournamentNotificationBody(params.gameTitle, [
     openingH24LeadLine(),
     openingH24DetailLine(params.hasPrediction),
     "",
     `Матч открытия: ${matchLine}`,
     "",
     OPENING_H24_SIGNOFF,
-  ].join("\n");
+  ]);
 }
 
 export function buildOpeningH24InAppBody(
@@ -71,6 +72,7 @@ export function buildOpeningH24TelegramHtml(
   params: OpeningH24ContentInput,
 ): string {
   return buildTelegramNotificationHtml({
+    gameTitle: params.gameTitle,
     eventLine: openingH24LeadLine(),
     eventBold: true,
     teams: {

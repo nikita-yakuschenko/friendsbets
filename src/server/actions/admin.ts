@@ -426,6 +426,7 @@ export async function getAdminMissingPredictions(routeParam: string) {
       }));
 
     const reminderText = buildMissingPredictionReminderText({
+      gameTitle: game.title,
       homeTeam: {
         name: match.homeTeam.name,
         countryCode: match.homeTeam.countryCode,

@@ -341,6 +341,7 @@ async function processReminderBatch(params: {
             );
             const tgText = matchStarted
               ? buildMatchStartedTelegramText({
+                  gameTitle: game.title,
                   homeTeam: match.homeTeam,
                   awayTeam: match.awayTeam,
                   inviteCode: game.inviteCode,
@@ -348,6 +349,7 @@ async function processReminderBatch(params: {
                   predictedAway: prediction?.awayScore ?? null,
                 })
               : buildMissingPredictionTelegramText({
+                  gameTitle: game.title,
                   homeTeam: match.homeTeam,
                   awayTeam: match.awayTeam,
                   startsAt: match.startsAt,
