@@ -114,8 +114,9 @@ export function MobileBottomNav({
       >
         {items.map((item) => {
           const hrefBase = item.href.split("?")[0];
-          const active =
-            item.label === "Турнир"
+          const active = item.isLive
+            ? /^\/game\/[^/]+\/live(\/|$)/.test(pathname)
+            : item.label === "Турнир"
               ? isGameHomePath(pathname) &&
                 pathname.replace(/\/$/, "") === hrefBase.replace(/\/$/, "")
               : pathname === hrefBase;

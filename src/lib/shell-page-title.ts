@@ -15,6 +15,10 @@ export function resolveDesktopHeaderTitle(pathname: string): string | null {
     return "Уведомления";
   }
 
+  if (/^\/game\/[^/]+\/live\/[^/]+\/?$/.test(pathname)) {
+    return "Лайв";
+  }
+
   const gameSubpage = pathname.match(/^\/game\/[^/]+\/([^/]+)\/?$/);
   if (gameSubpage) {
     const titles: Record<string, string> = {

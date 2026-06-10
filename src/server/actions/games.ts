@@ -14,7 +14,10 @@ import { isSuperadmin } from "@/lib/roles";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { computeLivePredictionStats } from "@/lib/live-match-stats";
-import { MATCH_LIVE_TRACKING_MAX_MS } from "@/lib/match-prediction-state";
+import {
+  isMatchInProgress,
+  MATCH_LIVE_TRACKING_MAX_MS,
+} from "@/lib/match-prediction-state";
 import { calculatePredictionScore } from "@/lib/scoring";
 import { persistMatchPredictionScores } from "@/lib/scoring/recalculate-match-scores";
 import { getLeaderboardColumns } from "@/lib/scoring/catalog";
@@ -255,6 +258,8 @@ export async function getLeaderboardData(routeParam: string) {
   };
 }
 
+export type LiveMatchItem = Awaited<ReturnType<typeof getLiveMatches>>[number];
+
 export async function getLiveMatches(routeParam: string) {
   const view = await requireGameViewByRoute(routeParam);
   if (!view) return [];
@@ -276,9 +281,9 @@ export async function getLiveMatches(routeParam: string) {
       where: {
         tournamentId: game.tournamentId,
         status: {
-          in: [MatchStatus.LIVE],
+          in: [MatchStatus.LIVE, MatchStatus.SCHEDULED],
         },
-        startsAt: { gte: liveSince, lte: now },
+        startsAt: { gte: liveSince },
       },
       include: {
         homeTeam: true,
@@ -307,7 +312,12 @@ export async function getLiveMatches(routeParam: string) {
     ]),
   );
 
-  return matches.filter(isMatchPredictable).map((match) => {
+  const inProgress = matches
+    .filter(isMatchPredictable)
+    .filter((match) => isMatchInProgress(match))
+    .sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime());
+
+  return inProgress.map((match) => {
     const myPrediction = oversight
       ? null
       : (match.predictions.find((prediction) => prediction.userId === session.id) ??
@@ -345,6 +355,14 @@ export async function getLiveMatches(routeParam: string) {
       stats,
     };
   });
+}
+
+export async function getLiveMatch(
+  routeParam: string,
+  matchId: string,
+): Promise<LiveMatchItem | null> {
+  const items = await getLiveMatches(routeParam);
+  return items.find((item) => item.match.id === matchId) ?? null;
 }
 
 export async function recalculateMatchScoresAction(

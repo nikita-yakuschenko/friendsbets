@@ -136,7 +136,11 @@ export function DesktopSidebar({
             {gameLinks.map((link) => {
               const href =
                 link.href === "base" ? gameHref() : gameHref(link.href);
-              const active = pathname === href.split("?")[0];
+              const hrefBase = href.split("?")[0];
+              const active =
+                "isLive" in link && link.isLive
+                  ? /^\/game\/[^/]+\/live(\/|$)/.test(pathname)
+                  : pathname === hrefBase;
               const Icon = link.icon;
               return (
                 <Link key={href} href={href} className={navLinkClass(active)}>

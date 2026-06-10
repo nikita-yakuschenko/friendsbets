@@ -200,4 +200,63 @@ describe("sendDuePredictionReminders", () => {
       (prisma.predictionReminder as { findUnique?: unknown }).findUnique,
     ).toBeUndefined();
   });
+
+  it("не шлёт LIVE за 5 минут до kickoff (23:00 МСК)", async () => {
+    const kickoff23 = new Date("2026-06-10T20:00:00.000Z"); // 23:00 MSK
+    const fiveMinBefore = new Date("2026-06-10T19:55:00.000Z"); // 22:55 MSK
+    vi.setSystemTime(fiveMinBefore);
+
+    const match23 = {
+      ...baseMatch,
+      id: "match-23",
+      startsAt: kickoff23,
+    };
+
+    vi.mocked(prisma.match.findMany).mockImplementation(async (args) => {
+      const where = (args as { where?: { startsAt?: Record<string, Date> } })
+        ?.where?.startsAt;
+      if (!where) return [] as never;
+      const t = kickoff23.getTime();
+      if (where.gt && t <= where.gt.getTime()) return [] as never;
+      if (where.lte && t > where.lte.getTime()) return [] as never;
+      if (where.gte && t < where.gte.getTime()) return [] as never;
+      return [match23] as never;
+    });
+
+    vi.mocked(prisma.prediction.findMany).mockResolvedValue([
+      {
+        gameId: "game-1",
+        matchId: "match-23",
+        userId: "user-1",
+        homeScore: 3,
+        awayScore: 0,
+      },
+      {
+        gameId: "game-1",
+        matchId: "match-23",
+        userId: "user-2",
+        homeScore: 0,
+        awayScore: 0,
+      },
+      {
+        gameId: "game-1",
+        matchId: "match-23",
+        userId: "org-1",
+        homeScore: 1,
+        awayScore: 1,
+      },
+    ] as never);
+
+    const result = await sendDuePredictionReminders(fiveMinBefore);
+
+    const liveCreates = vi
+      .mocked(prisma.predictionReminder.create)
+      .mock.calls.filter(
+        (c) =>
+          (c[0] as { data?: { kind?: string } })?.data?.kind ===
+          PredictionReminderKind.LIVE,
+      );
+    expect(liveCreates).toHaveLength(0);
+    expect(result.sent).toBe(0);
+  });
 });

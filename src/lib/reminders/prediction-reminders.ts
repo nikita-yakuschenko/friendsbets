@@ -22,9 +22,10 @@ import {
   buildMissingPredictionInAppBody,
 } from "@/lib/prediction-reminder-content";
 import {
-  isLiveReminderDue,
-  isPreMatchReminderDue,
-  matchReminderCandidateStartsAtRange,
+  isMatchReminderDue,
+  liveReminderCandidateStartsAtRange,
+  MATCH_REMINDER_SCHEDULE,
+  preMatchReminderCandidateStartsAtRange,
 } from "@/lib/reminders/match-reminder-schedule";
 import { deliverMatchReminderToUser } from "@/lib/reminders/reminder-delivery";
 import { getAppOriginFromEnv } from "@/lib/app-origin";
@@ -36,36 +37,8 @@ import { sendNightBatchPredictionReminders } from "@/lib/reminders/night-match-r
 import { sendOpeningMatchH24Reminders } from "@/lib/reminders/opening-match-h24-reminder";
 import { formatDateTime } from "@/lib/utils";
 
-export const REMINDER_SCHEDULE = [
-  {
-    kind: PredictionReminderKind.H3,
-    adminKind: PredictionReminderKind.H3_ADMIN,
-    minutesBefore: 180,
-    label: "3 часа",
-    matchStarted: false,
-  },
-  {
-    kind: PredictionReminderKind.H1,
-    adminKind: PredictionReminderKind.H1_ADMIN,
-    minutesBefore: 60,
-    label: "1 час",
-    matchStarted: false,
-  },
-  {
-    kind: PredictionReminderKind.M15,
-    adminKind: PredictionReminderKind.M15_ADMIN,
-    minutesBefore: 15,
-    label: "15 минут",
-    matchStarted: false,
-  },
-  {
-    kind: PredictionReminderKind.LIVE,
-    adminKind: PredictionReminderKind.LIVE_ADMIN,
-    minutesBefore: 0,
-    label: "старт матча",
-    matchStarted: true,
-  },
-] as const;
+/** @deprecated Используйте MATCH_REMINDER_SCHEDULE */
+export const REMINDER_SCHEDULE = MATCH_REMINDER_SCHEDULE;
 
 export type ReminderRunResult = {
   checked: number;
@@ -485,41 +458,34 @@ export async function sendDuePredictionReminders(
     errors: 0,
   };
 
-  const startsAtRange = matchReminderCandidateStartsAtRange(now);
-  const allCandidates = await prisma.match.findMany({
-    where: {
-      status: MatchStatus.SCHEDULED,
-      startsAt: startsAtRange,
-    },
-    include: {
-      homeTeam: true,
-      awayTeam: true,
-      tournament: {
-        include: {
-          games: {
-            select: {
-              id: true,
-              title: true,
-              inviteCode: true,
-              createdById: true,
-              createdBy: {
-                select: {
-                  id: true,
-                  email: true,
-                  name: true,
-                  emailVerifiedAt: true,
-                },
+  const matchInclude = {
+    homeTeam: true,
+    awayTeam: true,
+    tournament: {
+      include: {
+        games: {
+          select: {
+            id: true,
+            title: true,
+            inviteCode: true,
+            createdById: true,
+            createdBy: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                emailVerifiedAt: true,
               },
-              participants: {
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      email: true,
-                      name: true,
-                      emailVerifiedAt: true,
-                      telegramChatId: true,
-                    },
+            },
+            participants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    emailVerifiedAt: true,
+                    telegramChatId: true,
                   },
                 },
               },
@@ -528,31 +494,44 @@ export async function sendDuePredictionReminders(
         },
       },
     },
-  });
+  } as const;
 
-  const predictable = allCandidates.filter(
+  const [preMatchCandidates, liveCandidates] = await Promise.all([
+    prisma.match.findMany({
+      where: {
+        status: MatchStatus.SCHEDULED,
+        startsAt: preMatchReminderCandidateStartsAtRange(now),
+      },
+      include: matchInclude,
+    }),
+    prisma.match.findMany({
+      where: {
+        status: MatchStatus.SCHEDULED,
+        startsAt: liveReminderCandidateStartsAtRange(now),
+      },
+      include: matchInclude,
+    }),
+  ]);
+
+  const predictablePreMatch = preMatchCandidates.filter(
+    isMatchPredictable,
+  ) as ReminderMatchRow[];
+  const predictableLive = liveCandidates.filter(
     isMatchPredictable,
   ) as ReminderMatchRow[];
 
-  for (const {
-    kind,
-    adminKind,
-    minutesBefore,
-    label,
-    matchStarted,
-  } of REMINDER_SCHEDULE) {
-    const matches = predictable.filter((match) =>
-      matchStarted
-        ? isLiveReminderDue(now, match.startsAt)
-        : isPreMatchReminderDue(now, match.startsAt, minutesBefore),
+  for (const slot of MATCH_REMINDER_SCHEDULE) {
+    const pool = slot.matchStarted ? predictableLive : predictablePreMatch;
+    const matches = pool.filter((match) =>
+      isMatchReminderDue(now, match.startsAt, slot),
     );
 
     await processReminderBatch({
       matches,
-      kind,
-      adminKind,
-      label,
-      matchStarted,
+      kind: slot.kind,
+      adminKind: slot.adminKind,
+      label: slot.label,
+      matchStarted: slot.matchStarted,
       result,
     });
   }

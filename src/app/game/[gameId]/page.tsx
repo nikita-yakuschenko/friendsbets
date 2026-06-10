@@ -108,20 +108,41 @@ export default async function GamePage({
 
       <div className="mb-4">
         {liveNow.length > 0 ? (
-          <LiveMatchHomePreview
-            matchId={liveNow[0]!.match.id}
-            match={liveNow[0]!.match}
-            hasPrediction={Boolean(liveNow[0]!.myPrediction)}
-            prediction={
-              liveNow[0]!.myPrediction
-                ? {
-                    homeScore: liveNow[0]!.myPrediction.homeScore,
-                    awayScore: liveNow[0]!.myPrediction.awayScore,
-                  }
-                : null
-            }
-            predictionsHref={gamePath(game.inviteCode, "predictions")}
-          />
+          <div className="space-y-2">
+            <Link
+              href={
+                liveNow.length > 1
+                  ? gamePath(game.inviteCode, "live")
+                  : gamePath(game.inviteCode, `live/${liveNow[0]!.match.id}`)
+              }
+              className="block rounded-2xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime"
+            >
+              <LiveMatchHomePreview
+                matchId={liveNow[0]!.match.id}
+                match={liveNow[0]!.match}
+                hasPrediction={Boolean(liveNow[0]!.myPrediction)}
+                prediction={
+                  liveNow[0]!.myPrediction
+                    ? {
+                        homeScore: liveNow[0]!.myPrediction.homeScore,
+                        awayScore: liveNow[0]!.myPrediction.awayScore,
+                      }
+                    : null
+                }
+                predictionsHref={gamePath(game.inviteCode, "predictions")}
+              />
+            </Link>
+            {liveNow.length > 1 ? (
+              <p className="text-center text-sm text-brand-muted">
+                <Link
+                  href={gamePath(game.inviteCode, "live")}
+                  className="font-medium text-brand-lime hover:underline"
+                >
+                  Все идущие матчи ({liveNow.length})
+                </Link>
+              </p>
+            ) : null}
+          </div>
         ) : nextMatch ? (
           <NextMatchPreview
             match={nextMatch}

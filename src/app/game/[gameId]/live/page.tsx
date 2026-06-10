@@ -1,8 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { GameOversightBanner } from "@/components/game/game-oversight-banner";
-import { PlatformOversightBackButton } from "@/components/game/platform-oversight-back-button";
 import { LiveMatchCard } from "@/components/game/live-match-card";
+import { LiveMatchPickerList } from "@/components/game/live-match-picker-list";
 import { NextMatchEmpty, NextMatchPreview } from "@/components/game/next-match-preview";
+import { PlatformOversightBackButton } from "@/components/game/platform-oversight-back-button";
 import { ContentContainer } from "@/components/layout/content-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { gamePath } from "@/lib/game-path";
@@ -30,6 +31,11 @@ export default async function LivePage({
 
   const oversight = view.access.isPlatformOversight;
   const items = await getLiveMatches(gameId);
+  const inviteCode = view.access.game.inviteCode;
+
+  if (items.length === 1) {
+    redirect(gamePath(inviteCode, `live/${items[0]!.match.id}`));
+  }
 
   if (oversight) {
     return (
@@ -40,19 +46,8 @@ export default async function LivePage({
           action={<PlatformOversightBackButton />}
         />
         <GameOversightBanner />
-        {items.length > 0 ? (
-          <div className="space-y-4">
-            {items.map(({ match, friendPredictions, stats }) => (
-              <LiveMatchCard
-                key={match.id}
-                matchId={match.id}
-                match={match}
-                friendPredictions={friendPredictions}
-                stats={stats}
-                hideFriendScores
-              />
-            ))}
-          </div>
+        {items.length > 1 ? (
+          <LiveMatchPickerList inviteCode={inviteCode} items={items} />
         ) : null}
       </ContentContainer>
     );
@@ -72,7 +67,9 @@ export default async function LivePage({
     <ContentContainer>
       <PageHeader title="Лайв" />
 
-      {items.length === 0 ? (
+      {items.length > 1 ? (
+        <LiveMatchPickerList inviteCode={game.inviteCode} items={items} />
+      ) : (
         <div className="mb-4">
           {nextMatch ? (
             <NextMatchPreview
@@ -86,22 +83,7 @@ export default async function LivePage({
             <NextMatchEmpty />
           )}
         </div>
-      ) : null}
-
-      {items.length > 0 ? (
-        <div className="space-y-4">
-          {items.map(({ match, myPrediction, friendPredictions, stats }) => (
-            <LiveMatchCard
-              key={match.id}
-              matchId={match.id}
-              match={match}
-              myPrediction={myPrediction}
-              friendPredictions={friendPredictions}
-              stats={stats}
-            />
-          ))}
-        </div>
-      ) : null}
+      )}
     </ContentContainer>
   );
 }

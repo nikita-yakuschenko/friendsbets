@@ -2,13 +2,13 @@ import { MatchStatus } from "@/generated/prisma/client";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { prisma } from "@/lib/db";
 import {
-  getPreMatchReminderFireAt,
+  getMatchReminderFireAt,
   LIVE_REMINDER_CATCHUP_MS,
+  MATCH_REMINDER_SCHEDULE,
 } from "@/lib/reminders/match-reminder-schedule";
 import { getNightReminderFireAt } from "@/lib/reminders/night-match-schedule";
 import { getOpeningH24FireAt } from "@/lib/reminders/opening-match-h24-schedule";
 import { findOpeningMatchForTournament } from "@/lib/tournament-opening-reminder";
-import { REMINDER_SCHEDULE } from "@/lib/reminders/prediction-reminders";
 
 const LOOKAHEAD_MS = 8 * 24 * 60 * 60 * 1000;
 
@@ -50,11 +50,12 @@ export async function getNearestReminderFireAt(
   for (const match of matches) {
     if (!isMatchPredictable(match)) continue;
 
-    for (const { minutesBefore, matchStarted } of REMINDER_SCHEDULE) {
-      const fireAt = matchStarted
-        ? match.startsAt
-        : getPreMatchReminderFireAt(match.startsAt, minutesBefore);
-      nearest = trackNearest(nearest, fireAt, now);
+    for (const slot of MATCH_REMINDER_SCHEDULE) {
+      nearest = trackNearest(
+        nearest,
+        getMatchReminderFireAt(match.startsAt, slot),
+        now,
+      );
     }
 
     const nightFire = getNightReminderFireAt(match.startsAt);

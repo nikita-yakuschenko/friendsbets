@@ -67,7 +67,8 @@ export default async function PredictionsPage({
   const filteredItems = data.items.filter((item) =>
     matchPredictionsFilter(item.match, activeFilter),
   );
-  const liveHref = gamePath(data.game.inviteCode, "live");
+  const liveHrefFor = (matchId: string) =>
+    gamePath(data.game.inviteCode, `live/${matchId}`);
 
   let inProgressItems: PredictionMatchItem[] = [];
   let upcomingOnlyItems: PredictionMatchItem[] = [];
@@ -151,7 +152,11 @@ export default async function PredictionsPage({
                   postponed={item.postponed}
                   inProgress={item.inProgress}
                   staleAwaitingResult={item.staleAwaitingResult}
-                  liveHref={liveHref}
+                  liveHref={
+                    item.inProgress
+                      ? liveHrefFor(item.match.id)
+                      : undefined
+                  }
                   points={item.points}
                   scoreReason={item.scoreReason}
                 />
@@ -175,7 +180,11 @@ export default async function PredictionsPage({
                     postponed={item.postponed}
                     inProgress={item.inProgress}
                     staleAwaitingResult={item.staleAwaitingResult}
-                    liveHref={liveHref}
+                    liveHref={
+                    item.inProgress
+                      ? liveHrefFor(item.match.id)
+                      : undefined
+                  }
                     points={item.points}
                     scoreReason={item.scoreReason}
                   />
@@ -200,7 +209,11 @@ export default async function PredictionsPage({
                     postponed={item.postponed}
                     inProgress={item.inProgress}
                     staleAwaitingResult={item.staleAwaitingResult}
-                    liveHref={liveHref}
+                    liveHref={
+                    item.inProgress
+                      ? liveHrefFor(item.match.id)
+                      : undefined
+                  }
                     points={item.points}
                     scoreReason={item.scoreReason}
                   />
@@ -225,7 +238,11 @@ export default async function PredictionsPage({
                     postponed={item.postponed}
                     inProgress={item.inProgress}
                     staleAwaitingResult={item.staleAwaitingResult}
-                    liveHref={liveHref}
+                    liveHref={
+                    item.inProgress
+                      ? liveHrefFor(item.match.id)
+                      : undefined
+                  }
                     points={item.points}
                     scoreReason={item.scoreReason}
                   />
