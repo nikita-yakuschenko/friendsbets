@@ -12,6 +12,7 @@ import { LiveMatchCardTabs } from "@/components/game/live-match-card-tabs";
 import type { LiveMatchPredictionsPanelProps } from "@/components/game/live-match-predictions-panel";
 import { TeamLabel } from "@/components/team/team-label";
 import type { ChampionatMatchEvent } from "@/lib/football-api/championat/match-protocol-types";
+import { formatLiveScoreLine } from "@/lib/live-match-score";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 
@@ -129,7 +130,7 @@ export function LiveMatchCard({
 
   const hasPenalties =
     match.homePenaltyScore != null && match.awayPenaltyScore != null;
-  const hasLiveScore = homeScore !== null && awayScore !== null;
+  const liveScore = formatLiveScoreLine(homeScore, awayScore);
   const isHalftime = liveStatus.phase === "halftime";
 
   return (
@@ -158,15 +159,11 @@ export function LiveMatchCard({
           </div>
 
           <div className="flex flex-col items-center gap-1">
-            {hasLiveScore ? (
-              <p className="text-3xl font-bold tabular-nums tracking-tight text-white sm:text-4xl">
-                {homeScore}
-                <span className="mx-1 text-brand-muted">:</span>
-                {awayScore}
-              </p>
-            ) : (
-              <p className="text-2xl font-semibold text-brand-muted">— : —</p>
-            )}
+            <p className="text-3xl font-bold tabular-nums tracking-tight text-white sm:text-4xl">
+              {liveScore.home}
+              <span className="mx-1 text-brand-muted">:</span>
+              {liveScore.away}
+            </p>
             {hasPenalties ? (
               <p className="text-xs text-brand-muted tabular-nums">
                 пен. {match.homePenaltyScore}:{match.awayPenaltyScore}

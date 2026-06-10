@@ -18,6 +18,7 @@ import { formatDateTimeMoscow, formatRelativeTime } from "@/lib/utils";
 
 import { NOTIFICATION_SIGNOFF } from "@/lib/notification-signoff";
 import { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
+import { resolveTeamFlagCode } from "@/lib/football-api/championat/team-country-codes";
 import { joinTournamentNotificationBody } from "@/lib/tournament-notification-lead";
 
 export { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
@@ -42,8 +43,12 @@ export function formatPredictionMatchLine(
   home: { name: string; countryCode: string | null },
   away: { name: string; countryCode: string | null },
 ): string {
-  const homeFlag = countryCodeToFlagEmoji(home.countryCode);
-  const awayFlag = countryCodeToFlagEmoji(away.countryCode);
+  const homeFlag = countryCodeToFlagEmoji(
+    resolveTeamFlagCode(home.name, home.countryCode),
+  );
+  const awayFlag = countryCodeToFlagEmoji(
+    resolveTeamFlagCode(away.name, away.countryCode),
+  );
   const homePart = homeFlag ? `${home.name} ${homeFlag}` : home.name;
   const awayPart = awayFlag ? `${awayFlag} ${away.name}` : away.name;
   return `${homePart} - ${awayPart}`;

@@ -18,11 +18,10 @@ export const ADMIN_TABS: { id: AdminTabId; label: string }[] = [
   { id: "integrations", label: "API и интеграции" },
 ];
 
-/** Вкладки только для организатора своего турнира (без платформенных интеграций). */
+/** Вкладки организатора турнира (без платформенных разделов). */
 export const ORGANIZER_ADMIN_TAB_IDS: AdminTabId[] = [
   "tournaments",
   "games",
-  "matches",
 ];
 
 export function getAdminTabsForUser(isSuperadmin: boolean) {

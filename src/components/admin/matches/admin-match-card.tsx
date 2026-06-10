@@ -2,11 +2,11 @@ import { MatchResultForm } from "@/components/admin/match-result-form";
 import {
   AdminCardDetails,
   AdminCardFooter,
-  AdminCardTitle,
   AdminDetailRow,
   AdminRecordCard,
 } from "@/components/admin/admin-detail-row";
 import type { AdminMatchRow } from "@/components/admin/matches/types";
+import { TeamLabel } from "@/components/team/team-label";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
 
@@ -19,9 +19,21 @@ export function AdminMatchCard({ match }: { match: AdminMatchRow }) {
   return (
     <AdminRecordCard>
       <header className="flex items-start justify-between gap-3">
-        <AdminCardTitle className="min-w-0 flex-1">
-          {match.homeTeamName} — {match.awayTeamName}
-        </AdminCardTitle>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-semibold text-white">
+            <TeamLabel
+              name={match.homeTeamName}
+              countryCode={match.homeTeamCountryCode}
+              flagPosition="after"
+            />
+            <span className="text-brand-muted">—</span>
+            <TeamLabel
+              name={match.awayTeamName}
+              countryCode={match.awayTeamCountryCode}
+              flagPosition="before"
+            />
+          </div>
+        </div>
         <Badge variant="secondary" className="shrink-0">
           {match.status}
         </Badge>

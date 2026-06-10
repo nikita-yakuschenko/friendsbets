@@ -1,4 +1,8 @@
-import { getFlagImageSrcSet, getFlagImageUrl } from "@/lib/teams";
+import {
+  getFlagImageSrcSet,
+  getFlagImageUrl,
+  resolveTeamFlagCode,
+} from "@/lib/teams";
 import { cn } from "@/lib/utils";
 
 type TeamLabelProps = {
@@ -20,12 +24,13 @@ export function TeamLabel({
   flagPosition = "before",
   truncate = false,
 }: TeamLabelProps) {
-  const flagUrl = getFlagImageUrl(countryCode);
+  const flagCode = resolveTeamFlagCode(name, countryCode);
+  const flagUrl = getFlagImageUrl(flagCode);
 
   const flag = flagUrl ? (
     <img
       src={flagUrl}
-      srcSet={getFlagImageSrcSet(countryCode) ?? undefined}
+      srcSet={getFlagImageSrcSet(flagCode) ?? undefined}
       width={24}
       height={18}
       alt=""

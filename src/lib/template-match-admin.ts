@@ -13,6 +13,8 @@ export type AdminPlatformMatchRow = {
   stage: string | null;
   homeTeamName: string;
   awayTeamName: string;
+  homeTeamCountryCode: string | null;
+  awayTeamCountryCode: string | null;
   templateTitle: string;
   templateId: string | null;
   tournamentId: string;
@@ -93,37 +95,23 @@ export async function recalculateAllScoresForTournament(
 }
 
 export async function listAdminPlatformMatches(
-  userId: string,
+  _userId: string,
   role: UserRole,
 ): Promise<AdminPlatformMatchRow[]> {
-  const isPlatformAdmin = isSuperadmin(role);
+  if (!isSuperadmin(role)) return [];
 
-  let tournamentIds: string[];
+  const templates = await prisma.tournamentTemplate.findMany({
+    select: { championatUrl: true },
+  });
+  const externalIds = templates
+    .map((t) => parseChampionatTournamentUrl(t.championatUrl)?.tournamentExternalId)
+    .filter((id): id is string => Boolean(id));
 
-  if (isPlatformAdmin) {
-    const templates = await prisma.tournamentTemplate.findMany({
-      select: { championatUrl: true },
-    });
-    const externalIds = templates
-      .map((t) => parseChampionatTournamentUrl(t.championatUrl)?.tournamentExternalId)
-      .filter((id): id is string => Boolean(id));
-
-    const tournaments = await prisma.tournament.findMany({
-      where: { externalId: { in: externalIds } },
-      select: { id: true },
-    });
-    tournamentIds = tournaments.map((t) => t.id);
-  } else {
-    const games = await prisma.game.findMany({
-      where: {
-        participants: {
-          some: { userId, role: GameParticipantRole.ORGANIZER },
-        },
-      },
-      select: { tournamentId: true },
-    });
-    tournamentIds = [...new Set(games.map((g) => g.tournamentId))];
-  }
+  const tournaments = await prisma.tournament.findMany({
+    where: { externalId: { in: externalIds } },
+    select: { id: true },
+  });
+  const tournamentIds = tournaments.map((t) => t.id);
 
   if (tournamentIds.length === 0) return [];
 
@@ -169,6 +157,8 @@ export async function listAdminPlatformMatches(
       stage: match.stage,
       homeTeamName: match.homeTeam.name,
       awayTeamName: match.awayTeam.name,
+      homeTeamCountryCode: match.homeTeam.countryCode,
+      awayTeamCountryCode: match.awayTeam.countryCode,
       templateTitle: template?.title ?? match.tournament.title,
       templateId: template?.id ?? null,
       tournamentId,

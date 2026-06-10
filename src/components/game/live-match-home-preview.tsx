@@ -9,6 +9,7 @@ import type {
   ChampionatLivePhase,
   ChampionatLiveStatus,
 } from "@/lib/football-api/championat/match-live-status";
+import { formatLiveScoreLine } from "@/lib/live-match-score";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 
@@ -87,7 +88,7 @@ export function LiveMatchHomePreview({
     };
   }, [fetchPhase]);
 
-  const hasLiveScore = homeScore != null && awayScore != null;
+  const liveScore = formatLiveScoreLine(homeScore, awayScore);
   const isHalftime = liveStatus.phase === "halftime";
 
   return (
@@ -117,15 +118,11 @@ export function LiveMatchHomePreview({
                 />
               </div>
               <div className="flex flex-col items-center">
-                {hasLiveScore ? (
-                  <p className="text-2xl font-bold tabular-nums tracking-tight text-white sm:text-3xl">
-                    {homeScore}
-                    <span className="mx-0.5 text-brand-muted">:</span>
-                    {awayScore}
-                  </p>
-                ) : (
-                  <p className="text-xl font-semibold text-brand-muted">— : —</p>
-                )}
+                <p className="text-2xl font-bold tabular-nums tracking-tight text-white sm:text-3xl">
+                  {liveScore.home}
+                  <span className="mx-0.5 text-brand-muted">:</span>
+                  {liveScore.away}
+                </p>
               </div>
               <TeamLabel
                 name={match.awayTeam.name}

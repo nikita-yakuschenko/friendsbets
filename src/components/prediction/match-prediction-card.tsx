@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { TeamLabel } from "@/components/team/team-label";
 import { getFlagImageSrcSet, getFlagImageUrl } from "@/lib/teams";
+import { liveScoreForDisplay } from "@/lib/live-match-score";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 import { savePredictionAction } from "@/server/actions/predictions";
@@ -93,19 +94,16 @@ function ScoreRow({
   const useLive = Boolean(liveScores) && !editing;
 
   const homeValue = useLive
-    ? liveScores!.home ?? "—"
+    ? liveScoreForDisplay(liveScores!.home)
     : prediction
       ? prediction.homeScore
       : "—";
   const awayValue = useLive
-    ? liveScores!.away ?? "—"
+    ? liveScoreForDisplay(liveScores!.away)
     : prediction
       ? prediction.awayScore
       : "—";
-  const emptyScore =
-    useLive
-      ? liveScores!.home === null || liveScores!.away === null
-      : !prediction;
+  const emptyScore = useLive ? false : !prediction;
 
   return (
     <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_auto_auto_minmax(0,1fr)] items-center gap-x-1 gap-y-0.5 py-1">

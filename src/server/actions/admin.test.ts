@@ -18,7 +18,6 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/template-match-admin", () => ({
   listTemplateTournamentIdsForRecalc: vi.fn(),
   recalculateAllScoresForTournament: vi.fn(),
-  userCanManageTournament: vi.fn(),
 }));
 
 vi.mock("@/lib/game-access", () => ({
@@ -30,7 +29,6 @@ import { prisma } from "@/lib/db";
 import {
   listTemplateTournamentIdsForRecalc,
   recalculateAllScoresForTournament,
-  userCanManageTournament,
 } from "@/lib/template-match-admin";
 import {
   recalculateAllScoresAction,
@@ -58,34 +56,34 @@ describe("recalculateAllScoresAction", () => {
     expect(recalculateAllScoresForTournament).toHaveBeenCalledWith("t-1");
   });
 
-  it("участник без организатора — ошибка", async () => {
+  it("участник — нет доступа к пересчёту", async () => {
     vi.mocked(requireAuth).mockResolvedValue({
       id: "u1",
       email: "u@t.c",
       name: "U",
       role: UserRole.PARTICIPANT,
     });
-    vi.mocked(prisma.game.findMany).mockResolvedValue([]);
 
     const result = await recalculateAllScoresAction();
 
-    expect(result.error).toMatch(/нет турниров/i);
+    expect(result.error).toMatch(/нет доступа/i);
+    expect(recalculateAllScoresForTournament).not.toHaveBeenCalled();
   });
 
-  it("запрещает чужой tournamentId", async () => {
+  it("участник — нет доступа к пересчёту по tournamentId", async () => {
     vi.mocked(requireAuth).mockResolvedValue({
       id: "u1",
       email: "u@t.c",
       name: "U",
       role: UserRole.PARTICIPANT,
     });
-    vi.mocked(userCanManageTournament).mockResolvedValue(false);
 
     const result = await recalculateAllScoresAction({
       tournamentId: "foreign-t",
     });
 
     expect(result.error).toMatch(/нет доступа/i);
+    expect(recalculateAllScoresForTournament).not.toHaveBeenCalled();
   });
 });
 

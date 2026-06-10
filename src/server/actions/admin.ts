@@ -22,7 +22,6 @@ import {
   listTemplateTournamentIdsForRecalc,
   recalculateAllScoresForTournament,
   recalculateMatchScoresForTournament,
-  userCanManageTournament,
 } from "@/lib/template-match-admin";
 import { parseChampionatTournamentUrl } from "@/lib/championat-url";
 import { getChampionatSyncConfig } from "@/lib/football-api/client";
@@ -54,12 +53,7 @@ export async function updateMatchResultAction(
   });
   if (!match) return { error: "Матч не найден." };
 
-  const allowed = await userCanManageTournament(
-    session.id,
-    session.role,
-    match.tournamentId,
-  );
-  if (!allowed) {
+  if (!isSuperadmin(session.role)) {
     return { error: "Нет доступа." };
   }
 
@@ -333,32 +327,16 @@ export async function recalculateAllScoresAction(
   options?: { tournamentId?: string },
 ): Promise<ActionResult> {
   const session = await requireAuth();
+  if (!isSuperadmin(session.role)) {
+    return { error: "Нет доступа." };
+  }
 
   let tournamentIds: string[];
 
   if (options?.tournamentId) {
-    const allowed = await userCanManageTournament(
-      session.id,
-      session.role,
-      options.tournamentId,
-    );
-    if (!allowed) return { error: "Нет доступа." };
     tournamentIds = [options.tournamentId];
-  } else if (isSuperadmin(session.role)) {
-    tournamentIds = await listTemplateTournamentIdsForRecalc();
   } else {
-    const games = await prisma.game.findMany({
-      where: {
-        participants: {
-          some: {
-            userId: session.id,
-            role: GameParticipantRole.ORGANIZER,
-          },
-        },
-      },
-      select: { tournamentId: true },
-    });
-    tournamentIds = [...new Set(games.map((g) => g.tournamentId))];
+    tournamentIds = await listTemplateTournamentIdsForRecalc();
   }
 
   if (tournamentIds.length === 0) {

@@ -8,3 +8,4 @@ export {
   getFlagImageUrl,
   normalizeFlagCode,
 } from "@/lib/flag-proxy";
+export { resolveTeamFlagCode } from "@/lib/football-api/championat/team-country-codes";

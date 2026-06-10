@@ -119,7 +119,7 @@ export default async function AdminPage({
         )}
 
 
-        {activeTab === "matches" && (
+        {activeTab === "matches" && isPlatformSuperadmin && (
           <AdminMatchesPanel
             matches={data.matches}
             templates={data.templates}

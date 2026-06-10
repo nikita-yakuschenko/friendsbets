@@ -89,7 +89,7 @@ async function upsertExternalTeam(
   });
 
   if (existing) {
-    if (countryCode && existing.countryCode == null) {
+    if (countryCode && countryCode !== existing.countryCode) {
       await prisma.team.update({
         where: { id: existing.id },
         data: { countryCode },
