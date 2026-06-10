@@ -82,9 +82,11 @@ model User {
   telegramLinkedAt           DateTime?
   telegramLinkToken          String?   @unique
   telegramLinkExpiresAt      DateTime?
+  activeGameId               String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  activeGame        Game?              @relation("UserActiveGame", fields: [activeGameId], references: [id], onDelete: SetNull)
   createdGames      Game[]             @relation("GameCreator")
   gameParticipants  GameParticipant[]
   predictions       Prediction[]
@@ -158,6 +160,7 @@ model Game {
   bonusPredictions BonusPrediction[]
   predictionReminders PredictionReminder[]
   joinRequests GameJoinRequest[]
+  activeForUsers User[] @relation("UserActiveGame")
 
   @@index([tournamentId])
   @@index([inviteCode])

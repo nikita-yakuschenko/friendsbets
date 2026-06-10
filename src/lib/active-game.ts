@@ -25,8 +25,7 @@ export async function getActiveGameInviteFromCookie(): Promise<string | null> {
   return normalizeInviteCodeInput(raw);
 }
 
-/** Только Server Action / Route Handler / middleware response. */
-export async function setActiveGameInviteCookie(inviteCode: string): Promise<void> {
+async function writeActiveGameCookie(inviteCode: string): Promise<void> {
   const normalized = normalizeInviteCodeInput(inviteCode);
   const cookieStore = await cookies();
   cookieStore.set(ACTIVE_GAME_COOKIE, normalized, {
@@ -36,6 +35,11 @@ export async function setActiveGameInviteCookie(inviteCode: string): Promise<voi
     maxAge: ACTIVE_GAME_COOKIE_MAX_AGE,
     path: "/",
   });
+}
+
+/** @deprecated Используйте persistActiveGameForUser */
+export async function setActiveGameInviteCookie(inviteCode: string): Promise<void> {
+  await writeActiveGameCookie(inviteCode);
 }
 
 export async function clearActiveGameInviteCookie(): Promise<void> {
@@ -56,32 +60,105 @@ async function userIsGameMember(
   return Boolean(participant);
 }
 
-function inviteFromPathname(pathname: string): string | undefined {
-  const match = pathname.match(/^\/game\/([^/]+)/);
-  if (!match) return undefined;
-  return normalizeInviteCodeInput(normalizeGameRouteParam(match[1]));
+async function clearPersistedActiveGame(userId: string): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { activeGameId: null },
+  });
+  await clearActiveGameInviteCookie();
 }
 
-/** Текущий турнир для навигации (только чтение, без записи cookie). */
+/** Сохранённый пользователем текущий турнир (БД; cookie — зеркало для SSR). */
+export async function getPersistedActiveGameInvite(
+  userId: string,
+): Promise<string | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      activeGame: { select: { id: true, inviteCode: true } },
+    },
+  });
+
+  if (user?.activeGame) {
+    const member = await prisma.gameParticipant.findUnique({
+      where: {
+        gameId_userId: { gameId: user.activeGame.id, userId },
+      },
+      select: { id: true },
+    });
+    if (member) {
+      return normalizeInviteCodeInput(user.activeGame.inviteCode);
+    }
+    await clearPersistedActiveGame(userId);
+  }
+
+  const fromCookie = await getActiveGameInviteFromCookie();
+  if (fromCookie && (await userIsGameMember(userId, fromCookie))) {
+    const game = await findGameByInviteCode(fromCookie);
+    if (game) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { activeGameId: game.id },
+      });
+      return fromCookie;
+    }
+  }
+
+  return null;
+}
+
+/** Явный выбор текущего турнира — в БД и cookie. */
+export async function persistActiveGameForUser(
+  userId: string,
+  inviteCode: string,
+): Promise<void> {
+  const normalized = normalizeInviteCodeInput(inviteCode);
+  const game = await findGameByInviteCode(normalized);
+  if (!game) {
+    throw new Error("ACTIVE_GAME_NOT_FOUND");
+  }
+
+  const participant = await prisma.gameParticipant.findUnique({
+    where: { gameId_userId: { gameId: game.id, userId } },
+    select: { id: true },
+  });
+  if (!participant) {
+    throw new Error("ACTIVE_GAME_FORBIDDEN");
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { activeGameId: game.id },
+  });
+  await writeActiveGameCookie(normalized);
+}
+
+export async function clearPersistedActiveGameForUser(
+  userId: string,
+): Promise<void> {
+  await clearPersistedActiveGame(userId);
+}
+
+/**
+ * Invite для навигации:
+ * - на странице турнира — открытый турнир (preferred);
+ * - иначе — сохранённый пользователем текущий;
+ * - иначе — fallback (первый в списке).
+ */
 export async function resolveActiveGameInviteCode(
   userId: string,
   options?: {
     preferredInviteCode?: string;
-    pathname?: string;
     fallbackInviteCode?: string;
   },
 ): Promise<string | undefined> {
   const preferred = options?.preferredInviteCode
     ? normalizeInviteCodeInput(options.preferredInviteCode)
     : undefined;
-  const fromPath = options?.pathname
-    ? inviteFromPathname(options.pathname)
-    : undefined;
 
   const candidates = [
     preferred,
-    fromPath,
-    await getActiveGameInviteFromCookie(),
+    await getPersistedActiveGameInvite(userId),
     options?.fallbackInviteCode,
   ]
     .filter((code): code is string => Boolean(code))

@@ -4,13 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth";
 import {
+  persistActiveGameForUser,
   resolveActiveGameInviteCode,
-  setActiveGameInviteCookie,
 } from "@/lib/active-game";
-import { findGameByInviteCode } from "@/lib/game-invite";
 import { gamePath } from "@/lib/game-path";
 import { normalizeInviteCodeInput } from "@/lib/invite-code";
-import { prisma } from "@/lib/db";
 import type { ActionResult } from "@/server/actions/auth";
 
 export async function setActiveGameAction(
@@ -19,22 +17,18 @@ export async function setActiveGameAction(
 ): Promise<ActionResult> {
   const session = await requireAuth();
   const inviteCode = normalizeInviteCodeInput(inviteCodeRaw.trim());
-  const game = await findGameByInviteCode(inviteCode);
 
-  if (!game) {
-    return { error: "Турнир не найден." };
+  try {
+    await persistActiveGameForUser(session.id, inviteCode);
+  } catch (error) {
+    if (error instanceof Error && error.message === "ACTIVE_GAME_NOT_FOUND") {
+      return { error: "Турнир не найден." };
+    }
+    if (error instanceof Error && error.message === "ACTIVE_GAME_FORBIDDEN") {
+      return { error: "Вы не участник этого турнира." };
+    }
+    throw error;
   }
-
-  const participant = await prisma.gameParticipant.findUnique({
-    where: { gameId_userId: { gameId: game.id, userId: session.id } },
-    select: { id: true },
-  });
-
-  if (!participant) {
-    return { error: "Вы не участник этого турнира." };
-  }
-
-  await setActiveGameInviteCookie(inviteCode);
   revalidatePath("/", "layout");
   revalidatePath("/");
 

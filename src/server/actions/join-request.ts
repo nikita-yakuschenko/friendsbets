@@ -9,7 +9,7 @@ import {
   UserNotificationKind,
 } from "@/generated/prisma/client";
 import { requireAuth } from "@/lib/auth";
-import { setActiveGameInviteCookie } from "@/lib/active-game";
+import { persistActiveGameForUser } from "@/lib/active-game";
 import { findGameByInviteCode } from "@/lib/game-invite";
 import { gamePath } from "@/lib/game-path";
 import { isGameOrganizerUser } from "@/lib/game-organizer-users";
@@ -62,7 +62,7 @@ export async function requestJoinGameAction(
     where: { gameId_userId: { gameId: game.id, userId: session.id } },
   });
   if (existingMember) {
-    await setActiveGameInviteCookie(game.inviteCode);
+    await persistActiveGameForUser(session.id, game.inviteCode);
     redirect(gamePath(game.inviteCode));
   }
 

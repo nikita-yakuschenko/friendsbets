@@ -1,7 +1,7 @@
 import {
-  clearActiveGameInviteCookie,
-  getActiveGameInviteFromCookie,
-  setActiveGameInviteCookie,
+  clearPersistedActiveGameForUser,
+  getPersistedActiveGameInvite,
+  persistActiveGameForUser,
 } from "@/lib/active-game";
 import { normalizeInviteCodeInput } from "@/lib/invite-code";
 import { prisma } from "@/lib/db";
@@ -18,7 +18,7 @@ export async function validateNextActiveBeforeMembershipEnd(
   membershipCount: number,
   nextActiveInviteCode?: string,
 ): Promise<MembershipEndResult> {
-  const activeInvite = await getActiveGameInviteFromCookie();
+  const activeInvite = await getPersistedActiveGameInvite(userId);
   const removed = normalizeInviteCodeInput(removedInviteCode);
 
   if (!activeInvite || activeInvite !== removed) {
@@ -58,7 +58,7 @@ export async function applyActiveGameAfterMembershipEnd(
   removedInviteCode: string,
   nextActiveInviteCode?: string,
 ): Promise<MembershipEndResult> {
-  const activeInvite = await getActiveGameInviteFromCookie();
+  const activeInvite = await getPersistedActiveGameInvite(userId);
   const removed = normalizeInviteCodeInput(removedInviteCode);
 
   if (!activeInvite || activeInvite !== removed) {
@@ -72,12 +72,15 @@ export async function applyActiveGameAfterMembershipEnd(
   });
 
   if (remaining.length === 0) {
-    await clearActiveGameInviteCookie();
+    await clearPersistedActiveGameForUser(userId);
     return { success: true, clearedAllGames: true };
   }
 
   if (remaining.length === 1) {
-    await setActiveGameInviteCookie(remaining[0]!.game.inviteCode);
+    await persistActiveGameForUser(
+      userId,
+      remaining[0]!.game.inviteCode,
+    );
     return { success: true };
   }
 
@@ -93,6 +96,6 @@ export async function applyActiveGameAfterMembershipEnd(
     return { error: "Выбранный турнир недоступен." };
   }
 
-  await setActiveGameInviteCookie(next);
+  await persistActiveGameForUser(userId, next);
   return { success: true };
 }

@@ -31,7 +31,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/active-game", () => ({
-  setActiveGameInviteCookie: vi.fn(),
+  persistActiveGameForUser: vi.fn(),
 }));
 
 vi.mock("@/lib/game-access", () => ({

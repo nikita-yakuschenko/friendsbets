@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { IconCrown } from "@tabler/icons-react";
 import { UserAvatar } from "@/components/user/user-avatar";
@@ -52,10 +51,8 @@ export async function AppShell({
   if (user) {
     const state = await getUserGamesState(user.id);
     hasGames = state.hasGames;
-    const pathname = (await headers()).get("x-pathname") ?? "";
     activeInviteCode = await resolveActiveGameInviteCode(user.id, {
       preferredInviteCode: gameInviteCode,
-      pathname,
       fallbackInviteCode: state.firstInviteCode,
     });
   }

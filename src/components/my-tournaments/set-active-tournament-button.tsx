@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { TournamentActionButton } from "@/components/my-tournaments/tournament-action-link";
@@ -12,6 +13,7 @@ export function SetActiveTournamentButton({
   inviteCode: string;
   gameTitle: string;
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   return (
@@ -26,6 +28,7 @@ export function SetActiveTournamentButton({
             return;
           }
           toast.success(`«${gameTitle}» — текущий турнир`);
+          router.refresh();
         });
       }}
     >

@@ -6,7 +6,7 @@ import {
   GameParticipantRole,
 } from "@/generated/prisma/client";
 import { requireAuth } from "@/lib/auth";
-import { setActiveGameInviteCookie } from "@/lib/active-game";
+import { persistActiveGameForUser } from "@/lib/active-game";
 import { findGameByInviteCode } from "@/lib/game-invite";
 import { gamePath } from "@/lib/game-path";
 import { revalidateGamePaths } from "@/lib/game-access";
@@ -81,7 +81,7 @@ export async function confirmJoinGameAction(
   });
 
   if (existing) {
-    await setActiveGameInviteCookie(game.inviteCode);
+    await persistActiveGameForUser(session.id, game.inviteCode);
     redirect(gamePath(game.inviteCode));
   }
 
@@ -96,7 +96,7 @@ export async function confirmJoinGameAction(
 
   await notifyOpeningMatchOnTournamentJoin(session.id, game.id);
 
-  await setActiveGameInviteCookie(game.inviteCode);
+  await persistActiveGameForUser(session.id, game.inviteCode);
   await revalidateGamePaths(game.id);
   redirect(gamePath(game.inviteCode));
 }
