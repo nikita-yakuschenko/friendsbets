@@ -15,15 +15,23 @@ import {
   OPENING_H24_TITLE,
   openingH24EmailSubject,
 } from "@/lib/reminders/opening-match-h24-content";
-import { matchReminderWindow } from "@/lib/reminders/prediction-reminders";
+import {
+  getOpeningH24FireAt,
+  isOpeningH24Due,
+} from "@/lib/reminders/opening-match-h24-schedule";
 import type { ReminderRunResult } from "@/lib/reminders/prediction-reminders";
 import { findOpeningMatchForTournament } from "@/lib/tournament-opening-reminder";
 import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 import { sendTelegramMessage } from "@/lib/telegram/api";
 import { isTelegramConfigured } from "@/lib/telegram/config";
 
-export const OPENING_H24_MINUTES_BEFORE = 24 * 60;
+export {
+  getOpeningH24FireAt,
+  isOpeningH24Due,
+} from "@/lib/reminders/opening-match-h24-schedule";
+
 const REMINDER_KIND = PredictionReminderKind.H24_OPENING;
+const LOOKAHEAD_MS = 8 * 24 * 60 * 60 * 1000;
 
 type OpeningH24Game = {
   id: string;
@@ -64,7 +72,6 @@ function isUniqueConstraintError(error: unknown): boolean {
   );
 }
 
-/** Заявка на отправку до TG/email — защита от гонки cron. */
 async function claimOpeningH24Reminder(
   gameId: string,
   matchId: string,
@@ -72,12 +79,7 @@ async function claimOpeningH24Reminder(
 ): Promise<boolean> {
   try {
     await prisma.predictionReminder.create({
-      data: {
-        gameId,
-        matchId,
-        userId,
-        kind: REMINDER_KIND,
-      },
+      data: { gameId, matchId, userId, kind: REMINDER_KIND },
     });
     return true;
   } catch (error) {
@@ -89,12 +91,13 @@ async function claimOpeningH24Reminder(
 async function loadOpeningMatchesDueH24(
   now: Date,
 ): Promise<OpeningH24MatchRow[]> {
-  const startsAtWindow = matchReminderWindow(OPENING_H24_MINUTES_BEFORE, now);
-
   const candidates = await prisma.match.findMany({
     where: {
       status: MatchStatus.SCHEDULED,
-      startsAt: startsAtWindow,
+      startsAt: {
+        gt: now,
+        lte: new Date(now.getTime() + LOOKAHEAD_MS),
+      },
     },
     include: {
       homeTeam: { select: { name: true, countryCode: true, externalId: true } },
@@ -106,11 +109,9 @@ async function loadOpeningMatchesDueH24(
 
   for (const candidate of candidates) {
     if (!isMatchPredictable(candidate)) continue;
+    if (!isOpeningH24Due(now, candidate.startsAt)) continue;
 
-    const opening = await findOpeningMatchForTournament(
-      candidate.tournamentId,
-      now,
-    );
+    const opening = await findOpeningMatchForTournament(candidate.tournamentId);
     if (!opening || opening.id !== candidate.id) continue;
 
     const games = await prisma.game.findMany({
@@ -150,7 +151,42 @@ async function loadOpeningMatchesDueH24(
   return due;
 }
 
-/** За 24 ч до матча открытия — всем участникам (с прогнозом и без). */
+export async function getNearestOpeningH24FireAt(
+  now: Date,
+): Promise<Date | null> {
+  const candidates = await prisma.match.findMany({
+    where: {
+      status: MatchStatus.SCHEDULED,
+      startsAt: { gt: now, lte: new Date(now.getTime() + LOOKAHEAD_MS) },
+    },
+    select: {
+      id: true,
+      tournamentId: true,
+      startsAt: true,
+      homeTeam: { select: { externalId: true } },
+      awayTeam: { select: { externalId: true } },
+    },
+    orderBy: { startsAt: "asc" },
+    take: 80,
+  });
+
+  let nearest: Date | null = null;
+
+  for (const candidate of candidates) {
+    if (!isMatchPredictable(candidate)) continue;
+
+    const opening = await findOpeningMatchForTournament(candidate.tournamentId);
+    if (!opening || opening.id !== candidate.id) continue;
+
+    const fireAt = getOpeningH24FireAt(candidate.startsAt);
+    if (fireAt <= now) return now;
+    if (!nearest || fireAt < nearest) nearest = fireAt;
+  }
+
+  return nearest;
+}
+
+/** Стартовое уведомление: 22:35 МСК в канун дня матча открытия. */
 export async function sendOpeningMatchH24Reminders(
   now = new Date(),
 ): Promise<ReminderRunResult> {

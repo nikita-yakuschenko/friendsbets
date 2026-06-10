@@ -16,20 +16,19 @@ import { formatRelativeTime } from "@/lib/utils";
 type OpeningMatchTeams = {
   id: string;
   startsAt: Date;
+  status: MatchStatus;
   homeTeam: { name: string; countryCode: string | null; externalId: string | null };
   awayTeam: { name: string; countryCode: string | null; externalId: string | null };
 };
 
-/** Ближайший предсказуемый матч турнира (матч открытия). */
+/** Первый матч в расписании турнира (минимальный startsAt). */
 export async function findOpeningMatchForTournament(
   tournamentId: string,
-  referenceNow = new Date(),
 ): Promise<OpeningMatchTeams | null> {
-  const matches = await prisma.match.findMany({
+  const match = await prisma.match.findFirst({
     where: {
       tournamentId,
-      startsAt: { gt: referenceNow },
-      status: MatchStatus.SCHEDULED,
+      status: { not: MatchStatus.CANCELLED },
     },
     include: {
       homeTeam: {
@@ -40,16 +39,14 @@ export async function findOpeningMatchForTournament(
       },
     },
     orderBy: { startsAt: "asc" },
-    take: 30,
   });
 
-  const match = matches.find(isMatchPredictable);
-  if (!match) return null;
+  if (!match || !isMatchPredictable(match)) return null;
 
   return match;
 }
 
-/** Ближайший предсказуемый матч турнира (матч открытия). */
+/** Первый матч в расписании турнира для игры. */
 export async function findOpeningMatchForGame(gameId: string) {
   const game = await prisma.game.findUnique({
     where: { id: gameId },
@@ -73,6 +70,13 @@ export async function notifyOpeningMatchOnTournamentJoin(
     if (!ctx) return;
 
     const { game, match } = ctx;
+
+    if (
+      match.status !== MatchStatus.SCHEDULED ||
+      match.startsAt <= new Date()
+    ) {
+      return;
+    }
 
     const existingPrediction = await prisma.prediction.findUnique({
       where: {

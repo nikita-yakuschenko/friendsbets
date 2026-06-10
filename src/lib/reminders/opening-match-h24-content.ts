@@ -38,7 +38,7 @@ type OpeningH24ContentInput = OpeningH24Match & {
 };
 
 function openingH24LeadLine(): string {
-  return "До начала турнира осталось 24 часа.";
+  return "Завтра стартует турнир.";
 }
 
 function openingH24DetailLine(hasPrediction: boolean): string {

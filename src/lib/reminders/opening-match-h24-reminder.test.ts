@@ -46,11 +46,11 @@ vi.mock("@/lib/db", () => ({
 import { prisma } from "@/lib/db";
 import { sendOpeningMatchH24Reminders } from "@/lib/reminders/opening-match-h24-reminder";
 
-const now = new Date("2026-06-10T19:00:00.000Z");
+/** Матч 11 июля 22:00 МСК → fire 10 июля 22:35 МСК */
 const openingMatch = {
   id: "match-open",
   tournamentId: "tour-1",
-  startsAt: new Date("2026-06-11T19:00:00.000Z"),
+  startsAt: new Date("2026-07-11T19:00:00.000Z"),
   homeTeam: {
     name: "Мексика",
     countryCode: "mx",
@@ -109,6 +109,7 @@ describe("opening match h24 reminders", () => {
   });
 
   it("шлёт всем участникам с разным текстом", async () => {
+    const now = new Date("2026-07-10T19:40:00.000Z");
     const result = await sendOpeningMatchH24Reminders(now);
 
     expect(result.sent).toBe(2);
@@ -127,10 +128,30 @@ describe("opening match h24 reminders", () => {
       code: "P2002",
     });
 
+    const now = new Date("2026-07-10T19:40:00.000Z");
     const result = await sendOpeningMatchH24Reminders(now);
     expect(result.skipped).toBe(2);
     expect(result.sent).toBe(0);
     expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("не шлёт до 22:35 МСК канун дня (10 июля 22:30 МСК)", async () => {
+    vi.mocked(prisma.match.findMany).mockResolvedValue([openingMatch] as never);
+
+    const earlyNow = new Date("2026-07-10T19:30:00.000Z");
+    const result = await sendOpeningMatchH24Reminders(earlyNow);
+
+    expect(result.sent).toBe(0);
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("догоняет после 22:35 МСК (10 июля 22:40 МСК)", async () => {
+    const lateNow = new Date("2026-07-10T19:40:00.000Z");
+
+    const result = await sendOpeningMatchH24Reminders(lateNow);
+
+    expect(result.sent).toBe(2);
+    expect(createNotificationMock).toHaveBeenCalledTimes(2);
   });
 
   it("пропускает матч, который не является открытием турнира", async () => {
@@ -139,6 +160,7 @@ describe("opening match h24 reminders", () => {
       id: "other-match",
     });
 
+    const now = new Date("2026-07-10T19:40:00.000Z");
     const result = await sendOpeningMatchH24Reminders(now);
     expect(result.sent).toBe(0);
     expect(prisma.game.findMany).not.toHaveBeenCalled();

@@ -14,4 +14,11 @@ export async function register() {
     "@/lib/telegram/register-webhook"
   );
   await ensureTelegramWebhookRegistered();
+
+  if (process.env.NODE_ENV === "production") {
+    const { startBackgroundReminderScheduler } = await import(
+      "@/lib/reminders/background-reminder-scheduler"
+    );
+    startBackgroundReminderScheduler();
+  }
 }

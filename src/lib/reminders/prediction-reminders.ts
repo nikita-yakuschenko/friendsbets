@@ -102,8 +102,12 @@ type ReminderMatchRow = {
 };
 
 /** Окно startsAt для напоминания (экспорт для тестов). */
-export function matchReminderWindow(minutesBefore: number, now: Date) {
-  const half = REMINDER_WINDOW_MS / 2;
+export function matchReminderWindow(
+  minutesBefore: number,
+  now: Date,
+  windowMs: number = REMINDER_WINDOW_MS,
+) {
+  const half = windowMs / 2;
   const targetMs = minutesBefore * 60 * 1000;
   return {
     gte: new Date(now.getTime() + targetMs - half),
