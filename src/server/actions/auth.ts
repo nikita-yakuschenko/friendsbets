@@ -2,7 +2,11 @@
 
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
-import { GameParticipantRole, UserRole } from "@/generated/prisma/client";
+import {
+  GameParticipantRole,
+  Prisma,
+  UserRole,
+} from "@/generated/prisma/client";
 import { clearSession, requireAuth, setSession } from "@/lib/auth";
 import { findGameByInviteCode } from "@/lib/game-invite";
 import {
@@ -15,6 +19,7 @@ import {
   userNeedsEmailVerification,
 } from "@/lib/email-verification";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { normalizeUserEmail } from "@/lib/normalize-user-email";
 import { notifyOpeningMatchOnTournamentJoin } from "@/lib/tournament-opening-reminder";
 
 export type ActionResult = {
@@ -29,9 +34,7 @@ export async function loginAction(
   _prev: ActionResult | undefined,
   formData: FormData,
 ): Promise<ActionResult> {
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
+  const email = normalizeUserEmail(String(formData.get("email") ?? ""));
   const password = String(formData.get("password") ?? "");
 
   const rate = checkRateLimit(`login:${email}`, 10, 15 * 60 * 1000);
@@ -105,9 +108,7 @@ export async function registerAction(
   }
 
   const name = String(formData.get("name") ?? "").trim();
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
+  const email = normalizeUserEmail(String(formData.get("email") ?? ""));
   const password = String(formData.get("password") ?? "");
   const inviteCodeRaw = String(formData.get("inviteCode") ?? "").trim();
 
@@ -143,26 +144,50 @@ export async function registerAction(
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      passwordHash,
-      role: UserRole.PARTICIPANT,
-      ...(game
-        ? {
-            gameParticipants: {
-              create: {
-                gameId: game.id,
-                displayName: name,
-                role: GameParticipantRole.PARTICIPANT,
+  let user: {
+    id: number;
+    email: string;
+    name: string;
+    role: UserRole;
+    emailVerifiedAt: Date | null;
+  };
+
+  try {
+    user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        role: UserRole.PARTICIPANT,
+        ...(game
+          ? {
+              gameParticipants: {
+                create: {
+                  gameId: game.id,
+                  displayName: name,
+                  role: GameParticipantRole.PARTICIPANT,
+                },
               },
-            },
-          }
-        : {}),
-    },
-    select: { id: true, email: true, name: true, role: true, emailVerifiedAt: true },
-  });
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        emailVerifiedAt: true,
+      },
+    });
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      return { error: "Пользователь с таким email уже существует." };
+    }
+    throw err;
+  }
 
   try {
     await sendEmailVerificationMessage(user);

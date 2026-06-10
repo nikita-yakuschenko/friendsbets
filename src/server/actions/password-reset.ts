@@ -6,6 +6,7 @@ import {
   resetPasswordByToken,
   sendPasswordResetMessage,
 } from "@/lib/password-reset";
+import { normalizeUserEmail } from "@/lib/normalize-user-email";
 import { checkRateLimit } from "@/lib/rate-limit";
 import type { ActionResult } from "@/server/actions/auth";
 
@@ -16,9 +17,7 @@ export async function requestPasswordResetAction(
   _prev: ActionResult | undefined,
   formData: FormData,
 ): Promise<ActionResult> {
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
+  const email = normalizeUserEmail(String(formData.get("email") ?? ""));
 
   const rate = checkRateLimit(`password-reset:${email}`, 5, 60 * 60 * 1000);
   if (!rate.allowed) {

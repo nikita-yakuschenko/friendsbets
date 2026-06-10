@@ -1,12 +1,16 @@
 "use client";
 
-import {
-  IconChevronDown,
-  IconMessages,
-} from "@tabler/icons-react";
+import { IconChevronDown } from "@tabler/icons-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useNotificationUnread } from "@/components/notifications/notification-unread-provider";
@@ -27,7 +31,8 @@ import { NotificationSignoff } from "@/components/notifications/notification-sig
 import { bodyHasNotificationSignoff } from "@/lib/notification-signoff";
 import { cn } from "@/lib/utils";
 
-type InboxTab = "new" | "read";
+/** Считаем уведомление просмотренным после стольких мс в развёрнутом виде. */
+const READ_AFTER_EXPAND_MS = 2500;
 
 function formatWhen(iso: string) {
   return new Intl.DateTimeFormat("ru-RU", {
@@ -87,7 +92,8 @@ function NotificationShell({
         {unread ? (
           <span
             className="mt-2 size-2 shrink-0 rounded-full bg-brand-lime"
-            aria-hidden
+            title="Непрочитано"
+            aria-label="Непрочитано"
           />
         ) : (
           <span className="mt-2 size-2 shrink-0" aria-hidden />
@@ -333,73 +339,86 @@ function NotificationRow({
 export function NotificationList({ items }: { items: NotificationListItem[] }) {
   const router = useRouter();
   const { refreshUnread } = useNotificationUnread();
-  const [tab, setTab] = useState<InboxTab>("new");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [readOverrides, setReadOverrides] = useState<Record<string, string>>(
     {},
   );
   const [pending, startTransition] = useTransition();
+  const markingRef = useRef<Set<string>>(new Set());
+
+  const unreadCount = useMemo(
+    () =>
+      items.filter((item) => !effectiveReadAt(item, readOverrides)).length,
+    [items, readOverrides],
+  );
+
+  const commitMarkRead = useCallback(
+    (id: string) => {
+      if (markingRef.current.has(id)) return;
+
+      const item = items.find((row) => row.id === id);
+      if (!item || effectiveReadAt(item, readOverrides)) return;
+
+      markingRef.current.add(id);
+      const now = new Date().toISOString();
+      setReadOverrides((prev) => ({ ...prev, [id]: now }));
+
+      startTransition(async () => {
+        const result = await markNotificationReadAction(id);
+        if (result.error) {
+          markingRef.current.delete(id);
+          setReadOverrides((prev) => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          });
+          toast.error(result.error);
+          return;
+        }
+        router.refresh();
+        await refreshUnread();
+      });
+    },
+    [items, readOverrides, refreshUnread, router],
+  );
 
   useEffect(() => {
-    setExpandedId(null);
-  }, [tab]);
+    if (!expandedId) return;
 
-  const { unreadItems, readItems } = useMemo(() => {
-    const unread: NotificationListItem[] = [];
-    const read: NotificationListItem[] = [];
-    for (const item of items) {
-      if (effectiveReadAt(item, readOverrides)) {
-        read.push(item);
-      } else {
-        unread.push(item);
-      }
-    }
-    return { unreadItems: unread, readItems: read };
-  }, [items, readOverrides]);
+    const item = items.find((row) => row.id === expandedId);
+    if (!item || effectiveReadAt(item, readOverrides)) return;
 
-  const visible = tab === "new" ? unreadItems : readItems;
+    const timer = window.setTimeout(() => {
+      commitMarkRead(expandedId);
+    }, READ_AFTER_EXPAND_MS);
 
-  function markReadLocally(id: string) {
-    setReadOverrides((prev) => ({
-      ...prev,
-      [id]: new Date().toISOString(),
-    }));
-  }
+    return () => window.clearTimeout(timer);
+  }, [expandedId, items, readOverrides, commitMarkRead]);
 
   function handleToggle(id: string) {
     if (expandedId === id) {
+      commitMarkRead(id);
       setExpandedId(null);
       return;
     }
 
     setExpandedId(id);
-    const item = items.find((row) => row.id === id);
-    if (!item || effectiveReadAt(item, readOverrides)) return;
-
-    markReadLocally(id);
-    startTransition(async () => {
-      const result = await markNotificationReadAction(id);
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-      router.refresh();
-      await refreshUnread();
-    });
   }
 
   function handleMarkAllRead() {
-    const unreadIds = unreadItems.map((item) => item.id);
+    const unreadIds = items
+      .filter((item) => !effectiveReadAt(item, readOverrides))
+      .map((item) => item.id);
     if (unreadIds.length === 0) return;
 
     const now = new Date().toISOString();
+    for (const id of unreadIds) markingRef.current.add(id);
     setReadOverrides((prev) => {
       const next = { ...prev };
       for (const id of unreadIds) next[id] = now;
       return next;
     });
     setExpandedId(null);
-    setTab("read");
 
     startTransition(async () => {
       const result = await markAllNotificationsReadAction();
@@ -414,76 +433,33 @@ export function NotificationList({ items }: { items: NotificationListItem[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <nav
-          className="flex min-w-0 flex-1 flex-nowrap gap-1 overflow-x-auto rounded-xl border border-brand-neutral bg-brand-surface/50 p-1 scrollbar-none"
-          aria-label="Разделы уведомлений"
-        >
-          <button
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-brand-muted">
+          {unreadCount > 0
+            ? `${unreadCount} непрочитанных — откройте, чтобы прочитать`
+            : "Все уведомления просмотрены"}
+        </p>
+        {unreadCount > 0 ? (
+          <Button
             type="button"
-            onClick={() => setTab("new")}
-            className={cn(
-              "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              tab === "new"
-                ? "bg-brand-lime text-black"
-                : "text-brand-muted hover:bg-brand-neutral/30 hover:text-white",
-            )}
-            aria-current={tab === "new" ? "true" : undefined}
+            variant="ghost"
+            size="sm"
+            disabled={pending}
+            onClick={handleMarkAllRead}
+            className="shrink-0 text-brand-muted hover:text-brand-lime"
           >
-            Новые
-            <span
-              className={cn(
-                "ml-1.5 tabular-nums",
-                tab === "new" ? "text-black/70" : "text-brand-muted",
-              )}
-            >
-              ({unreadItems.length})
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("read")}
-            className={cn(
-              "shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              tab === "read"
-                ? "bg-brand-lime text-black"
-                : "text-brand-muted hover:bg-brand-neutral/30 hover:text-white",
-            )}
-            aria-current={tab === "read" ? "true" : undefined}
-          >
-            Прочитанные
-            <span
-              className={cn(
-                "ml-1.5 tabular-nums",
-                tab === "read" ? "text-black/70" : "text-brand-muted",
-              )}
-            >
-              ({readItems.length})
-            </span>
-          </button>
-        </nav>
-
-        <button
-          type="button"
-          onClick={handleMarkAllRead}
-          disabled={unreadItems.length === 0 || pending}
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-brand-neutral text-brand-muted transition-colors hover:border-brand-lime/40 hover:bg-brand-lime/10 hover:text-brand-lime disabled:cursor-not-allowed disabled:opacity-40"
-          aria-label="Отметить всё прочитанным"
-          title="Отметить всё прочитанным"
-        >
-          <IconMessages className="size-5" stroke={1.75} aria-hidden />
-        </button>
+            Прочитать все
+          </Button>
+        ) : null}
       </div>
 
-      {visible.length === 0 ? (
+      {items.length === 0 ? (
         <p className="rounded-xl border border-brand-neutral px-4 py-10 text-center text-sm text-brand-muted">
-          {tab === "new"
-            ? "Нет новых уведомлений."
-            : "Прочитанных уведомлений пока нет."}
+          Уведомлений пока нет.
         </p>
       ) : (
         <ul className="space-y-3">
-          {visible.map((item) => (
+          {items.map((item) => (
             <li key={item.id}>
               <NotificationRow
                 item={item}

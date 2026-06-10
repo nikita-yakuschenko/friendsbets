@@ -118,8 +118,8 @@ export function AdminSendTelegramForm({
           />
           <h2 className="text-sm font-medium text-white">Сообщение в Telegram</h2>
           <InfoHint title="Личное сообщение в бот">
-            Сообщение уйдёт пользователю {userName} в Telegram. Копия появится в
-            разделе «Уведомления» на сайте.
+            Сообщение уйдёт только пользователю {userName} в Telegram, без
+            дубликата в уведомлениях на сайте.
           </InfoHint>
         </div>
         <span

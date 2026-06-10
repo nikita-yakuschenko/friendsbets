@@ -1,9 +1,7 @@
 "use server";
 
-import { UserNotificationKind } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
-import { createUserNotification } from "@/lib/create-user-notification";
 import { withNotificationSignoff } from "@/lib/notification-signoff";
 import { prisma } from "@/lib/db";
 import { sendTelegramMessage } from "@/lib/telegram/api";
@@ -133,20 +131,13 @@ export async function sendAdminTelegramMessageAction(
       appendTelegramChannelFooter(signedMessage),
     );
 
-    await createUserNotification({
-      userId,
-      kind: UserNotificationKind.PLATFORM_BROADCAST,
-      title: "Сообщение от FriendsBets",
-      body: signedMessage,
-    });
-
     revalidatePath("/admin");
     revalidatePath(`/admin/users/${userId}`);
 
     const handle = user.telegramUsername ? `@${user.telegramUsername}` : user.name;
     return {
       success: true,
-      message: `Отправлено в Telegram (${handle}). Дубликат — в уведомлениях на сайте.`,
+      message: `Отправлено в Telegram (${handle}).`,
     };
   } catch (error) {
     console.error("[telegram:admin-send]", error);
