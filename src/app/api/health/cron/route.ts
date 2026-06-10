@@ -10,7 +10,7 @@ const CRON_JOBS_META = [
   {
     id: CRON_JOB_IDS.PREDICTION_REMINDERS,
     path: "/api/cron/prediction-reminders",
-    description: "Prediction email reminders",
+    description: "Prediction reminders (email, Telegram, in-app)",
   },
 ] as const;
 

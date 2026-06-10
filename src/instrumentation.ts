@@ -7,6 +7,9 @@ export async function register() {
   const { bootPlatformEssentials } = await import("@/lib/platform-essentials");
   await bootPlatformEssentials();
 
+  const { warnIfBackgroundCronNotConfigured } = await import("@/lib/cron-config");
+  warnIfBackgroundCronNotConfigured();
+
   const { ensureTelegramWebhookRegistered } = await import(
     "@/lib/telegram/register-webhook"
   );

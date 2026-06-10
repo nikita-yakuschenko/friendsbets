@@ -8,8 +8,6 @@ import {
 } from "@/lib/game-access";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
-import { runScheduledChampionatMatchSyncs } from "@/lib/football-api/championat/sync-scheduled-championat-matches";
-import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
 import {
   isMatchInProgress,
   isMatchLockedForPredictions,
@@ -127,11 +125,8 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
   });
   if (!game) return null;
 
-  const championatSource = await resolveChampionatSourceForTournament(
-    game.tournamentId,
-  );
-
-  let matches = await prisma.match.findMany({
+  // Счёт и статусы матчей — только из БД. Обновление с Championat: /api/cron/sync-matches.
+  const matches = await prisma.match.findMany({
     where: { tournamentId: game.tournamentId },
     include: {
       homeTeam: true,
@@ -139,22 +134,6 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
     },
     orderBy: { startsAt: "asc" },
   });
-
-  if (championatSource) {
-    try {
-      await runScheduledChampionatMatchSyncs({
-        tournamentId: game.tournamentId,
-        maxPolls: 12,
-      });
-      matches = await prisma.match.findMany({
-        where: { tournamentId: game.tournamentId },
-        include: { homeTeam: true, awayTeam: true },
-        orderBy: { startsAt: "asc" },
-      });
-    } catch (err) {
-      console.error("[predictions] championat scheduled sync failed", err);
-    }
-  }
 
   const predictions = await prisma.prediction.findMany({
     where: { gameId, userId },
