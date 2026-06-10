@@ -21,10 +21,17 @@ export type LiveMatchPredictionsPanelProps = {
   } | null;
   friendPredictions: FriendPrediction[];
   stats: LivePredictionStats | null;
+  statsComment?: string | null;
   hideFriendScores?: boolean;
 };
 
-function LiveStats({ stats }: { stats: LivePredictionStats }) {
+function LiveStats({
+  stats,
+  statsComment,
+}: {
+  stats: LivePredictionStats;
+  statsComment?: string | null;
+}) {
   return (
     <div className="rounded-xl bg-brand-bg px-3 py-3">
       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-brand-muted">
@@ -59,6 +66,9 @@ function LiveStats({ stats }: { stats: LivePredictionStats }) {
               {stats.exactAtCurrentScore}
             </span>
           </p>
+        ) : null}
+        {statsComment ? (
+          <p className="text-sm leading-snug text-brand-lime/90">{statsComment}</p>
         ) : null}
       </div>
     </div>
@@ -97,11 +107,12 @@ export function LiveMatchPredictionsPanel({
   myPrediction,
   friendPredictions,
   stats,
+  statsComment,
   hideFriendScores = false,
 }: LiveMatchPredictionsPanelProps) {
   return (
     <>
-      {stats ? <LiveStats stats={stats} /> : null}
+      {stats ? <LiveStats stats={stats} statsComment={statsComment} /> : null}
 
       <div className={stats ? "mt-4" : ""}>
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-brand-muted">

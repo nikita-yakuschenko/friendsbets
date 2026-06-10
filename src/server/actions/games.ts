@@ -14,6 +14,7 @@ import { isSuperadmin } from "@/lib/roles";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { computeLivePredictionStats } from "@/lib/live-match-stats";
+import { buildPredictionStatsCommentary } from "@/lib/prediction-stats-commentary";
 import {
   isMatchInProgress,
   MATCH_LIVE_TRACKING_MAX_MS,
@@ -348,11 +349,33 @@ export async function getLiveMatches(routeParam: string) {
 
     const stats = computeLivePredictionStats(match.predictions, liveScore);
 
+    const statsComment = stats
+      ? buildPredictionStatsCommentary({
+          stats,
+          seed: match.id,
+          homeTeam: {
+            name: match.homeTeam.name,
+            countryCode: match.homeTeam.countryCode,
+          },
+          awayTeam: {
+            name: match.awayTeam.name,
+            countryCode: match.awayTeam.countryCode,
+          },
+          predictions: match.predictions.map((prediction) => ({
+            displayName:
+              displayNameByUserId.get(prediction.userId) ?? "Участник",
+            homeScore: prediction.homeScore,
+            awayScore: prediction.awayScore,
+          })),
+        })
+      : null;
+
     return {
       match,
       myPrediction,
       friendPredictions,
       stats,
+      statsComment,
     };
   });
 }

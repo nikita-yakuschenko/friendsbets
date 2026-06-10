@@ -54,6 +54,7 @@ export default async function LiveMatchPage({
           match={item.match}
           friendPredictions={item.friendPredictions}
           stats={item.stats}
+          statsComment={item.statsComment}
           hideFriendScores
         />
       </ContentContainer>
@@ -76,6 +77,7 @@ export default async function LiveMatchPage({
         myPrediction={item.myPrediction}
         friendPredictions={item.friendPredictions}
         stats={item.stats}
+        statsComment={item.statsComment}
       />
     </ContentContainer>
   );

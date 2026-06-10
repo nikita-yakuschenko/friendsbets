@@ -43,6 +43,7 @@ export function LiveMatchCard({
   myPrediction,
   friendPredictions,
   stats,
+  statsComment,
   hideFriendScores = false,
 }: LiveMatchCardProps) {
   const router = useRouter();
@@ -189,6 +190,7 @@ export function LiveMatchCard({
             myPrediction,
             friendPredictions,
             stats,
+            statsComment,
             hideFriendScores,
           }}
           events={events}
