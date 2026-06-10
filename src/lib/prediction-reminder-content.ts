@@ -196,6 +196,75 @@ export function buildNightBatchTelegramPersonalHtml(params: {
   });
 }
 
+/** In-app: матч начался (всем участникам игры). */
+export function buildMatchStartedInAppBody(params: {
+  gameTitle: string;
+  homeTeam: { name: string; countryCode: string | null };
+  awayTeam: { name: string; countryCode: string | null };
+  predictedHome?: number | null;
+  predictedAway?: number | null;
+}): string {
+  const detail =
+    params.predictedHome != null && params.predictedAway != null
+      ? `Твой прогноз: ${params.predictedHome}:${params.predictedAway}`
+      : "Прогноз не сделан";
+
+  return joinTournamentNotificationBody(params.gameTitle, [
+    "Матч начался:",
+    formatPredictionMatchLine(params.homeTeam, params.awayTeam),
+    detail,
+    "",
+    NOTIFICATION_SIGNOFF,
+  ]);
+}
+
+export function buildMatchStartedEmailContent(params: {
+  userName: string;
+  gameTitle: string;
+  homeTeam: string;
+  awayTeam: string;
+  inviteCode: string;
+  predictedHome?: number | null;
+  predictedAway?: number | null;
+  origin?: string;
+}): EmailContent {
+  const link = predictionsAbsoluteUrl(params.inviteCode, params.origin);
+  const detail =
+    params.predictedHome != null && params.predictedAway != null
+      ? `Твой прогноз: ${params.predictedHome}:${params.predictedAway}`
+      : "Прогноз не сделан";
+
+  const text = [
+    `Здравствуйте, ${params.userName}!`,
+    "",
+    `В турнире «${params.gameTitle}» начался матч ${params.homeTeam} — ${params.awayTeam}.`,
+    detail,
+    "",
+    `${PREDICTION_CTA_LABEL}: ${link}`,
+    "",
+    NOTIFICATION_SIGNOFF,
+  ].join("\n");
+
+  const html = renderEmailLayout({
+    preheader: `Матч начался: ${params.homeTeam} — ${params.awayTeam}`,
+    badge: params.gameTitle,
+    title: "Матч начался",
+    introHtml: `
+      <p style="margin:0 0 14px;">Здравствуйте, <strong style="color:${EMAIL_BRAND.heading};font-weight:600;">${escapeHtml(params.userName)}</strong>!</p>
+      <p style="margin:0 0 14px;">В турнире «${escapeHtml(params.gameTitle)}» начался матч:</p>
+      ${renderMatchCard({
+        homeTeam: params.homeTeam,
+        awayTeam: params.awayTeam,
+        gameTitle: params.gameTitle,
+        startsAtLabel: "сейчас",
+      })}
+      <p style="margin:14px 0 0;">${escapeHtml(detail)}</p>`,
+    cta: { label: PREDICTION_CTA_LABEL, href: link },
+  });
+
+  return { text, html };
+}
+
 /** Текст для раздела «Уведомления» на сайте (без URL). */
 export function buildMissingPredictionInAppBody(params: {
   gameTitle: string;

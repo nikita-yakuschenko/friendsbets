@@ -46,10 +46,7 @@ export function getNightReminderFireAt(startsAt: Date): Date | null {
   return mskDateTimeFromDayAndMinutes(fireDay, NIGHT_REMINDER_MSK_MIN);
 }
 
-export function isNightReminderDueNow(
-  fireAt: Date,
-  now: Date,
-  toleranceMs: number,
-): boolean {
-  return Math.abs(now.getTime() - fireAt.getTime()) <= toleranceMs;
+/** Пора слать: дедлайн наступил, матч ещё не начался. */
+export function isNightReminderDue(fireAt: Date, now: Date, startsAt: Date): boolean {
+  return now >= fireAt && startsAt > now;
 }

@@ -5,19 +5,28 @@ import {
 } from "@/generated/prisma/client";
 import { sendEmail } from "@/lib/email";
 import { postTelegramChannelNews } from "@/lib/telegram/channel";
-import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 import {
   buildChannelMatchReminderText,
   buildChannelMatchStartedText,
   buildMatchStartedTelegramText,
   buildMissingPredictionTelegramText,
 } from "@/lib/telegram/reminder-messages";
-import { sendTelegramMessage } from "@/lib/telegram/api";
 import { isTelegramConfigured } from "@/lib/telegram/config";
 import {
   buildAdminMissingPredictionsEmail,
   buildPredictionReminderEmail,
 } from "@/lib/email/templates";
+import {
+  buildMatchStartedEmailContent,
+  buildMatchStartedInAppBody,
+  buildMissingPredictionInAppBody,
+} from "@/lib/prediction-reminder-content";
+import {
+  isLiveReminderDue,
+  isPreMatchReminderDue,
+  matchReminderCandidateStartsAtRange,
+} from "@/lib/reminders/match-reminder-schedule";
+import { deliverMatchReminderToUser } from "@/lib/reminders/reminder-delivery";
 import { getAppOriginFromEnv } from "@/lib/app-origin";
 import { gamePath } from "@/lib/game-path";
 import { logOperation, logOperationError, maskEmail } from "@/lib/logger";
@@ -26,9 +35,6 @@ import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { sendNightBatchPredictionReminders } from "@/lib/reminders/night-match-reminders";
 import { sendOpeningMatchH24Reminders } from "@/lib/reminders/opening-match-h24-reminder";
 import { formatDateTime } from "@/lib/utils";
-
-/** Окно отправки относительно целевого времени (cron каждые ~5–10 мин). */
-const REMINDER_WINDOW_MS = 10 * 60 * 1000;
 
 export const REMINDER_SCHEDULE = [
   {
@@ -101,20 +107,6 @@ type ReminderMatchRow = {
   tournament: { games: GameWithParticipants[] };
 };
 
-/** Окно startsAt для напоминания (экспорт для тестов). */
-export function matchReminderWindow(
-  minutesBefore: number,
-  now: Date,
-  windowMs: number = REMINDER_WINDOW_MS,
-) {
-  const half = windowMs / 2;
-  const targetMs = minutesBefore * 60 * 1000;
-  return {
-    gte: new Date(now.getTime() + targetMs - half),
-    lte: new Date(now.getTime() + targetMs + half),
-  };
-}
-
 function appOrigin(origin?: string): string {
   return (origin ?? getAppOriginFromEnv()).replace(/\/$/, "");
 }
@@ -164,8 +156,7 @@ function reminderKey(
   return `${gameId}:${matchId}:${userId}:${kind}`;
 }
 
-async function sendReminderEmail(params: {
-  to: string;
+function buildPreMatchReminderEmail(params: {
   userName: string;
   gameTitle: string;
   gameInviteCode: string;
@@ -186,7 +177,7 @@ async function sendReminderEmail(params: {
     link,
   });
 
-  await sendEmail({ to: params.to, subject, text, html });
+  return { subject, text, html };
 }
 
 async function sendAdminMissingListEmail(params: {
@@ -316,78 +307,99 @@ async function processReminderBatch(params: {
           (p) => p.userId === participant.userId,
         );
 
-        if (matchStarted && !isMissing) {
-          if (!participant.user.telegramChatId) {
-            result.skipped++;
-            continue;
-          }
-        } else if (!matchStarted && !isMissing) {
-          continue;
-        } else if (
-          !matchStarted &&
-          isMissing &&
-          !participant.user.emailVerifiedAt &&
-          !participant.user.telegramChatId
-        ) {
-          result.skipped++;
-          continue;
+        if (!matchStarted && !isMissing) continue;
+
+        const prediction = predictions.find(
+          (p) =>
+            p.gameId === game.id &&
+            p.matchId === match.id &&
+            p.userId === participant.userId,
+        );
+
+        const matchTitle = `${match.homeTeam.name} — ${match.awayTeam.name}`;
+        let title: string;
+        let inAppBody: string;
+        let telegramHtml: string;
+        let emailSubject: string;
+        let emailText: string;
+        let emailHtml: string;
+
+        if (matchStarted) {
+          title = `Матч начался: ${matchTitle}`;
+          inAppBody = buildMatchStartedInAppBody({
+            gameTitle: game.title,
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            predictedHome: prediction?.homeScore ?? null,
+            predictedAway: prediction?.awayScore ?? null,
+          });
+          telegramHtml = buildMatchStartedTelegramText({
+            gameTitle: game.title,
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            inviteCode: game.inviteCode,
+            predictedHome: prediction?.homeScore ?? null,
+            predictedAway: prediction?.awayScore ?? null,
+          });
+          const emailContent = buildMatchStartedEmailContent({
+            userName: participant.displayName,
+            gameTitle: game.title,
+            homeTeam: match.homeTeam.name,
+            awayTeam: match.awayTeam.name,
+            inviteCode: game.inviteCode,
+            predictedHome: prediction?.homeScore ?? null,
+            predictedAway: prediction?.awayScore ?? null,
+          });
+          emailSubject = `FriendsBets: матч начался — ${matchTitle}`;
+          emailText = emailContent.text;
+          emailHtml = emailContent.html;
+        } else {
+          title = `Прогноз: ${matchTitle}`;
+          inAppBody = buildMissingPredictionInAppBody({
+            gameTitle: game.title,
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            startsAt: match.startsAt,
+          });
+          telegramHtml = buildMissingPredictionTelegramText({
+            gameTitle: game.title,
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            startsAt: match.startsAt,
+            timeLabel: label,
+            inviteCode: game.inviteCode,
+          });
+          const emailContent = buildPreMatchReminderEmail({
+            userName: participant.displayName,
+            gameTitle: game.title,
+            gameInviteCode: game.inviteCode,
+            homeTeam: match.homeTeam.name,
+            awayTeam: match.awayTeam.name,
+            startsAt: match.startsAt,
+            timeLabel: label,
+          });
+          emailSubject = emailContent.subject;
+          emailText = emailContent.text;
+          emailHtml = emailContent.html;
         }
 
-        let delivered = false;
-
         try {
-          if (participant.user.telegramChatId) {
-            const prediction = predictions.find(
-              (p) =>
-                p.gameId === game.id &&
-                p.matchId === match.id &&
-                p.userId === participant.userId,
-            );
-            const tgText = matchStarted
-              ? buildMatchStartedTelegramText({
-                  gameTitle: game.title,
-                  homeTeam: match.homeTeam,
-                  awayTeam: match.awayTeam,
-                  inviteCode: game.inviteCode,
-                  predictedHome: prediction?.homeScore ?? null,
-                  predictedAway: prediction?.awayScore ?? null,
-                })
-              : buildMissingPredictionTelegramText({
-                  gameTitle: game.title,
-                  homeTeam: match.homeTeam,
-                  awayTeam: match.awayTeam,
-                  startsAt: match.startsAt,
-                  timeLabel: label,
-                  inviteCode: game.inviteCode,
-                });
+          const delivered = await deliverMatchReminderToUser({
+            userId: participant.userId,
+            email: participant.user.email,
+            emailVerifiedAt: participant.user.emailVerifiedAt,
+            telegramChatId: participant.user.telegramChatId,
+            title,
+            inAppBody,
+            inviteCode: game.inviteCode,
+            emailSubject,
+            emailText,
+            emailHtml,
+            telegramHtml,
+            logTag: "reminders:participant",
+          });
 
-            await sendTelegramMessage(
-              participant.user.telegramChatId,
-              appendTelegramChannelFooter(tgText),
-              { parseMode: "HTML" },
-            );
-            delivered = true;
-          }
-
-          if (
-            isMissing &&
-            !matchStarted &&
-            participant.user.emailVerifiedAt
-          ) {
-            await sendReminderEmail({
-              to: participant.user.email,
-              userName: participant.displayName,
-              gameTitle: game.title,
-              gameInviteCode: game.inviteCode,
-              homeTeam: match.homeTeam.name,
-              awayTeam: match.awayTeam.name,
-              startsAt: match.startsAt,
-              timeLabel: label,
-            });
-            delivered = true;
-          }
-
-          if (!delivered) {
+          if (!delivered.anyDelivered) {
             result.skipped++;
             continue;
           }
@@ -473,49 +485,40 @@ export async function sendDuePredictionReminders(
     errors: 0,
   };
 
-  for (const {
-    kind,
-    adminKind,
-    minutesBefore,
-    label,
-    matchStarted,
-  } of REMINDER_SCHEDULE) {
-    const startsAt = matchReminderWindow(minutesBefore, now);
-
-    const matches = await prisma.match.findMany({
-      where: {
-        status: MatchStatus.SCHEDULED,
-        startsAt,
-      },
-      include: {
-        homeTeam: true,
-        awayTeam: true,
-        tournament: {
-          include: {
-            games: {
-              select: {
-                id: true,
-                title: true,
-                inviteCode: true,
-                createdById: true,
-                createdBy: {
-                  select: {
-                    id: true,
-                    email: true,
-                    name: true,
-                    emailVerifiedAt: true,
-                  },
+  const startsAtRange = matchReminderCandidateStartsAtRange(now);
+  const allCandidates = await prisma.match.findMany({
+    where: {
+      status: MatchStatus.SCHEDULED,
+      startsAt: startsAtRange,
+    },
+    include: {
+      homeTeam: true,
+      awayTeam: true,
+      tournament: {
+        include: {
+          games: {
+            select: {
+              id: true,
+              title: true,
+              inviteCode: true,
+              createdById: true,
+              createdBy: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  emailVerifiedAt: true,
                 },
-                participants: {
-                  include: {
-                    user: {
-                      select: {
-                        id: true,
-                        email: true,
-                        name: true,
-                        emailVerifiedAt: true,
-                        telegramChatId: true,
-                      },
+              },
+              participants: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      email: true,
+                      name: true,
+                      emailVerifiedAt: true,
+                      telegramChatId: true,
                     },
                   },
                 },
@@ -524,10 +527,28 @@ export async function sendDuePredictionReminders(
           },
         },
       },
-    });
+    },
+  });
+
+  const predictable = allCandidates.filter(
+    isMatchPredictable,
+  ) as ReminderMatchRow[];
+
+  for (const {
+    kind,
+    adminKind,
+    minutesBefore,
+    label,
+    matchStarted,
+  } of REMINDER_SCHEDULE) {
+    const matches = predictable.filter((match) =>
+      matchStarted
+        ? isLiveReminderDue(now, match.startsAt)
+        : isPreMatchReminderDue(now, match.startsAt, minutesBefore),
+    );
 
     await processReminderBatch({
-      matches: matches.filter(isMatchPredictable) as ReminderMatchRow[],
+      matches,
       kind,
       adminKind,
       label,

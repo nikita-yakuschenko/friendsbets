@@ -1,11 +1,5 @@
-import {
-  MatchStatus,
-  PredictionReminderKind,
-  UserNotificationKind,
-} from "@/generated/prisma/client";
-import { createUserNotification } from "@/lib/create-user-notification";
+import { MatchStatus, PredictionReminderKind } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { sendEmail } from "@/lib/email";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { logOperationError, maskEmail } from "@/lib/logger";
 import {
@@ -13,17 +7,14 @@ import {
   buildNightBatchInAppBody,
   buildNightBatchTelegramPersonalHtml,
 } from "@/lib/prediction-reminder-content";
-import { appendTelegramChannelFooter } from "@/lib/telegram/format";
-import { sendTelegramMessage } from "@/lib/telegram/api";
-import { isTelegramConfigured } from "@/lib/telegram/config";
 import {
   getNightReminderFireAt,
-  isNightReminderDueNow,
+  isNightReminderDue,
   isNightWindowKickoffMsk,
 } from "@/lib/reminders/night-match-schedule";
+import { deliverMatchReminderToUser } from "@/lib/reminders/reminder-delivery";
 import type { ReminderRunResult } from "@/lib/reminders/prediction-reminders";
 
-const REMINDER_WINDOW_MS = 10 * 60 * 1000;
 const NIGHT_KIND = PredictionReminderKind.H18_NIGHT;
 
 type NightMatchRow = {
@@ -65,7 +56,6 @@ export async function sendNightBatchPredictionReminders(
     errors: 0,
   };
 
-  const toleranceMs = REMINDER_WINDOW_MS / 2;
   const horizon = new Date(now.getTime() + 36 * 60 * 60 * 1000);
 
   const matches = await prisma.match.findMany({
@@ -107,7 +97,7 @@ export async function sendNightBatchPredictionReminders(
     if (!isMatchPredictable(match)) return false;
     if (!isNightWindowKickoffMsk(match.startsAt)) return false;
     const fireAt = getNightReminderFireAt(match.startsAt);
-    return fireAt != null && isNightReminderDueNow(fireAt, now, toleranceMs);
+    return fireAt != null && isNightReminderDue(fireAt, now, match.startsAt);
   }) as NightMatchRow[];
 
   if (dueMatches.length === 0) return result;
@@ -223,33 +213,25 @@ export async function sendNightBatchPredictionReminders(
       inviteCode: batch.game.inviteCode,
     });
 
-    let delivered = false;
-
     try {
-      await createUserNotification({
+      const delivered = await deliverMatchReminderToUser({
         userId: batch.user.id,
-        kind: UserNotificationKind.MISSING_PREDICTION,
+        email: batch.user.email,
+        emailVerifiedAt: batch.user.emailVerifiedAt,
+        telegramChatId: batch.user.telegramChatId,
         title,
-        body: inAppBody,
-        actionInviteCode: batch.game.inviteCode,
+        inAppBody,
+        inviteCode: batch.game.inviteCode,
+        emailSubject: title,
+        emailText: emailContent.text,
+        emailHtml: emailContent.html,
+        telegramHtml,
+        logTag: "reminders:night-batch",
       });
-      delivered = true;
 
-      if (batch.user.telegramChatId && isTelegramConfigured()) {
-        await sendTelegramMessage(
-          batch.user.telegramChatId,
-          appendTelegramChannelFooter(telegramHtml),
-          { parseMode: "HTML" },
-        );
-      }
-
-      if (batch.user.emailVerifiedAt) {
-        await sendEmail({
-          to: batch.user.email,
-          subject: title,
-          text: emailContent.text,
-          html: emailContent.html,
-        });
+      if (!delivered.anyDelivered) {
+        result.skipped++;
+        continue;
       }
 
       for (const match of batch.matches) {
@@ -266,7 +248,7 @@ export async function sendNightBatchPredictionReminders(
         );
       }
 
-      if (delivered) result.sent++;
+      result.sent++;
     } catch (error) {
       logOperationError("reminders:night-batch", error, {
         gameId: batch.game.id,

@@ -13,7 +13,7 @@ vi.mock("@/lib/email", () => ({
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    match: { findMany: vi.fn() },
+    match: { findMany: vi.fn(), findFirst: vi.fn().mockResolvedValue(null) },
     prediction: { findMany: vi.fn() },
     predictionReminder: {
       findMany: vi.fn(),
@@ -93,19 +93,7 @@ describe("sendDuePredictionReminders", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(now);
-    vi.mocked(prisma.match.findMany).mockImplementation(async (args) => {
-      const startsAt = (args as { where?: { startsAt?: { gte?: Date; lte?: Date } } })
-        ?.where?.startsAt;
-      const t = kickoff.getTime();
-      if (
-        startsAt?.gte &&
-        startsAt?.lte &&
-        (t < startsAt.gte.getTime() || t > startsAt.lte.getTime())
-      ) {
-        return [] as never;
-      }
-      return [baseMatch] as never;
-    });
+    vi.mocked(prisma.match.findMany).mockResolvedValue([baseMatch] as never);
     vi.mocked(prisma.prediction.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.predictionReminder.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.predictionReminder.create).mockResolvedValue({} as never);
@@ -117,6 +105,7 @@ describe("sendDuePredictionReminders", () => {
 
     expect(result.sent).toBeGreaterThan(0);
     expect(sendEmailMock).toHaveBeenCalled();
+    expect(prisma.userNotification.create).toHaveBeenCalled();
     expect(prisma.predictionReminder.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -155,14 +144,19 @@ describe("sendDuePredictionReminders", () => {
     expect(sendEmailMock).not.toHaveBeenCalled();
   });
 
-  it("пропускает неподтверждённый email", async () => {
+  it("без подтверждённого email всё равно шлёт in-app", async () => {
     const result = await sendDuePredictionReminders(now);
 
     const callsForUnverified = sendEmailMock.mock.calls.filter((c) =>
       String((c[0] as { to?: string })?.to).includes("u2@test.com"),
     );
     expect(callsForUnverified).toHaveLength(0);
-    expect(result.checked).toBeGreaterThan(0);
+    expect(prisma.userNotification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ userId: "user-2" }),
+      }),
+    );
+    expect(result.sent).toBeGreaterThan(0);
   });
 
   it("не шлёт участникам с прогнозом", async () => {
@@ -187,13 +181,14 @@ describe("sendDuePredictionReminders", () => {
     expect(adminCalls.length).toBeGreaterThan(0);
   });
 
-  it("ошибка email не создаёт sent record", async () => {
+  it("ошибка email не блокирует in-app и sent record", async () => {
     sendEmailMock.mockRejectedValue(new Error("smtp down"));
 
     const result = await sendDuePredictionReminders(now);
 
-    expect(result.errors).toBeGreaterThan(0);
-    expect(prisma.predictionReminder.create).not.toHaveBeenCalled();
+    expect(prisma.userNotification.create).toHaveBeenCalled();
+    expect(prisma.predictionReminder.create).toHaveBeenCalled();
+    expect(result.sent).toBeGreaterThan(0);
   });
 
   it("использует пакетные findMany вместо findUnique в цикле", async () => {

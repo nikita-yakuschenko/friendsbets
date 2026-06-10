@@ -1,5 +1,5 @@
 import { computeAdaptiveReminderPollDelayMs } from "@/lib/reminders/adaptive-poll-delay";
-import { getNearestOpeningH24FireAt } from "@/lib/reminders/opening-match-h24-reminder";
+import { getNearestReminderFireAt } from "@/lib/reminders/nearest-reminder-fire-at";
 import { logOperation, logOperationError } from "@/lib/logger";
 
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -35,7 +35,7 @@ async function scheduleNext(): Promise<void> {
   const now = new Date();
   let nextFireAt: Date | null = null;
   try {
-    nextFireAt = await getNearestOpeningH24FireAt(now);
+    nextFireAt = await getNearestReminderFireAt(now);
   } catch (error) {
     logOperationError("reminders:background:schedule", error);
   }

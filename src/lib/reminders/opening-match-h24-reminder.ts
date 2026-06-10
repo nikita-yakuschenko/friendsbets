@@ -1,11 +1,8 @@
 import {
   MatchStatus,
   PredictionReminderKind,
-  UserNotificationKind,
 } from "@/generated/prisma/client";
-import { createUserNotification } from "@/lib/create-user-notification";
 import { prisma } from "@/lib/db";
-import { sendEmail } from "@/lib/email";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { logOperationError, maskEmail } from "@/lib/logger";
 import {
@@ -20,10 +17,8 @@ import {
   isOpeningH24Due,
 } from "@/lib/reminders/opening-match-h24-schedule";
 import type { ReminderRunResult } from "@/lib/reminders/prediction-reminders";
+import { deliverMatchReminderToUser } from "@/lib/reminders/reminder-delivery";
 import { findOpeningMatchForTournament } from "@/lib/tournament-opening-reminder";
-import { appendTelegramChannelFooter } from "@/lib/telegram/format";
-import { sendTelegramMessage } from "@/lib/telegram/api";
-import { isTelegramConfigured } from "@/lib/telegram/config";
 
 export {
   getOpeningH24FireAt,
@@ -256,32 +251,37 @@ export async function sendOpeningMatchH24Reminders(
         });
 
         try {
-          await createUserNotification({
+          const delivered = await deliverMatchReminderToUser({
             userId: participant.userId,
-            kind: UserNotificationKind.MISSING_PREDICTION,
+            email: participant.user.email,
+            emailVerifiedAt: participant.user.emailVerifiedAt,
+            telegramChatId: participant.user.telegramChatId,
             title: OPENING_H24_TITLE,
-            body: inAppBody,
-            actionInviteCode: game.inviteCode,
+            inAppBody,
+            inviteCode: game.inviteCode,
+            emailSubject: openingH24EmailSubject(
+              match.homeTeam.name,
+              match.awayTeam.name,
+            ),
+            emailText: emailContent.text,
+            emailHtml: emailContent.html,
+            telegramHtml,
+            logTag: "reminders:opening-h24",
           });
 
-          if (participant.user.telegramChatId && isTelegramConfigured()) {
-            await sendTelegramMessage(
-              participant.user.telegramChatId,
-              appendTelegramChannelFooter(telegramHtml),
-              { parseMode: "HTML" },
-            );
-          }
-
-          if (participant.user.emailVerifiedAt) {
-            await sendEmail({
-              to: participant.user.email,
-              subject: openingH24EmailSubject(
-                match.homeTeam.name,
-                match.awayTeam.name,
-              ),
-              text: emailContent.text,
-              html: emailContent.html,
-            });
+          if (!delivered.anyDelivered) {
+            await prisma.predictionReminder
+              .deleteMany({
+                where: {
+                  gameId: game.id,
+                  matchId: match.id,
+                  userId: participant.userId,
+                  kind: REMINDER_KIND,
+                },
+              })
+              .catch(() => undefined);
+            result.skipped++;
+            continue;
           }
 
           result.sent++;
