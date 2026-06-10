@@ -24,6 +24,7 @@ export function resolveDesktopHeaderTitle(pathname: string): string | null {
     const titles: Record<string, string> = {
       predictions: "Мои прогнозы",
       control: "Кто не поставил",
+      "champion-bet": "Ставка на чемпиона",
       leaderboard: "Таблица",
       live: "Лайв",
       more: "Ещё",

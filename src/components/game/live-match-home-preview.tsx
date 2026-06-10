@@ -113,7 +113,7 @@ export function LiveMatchHomePreview({
                 <TeamLabel
                   name={match.homeTeam.name}
                   countryCode={match.homeTeam.countryCode}
-                  flagPosition="after"
+                  matchSide="home"
                   className="text-base font-semibold sm:text-lg"
                 />
               </div>
@@ -127,7 +127,7 @@ export function LiveMatchHomePreview({
               <TeamLabel
                 name={match.awayTeam.name}
                 countryCode={match.awayTeam.countryCode}
-                flagPosition="before"
+                matchSide="away"
                 className="text-base font-semibold sm:text-lg"
               />
             </div>

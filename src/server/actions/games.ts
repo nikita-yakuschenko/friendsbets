@@ -13,6 +13,7 @@ import {
 import { isSuperadmin } from "@/lib/roles";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
+import { syncChampionBetPoints } from "@/lib/champion-bet";
 import { computeLivePredictionStats } from "@/lib/live-match-stats";
 import { buildPredictionStatsCommentary } from "@/lib/prediction-stats-commentary";
 import {
@@ -102,6 +103,16 @@ export async function getGameOverview(routeParam: string, userId: string) {
 
   if (!game) return null;
 
+  await syncChampionBetPoints(gameId);
+
+  const bonusRows = await prisma.bonusPrediction.findMany({
+    where: { gameId },
+    select: { userId: true, points: true },
+  });
+  const bonusPointsByUserId = new Map(
+    bonusRows.map((row) => [row.userId, row.points]),
+  );
+
   const matches = await prisma.match.findMany({
     where: { tournamentId: game.tournamentId },
     include: { homeTeam: true, awayTeam: true },
@@ -115,11 +126,13 @@ export async function getGameOverview(routeParam: string, userId: string) {
 
   const leaderboard = game.participants
     .map((participant) => {
-      const totalPoints = participant.user.predictions.reduce(
+      const matchPoints = participant.user.predictions.reduce(
         (sum, prediction) =>
           sum + prediction.scores.reduce((acc, score) => acc + score.points, 0),
         0,
       );
+      const totalPoints =
+        matchPoints + (bonusPointsByUserId.get(participant.userId) ?? 0);
       return {
         userId: participant.userId,
         displayName: participant.displayName,
@@ -210,17 +223,29 @@ export async function getLeaderboardData(routeParam: string) {
 
   if (!game) return null;
 
+  await syncChampionBetPoints(gameId);
+
+  const bonusRows = await prisma.bonusPrediction.findMany({
+    where: { gameId },
+    select: { userId: true, points: true },
+  });
+  const bonusPointsByUserId = new Map(
+    bonusRows.map((row) => [row.userId, row.points]),
+  );
+
   const totalMatches = game.tournament.matches.length;
   const columns = getLeaderboardColumns(game.scoringRule.code);
 
   const rows = game.participants
     .map((participant) => {
       const predictions = participant.user.predictions;
-      const totalPoints = predictions.reduce(
+      const matchPoints = predictions.reduce(
         (sum, prediction) =>
           sum + prediction.scores.reduce((acc, score) => acc + score.points, 0),
         0,
       );
+      const totalPoints =
+        matchPoints + (bonusPointsByUserId.get(participant.userId) ?? 0);
 
       const tierCounts = Object.fromEntries(
         columns.map((column) => [column.tier, 0]),

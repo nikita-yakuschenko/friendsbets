@@ -1,0 +1,2 @@
+ALTER TABLE "Game" ADD COLUMN "championBetEnabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Game" ADD COLUMN "championBetPoints" INTEGER;

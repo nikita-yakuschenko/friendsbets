@@ -10,7 +10,12 @@ type TeamLabelProps = {
   countryCode?: string | null;
   className?: string;
   flagClassName?: string;
-  /** Флаг до или после названия команды. */
+  /**
+   * В паре матча: home = «Название/Флаг», away = «Флаг/Название».
+   * Имеет приоритет над flagPosition.
+   */
+  matchSide?: "home" | "away";
+  /** Флаг до или после названия (для одиночной команды вне пары). */
   flagPosition?: "before" | "after";
   /** Однострочное обрезание — только там, где места мало намеренно. */
   truncate?: boolean;
@@ -21,6 +26,7 @@ export function TeamLabel({
   countryCode,
   className,
   flagClassName,
+  matchSide,
   flagPosition = "before",
   truncate = false,
 }: TeamLabelProps) {
@@ -41,27 +47,36 @@ export function TeamLabel({
     />
   ) : null;
 
+  const flagFirst =
+    matchSide === "away" ||
+    (matchSide === undefined && flagPosition === "before");
+
   const nameClassName = cn(
     "min-w-0",
     truncate
       ? "truncate"
-      : cn(
-          "break-words leading-tight [overflow-wrap:anywhere]",
-          flagPosition === "after" ? "text-right" : "text-left",
-        ),
+      : "break-words leading-tight [overflow-wrap:anywhere]",
   );
 
   return (
     <span
       className={cn(
         "inline-flex min-w-0 max-w-full items-center gap-1 sm:gap-2",
-        flagPosition === "after" && "flex-row-reverse",
         className,
       )}
       title={truncate ? name : undefined}
     >
-      {flag}
-      <span className={nameClassName}>{name}</span>
+      {flagFirst ? (
+        <>
+          {flag}
+          <span className={nameClassName}>{name}</span>
+        </>
+      ) : (
+        <>
+          <span className={nameClassName}>{name}</span>
+          {flag}
+        </>
+      )}
     </span>
   );
 }

@@ -9,7 +9,7 @@ import {
   AdminDetailRow,
   AdminRecordCard,
 } from "@/components/admin/admin-detail-row";
-import { TeamLabel } from "@/components/team/team-label";
+import { MatchTeamsRow } from "@/components/team/match-teams-row";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
 
@@ -37,18 +37,10 @@ export function MissingPredictionCard({
     <AdminRecordCard>
       <header className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-          <AdminCardTitle as="h3" className="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold">
-            <TeamLabel
-              name={match.homeTeam.name}
-              countryCode={match.homeTeam.countryCode}
-              flagClassName="h-4 w-5"
-            />
-            <span className="text-brand-muted font-normal" aria-hidden>
-              —
-            </span>
-            <TeamLabel
-              name={match.awayTeam.name}
-              countryCode={match.awayTeam.countryCode}
+          <AdminCardTitle as="h3" className="font-semibold">
+            <MatchTeamsRow
+              homeTeam={match.homeTeam}
+              awayTeam={match.awayTeam}
               flagClassName="h-4 w-5"
             />
           </AdminCardTitle>

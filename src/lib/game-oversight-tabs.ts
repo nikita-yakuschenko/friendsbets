@@ -5,13 +5,15 @@ export type GameOversightTabId =
   | "general"
   | "participants"
   | "leaderboard"
-  | "missing";
+  | "missing"
+  | "champion-bet";
 
 export const GAME_OVERSIGHT_TABS: { id: GameOversightTabId; label: string }[] = [
   { id: "general", label: "Общее" },
   { id: "participants", label: "Участники" },
   { id: "leaderboard", label: "Таблица" },
   { id: "missing", label: "Кто не поставил" },
+  { id: "champion-bet", label: "Ставка на чемпиона" },
 ];
 
 export function parseGameOversightTab(
@@ -37,6 +39,9 @@ export function gameOversightTabHref(
   }
   if (tab === "missing") {
     return path("control");
+  }
+  if (tab === "champion-bet") {
+    return path("champion-bet");
   }
   const base = path();
   if (tab === "general") return base;

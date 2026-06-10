@@ -122,7 +122,7 @@ export function NextMatchPreview({
                 <TeamLabel
                   name={match.homeTeam.name}
                   countryCode={match.homeTeam.countryCode}
-                  flagPosition="after"
+                  matchSide="home"
                 />
               </div>
               <span className="shrink-0 px-0.5 text-brand-muted">—</span>
@@ -130,7 +130,7 @@ export function NextMatchPreview({
                 <TeamLabel
                   name={match.awayTeam.name}
                   countryCode={match.awayTeam.countryCode}
-                  flagPosition="before"
+                  matchSide="away"
                 />
               </div>
             </div>

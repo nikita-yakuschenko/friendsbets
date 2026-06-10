@@ -148,6 +148,8 @@ model Game {
   entryFeeText  String?
   prizeFundText String?
   scoringRuleId String
+  championBetEnabled Boolean @default(false)
+  championBetPoints  Int?
   createdById   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

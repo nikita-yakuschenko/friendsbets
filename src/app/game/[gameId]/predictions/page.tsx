@@ -23,6 +23,9 @@ import {
   sortPostponedPredictionItems,
   type PredictionMatchItem,
 } from "@/lib/predictions-list";
+import { ChampionBetPicker } from "@/components/prediction/champion-bet-picker";
+import { PredictionRulesNote } from "@/components/prediction/prediction-rules-note";
+import { getChampionBetParticipantData } from "@/server/actions/champion-bet";
 import { getPredictionsPageData } from "@/server/actions/predictions";
 
 function countByFilter(
@@ -58,7 +61,10 @@ export default async function PredictionsPage({
     redirect(gamePlatformViewPath(view.access.game.inviteCode, "control"));
   }
 
-  const data = await getPredictionsPageData(gameId, session.id);
+  const [data, championBet] = await Promise.all([
+    getPredictionsPageData(gameId, session.id),
+    getChampionBetParticipantData(gameId, session.id),
+  ]);
   if (!data) return notFound();
 
   const activeFilter = parsePredictionsFilter(viewParam);
@@ -127,6 +133,23 @@ export default async function PredictionsPage({
         activeFilter={activeFilter}
         counts={counts}
       />
+
+      <div className="mb-6 space-y-4">
+        <PredictionRulesNote
+          championBetEnabled={data.game.championBetEnabled}
+          championBetPoints={data.game.championBetPoints}
+        />
+        {championBet ? (
+          <ChampionBetPicker
+            gameId={championBet.gameId}
+            points={championBet.points}
+            firstPlayoffStart={championBet.firstPlayoffStart}
+            locked={championBet.locked}
+            teams={championBet.teams}
+            myPick={championBet.myPick}
+          />
+        ) : null}
+      </div>
 
       {inProgressItems.length === 0 &&
       stageGroups.length === 0 &&

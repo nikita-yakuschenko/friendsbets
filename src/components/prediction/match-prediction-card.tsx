@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { TeamLabel } from "@/components/team/team-label";
 import { getFlagImageSrcSet, getFlagImageUrl } from "@/lib/teams";
 import { liveScoreForDisplay } from "@/lib/live-match-score";
+import { isKnockoutStage } from "@/lib/match-stage";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 import { savePredictionAction } from "@/server/actions/predictions";
@@ -36,6 +37,7 @@ type MatchCardProps = {
     awayTeam: { name: string; shortName: string; countryCode?: string | null };
     homeScore: number | null;
     awayScore: number | null;
+    stage?: string | null;
   };
   prediction: {
     homeScore: number;
@@ -110,7 +112,7 @@ function ScoreRow({
       <TeamLabel
         name={match.homeTeam.name}
         countryCode={match.homeTeam.countryCode}
-        flagPosition="after"
+        matchSide="home"
         className="min-w-0 max-w-full justify-self-end text-xs sm:text-sm"
         flagClassName="h-3 w-4 sm:h-[18px] sm:w-6"
       />
@@ -170,7 +172,7 @@ function ScoreRow({
       <TeamLabel
         name={match.awayTeam.name}
         countryCode={match.awayTeam.countryCode}
-        flagPosition="before"
+        matchSide="away"
         className="min-w-0 max-w-full justify-self-start text-xs sm:text-sm"
         flagClassName="h-3 w-4 sm:h-[18px] sm:w-6"
       />
@@ -391,6 +393,13 @@ export function MatchPredictionCard({
       event.preventDefault();
       setFieldErrors({ home: true, away: true });
       toast.error("Введите корректный счёт");
+      return;
+    }
+
+    if (isKnockoutStage(match.stage) && homeScore === awayScore) {
+      event.preventDefault();
+      setFieldErrors({ home: true, away: true });
+      toast.error("В плей-офф ничья невозможна — укажите победителя");
       return;
     }
 

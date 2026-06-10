@@ -29,7 +29,7 @@ export function ScoringRuleDescription({ code }: { code: string }) {
       </ul>
       <p className="mt-3 border-t border-brand-neutral/60 pt-3 text-xs leading-relaxed text-brand-muted">
         За один матч засчитывается только один вариант — с наибольшим числом очков из
-        подходящих.
+        подходящих. В плей-офф ничья в прогнозе недопустима.
       </p>
     </div>
   );

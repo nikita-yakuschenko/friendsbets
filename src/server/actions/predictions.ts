@@ -14,6 +14,7 @@ import {
   isMatchPostponed,
   isMatchStaleAwaitingResult,
 } from "@/lib/match-prediction-state";
+import { isKnockoutStage } from "@/lib/match-stage";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import type { PredictionMatchItem } from "@/lib/predictions-list";
 import { buildPredictionStageGroups } from "@/lib/predictions-list";
@@ -60,6 +61,10 @@ export async function savePredictionAction(
 
   if (!match) {
     return { error: "Матч не найден." };
+  }
+
+  if (isKnockoutStage(match.stage) && homeScore === awayScore) {
+    return { error: "В плей-офф ничья невозможна — укажите победителя." };
   }
 
   if (!isMatchPredictable(match)) {
