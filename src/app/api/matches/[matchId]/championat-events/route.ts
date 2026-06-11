@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { UserRole } from "@/generated/prisma/client";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import type { ChampionatLivePhase } from "@/lib/football-api/championat/match-live-status";
@@ -8,7 +9,7 @@ import { isSuperadmin } from "@/lib/roles";
 
 async function userCanViewMatchLive(
   userId: string,
-  role: string,
+  role: UserRole,
   tournamentId: string,
 ): Promise<boolean> {
   if (isSuperadmin(role)) return true;
