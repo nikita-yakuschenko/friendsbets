@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { IconClock } from "@tabler/icons-react";
+import { IconArrowLeft, IconClock, IconX } from "@tabler/icons-react";
 import { MatchTeamsRow } from "@/components/team/match-teams-row";
 import { TeamLabel } from "@/components/team/team-label";
 import {
   AlertDialog,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
@@ -20,11 +20,11 @@ import type {
   PointsHistoryMatchEntry,
 } from "@/lib/leaderboard/points-history";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
+import { getParticipantPointsHistory } from "@/server/actions/points-history";
 
 function toDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
 }
-import { getParticipantPointsHistory } from "@/server/actions/points-history";
 
 function formatScore(home: number, away: number): string {
   return `${home} : ${away}`;
@@ -32,10 +32,10 @@ function formatScore(home: number, away: number): string {
 
 function MatchHistoryCard({ entry }: { entry: PointsHistoryMatchEntry }) {
   return (
-    <li className="rounded-xl border border-brand-neutral/80 bg-brand-bg/60 p-3">
-      <div className="flex items-start justify-between gap-3">
+    <li className="rounded-xl border border-brand-neutral/80 bg-brand-bg/60 p-3.5 sm:p-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div className="min-w-0 space-y-1">
-          <p className="text-[11px] text-brand-muted">
+          <p className="text-[11px] leading-snug text-brand-muted">
             {formatDateTimeMoscow(toDate(entry.awardedAt))}
           </p>
           {entry.stage ? (
@@ -47,11 +47,11 @@ function MatchHistoryCard({ entry }: { entry: PointsHistoryMatchEntry }) {
             className="text-sm text-white"
           />
         </div>
-        <span className="shrink-0 font-semibold tabular-nums text-brand-lime">
+        <span className="self-start font-semibold tabular-nums text-brand-lime sm:shrink-0">
           +{entry.points}
         </span>
       </div>
-      <div className="mt-2 space-y-1 text-xs text-brand-muted">
+      <div className="mt-2.5 space-y-1 text-xs leading-relaxed text-brand-muted">
         <p>
           Прогноз:{" "}
           <span className="font-medium text-white">
@@ -72,10 +72,10 @@ function MatchHistoryCard({ entry }: { entry: PointsHistoryMatchEntry }) {
 
 function ChampionHistoryCard({ entry }: { entry: PointsHistoryChampionEntry }) {
   return (
-    <li className="rounded-xl border border-brand-neutral/80 bg-brand-bg/60 p-3">
-      <div className="flex items-start justify-between gap-3">
+    <li className="rounded-xl border border-brand-neutral/80 bg-brand-bg/60 p-3.5 sm:p-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div className="min-w-0 space-y-1">
-          <p className="text-[11px] text-brand-muted">
+          <p className="text-[11px] leading-snug text-brand-muted">
             {toDate(entry.awardedAt).getTime() > 0
               ? formatDateTimeMoscow(toDate(entry.awardedAt))
               : "После финала турнира"}
@@ -87,11 +87,11 @@ function ChampionHistoryCard({ entry }: { entry: PointsHistoryChampionEntry }) {
             matchSide="home"
           />
         </div>
-        <span className="shrink-0 font-semibold tabular-nums text-brand-lime">
+        <span className="self-start font-semibold tabular-nums text-brand-lime sm:shrink-0">
           +{entry.points}
         </span>
       </div>
-      <p className="mt-2 text-xs text-brand-lime/90">{entry.reason}</p>
+      <p className="mt-2.5 text-xs text-brand-lime/90">{entry.reason}</p>
     </li>
   );
 }
@@ -101,6 +101,49 @@ function HistoryEntryCard({ entry }: { entry: PointsHistoryEntry }) {
     return <ChampionHistoryCard entry={entry} />;
   }
   return <MatchHistoryCard entry={entry} />;
+}
+
+function HistoryBody({
+  pending,
+  loadedFor,
+  userId,
+  error,
+  entries,
+}: {
+  pending: boolean;
+  loadedFor: string | null;
+  userId: string;
+  error: string | null;
+  entries: PointsHistoryEntry[];
+}) {
+  if (pending && loadedFor !== userId) {
+    return (
+      <p className="py-8 text-center text-sm text-brand-muted">Загрузка…</p>
+    );
+  }
+
+  if (error) {
+    return (
+      <p className="py-8 text-center text-sm text-red-400">{error}</p>
+    );
+  }
+
+  if (entries.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm leading-relaxed text-brand-muted">
+        Пока нет начислений. Очки появятся после завершения матчей с угаданным
+        прогнозом.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="space-y-2.5 pb-1">
+      {entries.map((entry) => (
+        <HistoryEntryCard key={entry.id} entry={entry} />
+      ))}
+    </ul>
+  );
 }
 
 export function PointsHistoryButton({
@@ -156,55 +199,82 @@ export function PointsHistoryButton({
       <AlertDialogTrigger
         type="button"
         className={cn(
-          "inline-flex size-7 shrink-0 items-center justify-center rounded-md text-brand-muted transition-colors hover:bg-brand-neutral/60 hover:text-brand-lime focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime",
+          "inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-brand-muted transition-colors hover:bg-brand-neutral/60 hover:text-brand-lime focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime active:bg-brand-neutral/80 sm:size-7 sm:rounded-md",
           className,
         )}
         aria-label={`История начисления очков: ${displayName}`}
         title="История начисления очков"
       >
-        <IconClock className="size-4" aria-hidden />
+        <IconClock className="size-4 sm:size-3.5" aria-hidden />
       </AlertDialogTrigger>
-      <AlertDialogContent className="max-h-[85vh] max-w-lg overflow-hidden">
-        <AlertDialogHeader>
-          <AlertDialogTitle>История очков</AlertDialogTitle>
-          <AlertDialogDescription>
-            {displayName}
-            {totalPoints > 0 ? (
-              <>
-                {" "}
-                · всего начислено{" "}
-                <span className="font-medium text-brand-lime">{totalPoints}</span>
-              </>
-            ) : null}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
 
-        <div className="max-h-[50vh] overflow-y-auto pr-1">
-          {pending && loadedFor !== userId ? (
-            <p className="py-6 text-center text-sm text-brand-muted">
-              Загрузка…
-            </p>
-          ) : error ? (
-            <p className="py-6 text-center text-sm text-red-400">{error}</p>
-          ) : entries.length === 0 ? (
-            <p className="py-6 text-center text-sm text-brand-muted">
-              Пока нет начислений. Очки появятся после завершения матчей с
-              угаданным прогнозом.
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {entries.map((entry) => (
-                <HistoryEntryCard key={entry.id} entry={entry} />
-              ))}
-            </ul>
-          )}
+      <AlertDialogContent
+        className={cn(
+          "z-[60] flex max-h-[min(92dvh,100%)] w-full flex-col gap-0 overflow-hidden p-0",
+          "max-md:top-auto max-md:right-0 max-md:bottom-0 max-md:left-0 max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-b-none max-md:rounded-t-2xl max-md:border-b-0",
+          "md:max-h-[85vh] md:max-w-lg",
+        )}
+      >
+        <div
+          className="mx-auto mt-2 hidden h-1 w-10 shrink-0 rounded-full bg-brand-neutral/80 max-md:block"
+          aria-hidden
+        />
+
+        <div className="flex shrink-0 items-start gap-2 border-b border-brand-neutral/60 px-4 py-3 sm:items-center">
+          <AlertDialogCancel
+            variant="secondary"
+            size="sm"
+            className="shrink-0 md:hidden"
+          >
+            <IconArrowLeft className="size-4 shrink-0" stroke={1.75} aria-hidden />
+            Назад
+          </AlertDialogCancel>
+
+          <div className="min-w-0 flex-1 py-0.5">
+            <AlertDialogTitle className="text-base sm:text-lg">
+              История очков
+            </AlertDialogTitle>
+            <AlertDialogDescription className="mt-1 line-clamp-2 text-xs sm:text-sm">
+              <span className="text-white/90">{displayName}</span>
+              {totalPoints > 0 ? (
+                <>
+                  {" "}
+                  · всего{" "}
+                  <span className="font-medium text-brand-lime">
+                    {totalPoints}
+                  </span>
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </div>
+
+          <AlertDialogCancel
+            variant="ghost"
+            size="icon"
+            className="hidden size-9 min-w-9 shrink-0 md:inline-flex"
+            aria-label="Закрыть"
+          >
+            <IconX className="size-5" stroke={1.75} aria-hidden />
+          </AlertDialogCancel>
         </div>
 
-        <AlertDialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 [-webkit-overflow-scrolling:touch]">
+          <HistoryBody
+            pending={pending}
+            loadedFor={loadedFor}
+            userId={userId}
+            error={error}
+            entries={entries}
+          />
+        </div>
+
+        <AlertDialogFooter className="hidden shrink-0 border-t border-brand-neutral/60 px-4 py-3 sm:flex">
+          <AlertDialogCancel variant="secondary" size="sm">
             Закрыть
-          </Button>
+          </AlertDialogCancel>
         </AlertDialogFooter>
+
+        <div className="shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] max-md:block md:hidden" />
       </AlertDialogContent>
     </AlertDialog>
   );

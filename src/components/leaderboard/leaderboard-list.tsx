@@ -132,8 +132,8 @@ export function LeaderboardTable({
                       {row.tierCounts[column.tier] ?? 0}
                     </td>
                   ))}
-                  <td className="px-3 py-2.5 sm:px-4 sm:py-3">
-                    <div className="flex items-center justify-end gap-1">
+                  <td className="px-2 py-2.5 sm:px-4 sm:py-3">
+                    <div className="flex min-w-[4.5rem] items-center justify-end gap-0.5 sm:min-w-0 sm:gap-1">
                       <span className="font-semibold tabular-nums text-brand-lime">
                         {row.totalPoints}
                       </span>
