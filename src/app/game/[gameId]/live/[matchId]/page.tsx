@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { getSession } from "@/lib/auth";
 import { isPlatformViewQuery } from "@/lib/game-platform-view";
 import { requireGameViewByRoute } from "@/lib/game-access";
+import { loadChampionatMatchEventsFromDb } from "@/lib/football-api/championat/match-event-store";
 import { getLiveMatch, getLiveMatches } from "@/server/actions/games";
 
 export const revalidate = 30;
@@ -31,6 +32,7 @@ export default async function LiveMatchPage({
   const item = await getLiveMatch(gameId, matchId);
   if (!item) return notFound();
 
+  const initialEvents = await loadChampionatMatchEventsFromDb(matchId);
   const allLive = await getLiveMatches(gameId);
   const showBackToList = allLive.length > 1;
 
@@ -51,6 +53,7 @@ export default async function LiveMatchPage({
         <GameOversightBanner />
         <LiveMatchCard
           matchId={item.match.id}
+          initialEvents={initialEvents}
           match={item.match}
           friendPredictions={item.friendPredictions}
           stats={item.stats}
@@ -73,6 +76,7 @@ export default async function LiveMatchPage({
       />
       <LiveMatchCard
         matchId={item.match.id}
+        initialEvents={initialEvents}
         match={item.match}
         myPrediction={item.myPrediction}
         friendPredictions={item.friendPredictions}

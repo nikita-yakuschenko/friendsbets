@@ -1,7 +1,5 @@
 import { MatchStatus } from "@/generated/prisma/client";
-import { applyChampionatSnapshotToMatch } from "@/lib/football-api/championat/apply-championat-snapshot";
-import { fetchChampionatMatchLiveSnapshot } from "@/lib/football-api/championat/match-live-snapshot";
-import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
+import { syncChampionatMatchLive } from "@/lib/football-api/championat/sync-championat-match-live";
 import { shouldDeactivateChampionatTracking } from "@/lib/football-api/championat/championat-tracking";
 import { shouldPollChampionatMatchNow } from "@/lib/football-api/championat/match-sync-schedule";
 import { prisma } from "@/lib/db";
@@ -95,11 +93,6 @@ export async function runScheduledChampionatMatchSyncs(
   let finished = 0;
   let errors = 0;
 
-  const sourceCache = new Map<
-    string,
-    Awaited<ReturnType<typeof resolveChampionatSourceForTournament>>
-  >();
-
   for (const match of matches) {
     if (
       !shouldPollChampionatMatchNow({
@@ -116,12 +109,7 @@ export async function runScheduledChampionatMatchSyncs(
       continue;
     }
 
-    let source = sourceCache.get(match.tournamentId);
-    if (source === undefined) {
-      source = await resolveChampionatSourceForTournament(match.tournamentId);
-      sourceCache.set(match.tournamentId, source);
-    }
-    if (!source || !match.externalId) continue;
+    if (!match.externalId) continue;
 
     if (options.maxPolls !== undefined && polled >= options.maxPolls) {
       break;
@@ -130,20 +118,19 @@ export async function runScheduledChampionatMatchSyncs(
     polled += 1;
 
     try {
-      const snapshot = await fetchChampionatMatchLiveSnapshot(match.externalId, {
-        tournamentId: source.championatTournamentId,
-        sportSlug: source.sportSlug,
-      });
+      const result = await syncChampionatMatchLive(match);
 
-      const result = await applyChampionatSnapshotToMatch(match, snapshot);
-
-      await prisma.match.update({
-        where: { id: match.id },
-        data: { championatLastSyncAt: now },
-      });
-
-      if (result.updated) updated += 1;
-      if (result.status === MatchStatus.FINISHED) finished += 1;
+      if (result.ok && result.snapshot) {
+        updated += 1;
+        if (
+          result.snapshot.status === MatchStatus.FINISHED ||
+          result.snapshot.livePhase === "finished"
+        ) {
+          finished += 1;
+        }
+      } else if (result.error && result.error !== "no_championat_source") {
+        throw new Error(result.error);
+      }
     } catch (error) {
       errors += 1;
       console.warn(

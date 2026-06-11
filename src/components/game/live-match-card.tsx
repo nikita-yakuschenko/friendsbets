@@ -16,10 +16,11 @@ import { formatLiveScoreLine } from "@/lib/live-match-score";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 
-const POLL_MS = 30_000;
+const POLL_MS = 15_000;
 
 export type LiveMatchCardProps = {
   matchId: string;
+  initialEvents?: ChampionatMatchEvent[];
   match: {
     startsAt: Date | string;
     status: string;
@@ -39,6 +40,7 @@ export { LiveBadge } from "@/components/game/live-badge";
 
 export function LiveMatchCard({
   matchId,
+  initialEvents = [],
   match,
   myPrediction,
   friendPredictions,
@@ -55,7 +57,7 @@ export function LiveMatchCard({
 
   const [homeScore, setHomeScore] = useState<number | null>(match.homeScore);
   const [awayScore, setAwayScore] = useState<number | null>(match.awayScore);
-  const [events, setEvents] = useState<ChampionatMatchEvent[]>([]);
+  const [events, setEvents] = useState<ChampionatMatchEvent[]>(initialEvents);
   const [livePhase, setLivePhase] = useState<ChampionatLivePhase>(() =>
     match.status === "FINISHED" ? "finished" : "live",
   );
@@ -83,9 +85,10 @@ export function LiveMatchCard({
         livePhase?: ChampionatLivePhase;
         liveStatus?: ChampionatLiveStatus;
         error?: string;
+        stale?: boolean;
       };
 
-      if (!res.ok) {
+      if (!res.ok && !data.events?.length) {
         setEventsError(data.error ?? "Не удалось обновить события.");
         return;
       }
@@ -101,14 +104,14 @@ export function LiveMatchCard({
 
       const nextHome = data.homeScore ?? null;
       const nextAway = data.awayScore ?? null;
-      if (nextHome === null || nextAway === null) return;
-
-      const { home: prevHome, away: prevAway } = scoreRef.current;
-      if (nextHome === prevHome && nextAway === prevAway) return;
-
-      setHomeScore(nextHome);
-      setAwayScore(nextAway);
-      router.refresh();
+      if (nextHome !== null && nextAway !== null) {
+        const { home: prevHome, away: prevAway } = scoreRef.current;
+        setHomeScore(nextHome);
+        setAwayScore(nextAway);
+        if (nextHome !== prevHome || nextAway !== prevAway) {
+          router.refresh();
+        }
+      }
     } catch {
       setEventsError("Не удалось обновить события.");
     } finally {

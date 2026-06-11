@@ -25,5 +25,10 @@ export async function register() {
       "@/lib/football-api/championat/background-championat-sync-scheduler"
     );
     startBackgroundChampionatSyncScheduler();
+
+    const { startBackgroundChampionatLiveSyncScheduler } = await import(
+      "@/lib/football-api/championat/background-championat-live-sync-scheduler"
+    );
+    startBackgroundChampionatLiveSyncScheduler();
   }
 }

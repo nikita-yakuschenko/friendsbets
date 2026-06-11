@@ -257,10 +257,15 @@ model Match {
   championatTrackActive Boolean   @default(true)
   championatLastSyncAt  DateTime?
   championatFinishedAt  DateTime?
+  liveMinute        Int?
+  livePhaseCache    String?
+  liveStatusRaw     String?
+  eventsSyncedAt    DateTime?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
   tournament Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  events     MatchEvent[]
   homeTeam   Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
   awayTeam   Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
   winnerTeam Team?       @relation("WinnerTeam", fields: [winnerTeamId], references: [id])
@@ -273,6 +278,28 @@ model Match {
   @@index([tournamentId, status, startsAt])
   @@index([tournamentId, championatTrackActive])
   @@index([externalId])
+}
+
+model MatchEvent {
+  id          String   @id @default(cuid())
+  matchId     String
+  externalKey String
+  type        String
+  section     String
+  minute      Int?
+  minuteLabel String
+  playerName  String
+  assistName  String?
+  score       String?
+  teamSide    String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, externalKey])
+  @@index([matchId, sortOrder])
 }
 
 model Prediction {

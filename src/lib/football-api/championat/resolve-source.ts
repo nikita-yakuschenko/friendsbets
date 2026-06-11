@@ -1,6 +1,30 @@
 import { parseChampionatTournamentUrl } from "@/lib/championat-url";
 import type { ParsedChampionatTournamentUrl } from "@/lib/championat-url";
+import {
+  CHAMPIONAT_WORLD_CUP_2026,
+  championatCalendarUrl,
+  championatTournamentExternalId,
+} from "@/lib/football-api/championat/constants";
 import { prisma } from "@/lib/db";
+
+function fallbackChampionatSource(
+  championatTournamentId: string,
+): ParsedChampionatTournamentUrl | null {
+  if (championatTournamentId !== String(CHAMPIONAT_WORLD_CUP_2026.tournamentId)) {
+    return null;
+  }
+
+  const tournamentExternalId = championatTournamentExternalId(
+    CHAMPIONAT_WORLD_CUP_2026.tournamentId,
+  );
+
+  return {
+    championatTournamentId: CHAMPIONAT_WORLD_CUP_2026.tournamentId,
+    sportSlug: CHAMPIONAT_WORLD_CUP_2026.sportSlug,
+    calendarUrl: championatCalendarUrl(),
+    tournamentExternalId,
+  };
+}
 
 /** Источник Championat для турнира в БД (по externalId или шаблону). */
 export async function resolveChampionatSourceForTournament(
@@ -40,5 +64,5 @@ export async function resolveChampionatSourceForTournament(
     }
   }
 
-  return null;
+  return fallbackChampionatSource(championatTournamentId);
 }

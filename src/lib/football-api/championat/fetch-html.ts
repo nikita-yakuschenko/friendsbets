@@ -1,7 +1,8 @@
 import { Agent, fetch as undiciFetch } from "undici";
 
 const FETCH_USER_AGENT =
-  "FriendsBets/1.0 (+https://github.com/friendsbets; match sync)";
+  process.env.CHAMPIONAT_FETCH_USER_AGENT?.trim() ||
+  "Mozilla/5.0 (compatible; FriendsBets/1.0; +https://friendsbets.ru) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36";
 
 const DEFAULT_TIMEOUT_MS = 20_000;
 /** TCP connect (undici default 10s — с Dokploy до championat.ru часто не хватает). */
@@ -58,7 +59,10 @@ export async function fetchChampionatHtml(
       const response = await undiciFetch(url, {
         headers: {
           "User-Agent": FETCH_USER_AGENT,
-          Accept: "text/html,application/xhtml+xml",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
+          Referer: "https://www.championat.com/",
         },
         cache: "no-store",
         signal: AbortSignal.timeout(timeoutMs),

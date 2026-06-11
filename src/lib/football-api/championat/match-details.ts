@@ -18,6 +18,17 @@ function parseLiveScoreFromMatchPage(html: string): {
   awayScore?: number;
   impliesLive: boolean;
 } {
+  const scoreTotal = html.match(
+    /match-info__score-total[^>]*>[\s\S]*?(\d+)\s*:\s*(\d+)/i,
+  );
+  if (scoreTotal) {
+    return {
+      homeScore: Number(scoreTotal[1]),
+      awayScore: Number(scoreTotal[2]),
+      impliesLive: true,
+    };
+  }
+
   const halfBlock = html.match(
     /(?:1-?й|2-?й)\s+тайм[\s\S]{0,160}?(\d+)\s*:\s*(\d+)/i,
   );

@@ -1,10 +1,28 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { applyChampionatSnapshotToMatch } from "@/lib/football-api/championat/apply-championat-snapshot";
-import { fetchChampionatMatchLiveSnapshot } from "@/lib/football-api/championat/match-live-snapshot";
-import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
+import type { ChampionatLivePhase } from "@/lib/football-api/championat/match-live-status";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
+import { syncChampionatMatchLive } from "@/lib/football-api/championat/sync-championat-match-live";
+import { isSuperadmin } from "@/lib/roles";
+
+async function userCanViewMatchLive(
+  userId: string,
+  role: string,
+  tournamentId: string,
+): Promise<boolean> {
+  if (isSuperadmin(role)) return true;
+
+  const participant = await prisma.gameParticipant.findFirst({
+    where: {
+      userId,
+      game: { tournamentId },
+    },
+    select: { id: true },
+  });
+
+  return Boolean(participant);
+}
 
 export async function GET(
   _request: Request,
@@ -30,6 +48,9 @@ export async function GET(
       homeTeamId: true,
       awayTeamId: true,
       championatFinishedAt: true,
+      liveMinute: true,
+      livePhaseCache: true,
+      liveStatusRaw: true,
       homeTeam: { select: { externalId: true } },
       awayTeam: { select: { externalId: true } },
     },
@@ -39,73 +60,50 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const game = await prisma.game.findFirst({
-    where: {
-      tournamentId: match.tournamentId,
-      participants: { some: { userId: session.id } },
-    },
-    select: { id: true },
-  });
-
-  if (!game) {
+  const allowed = await userCanViewMatchLive(
+    session.id,
+    session.role,
+    match.tournamentId,
+  );
+  if (!allowed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const source = await resolveChampionatSourceForTournament(match.tournamentId);
-  if (!source || !match.externalId?.startsWith("championat:")) {
-    const scheduledStatus = {
-      phase: "scheduled" as const,
-      rawText: "",
-    };
-    return NextResponse.json({
-      events: [],
-      homeScore: match.homeScore,
-      awayScore: match.awayScore,
-      livePhase: "scheduled",
-      liveStatus: scheduledStatus,
-      fetchedAt: new Date().toISOString(),
-    });
-  }
+  const result = await syncChampionatMatchLive(match);
 
-  try {
-    const snapshot = await fetchChampionatMatchLiveSnapshot(match.externalId, {
-      tournamentId: source.championatTournamentId,
-      sportSlug: source.sportSlug,
-    });
-
-    const applyResult = await applyChampionatSnapshotToMatch(match, snapshot);
-
-    await prisma.match.update({
-      where: { id: matchId },
-      data: { championatLastSyncAt: new Date() },
-    });
-
-    const refreshed = applyResult.updated
-      ? await prisma.match.findUnique({
-          where: { id: matchId },
-          select: { homeScore: true, awayScore: true },
-        })
-      : null;
-
-    const homeScore = refreshed?.homeScore ?? match.homeScore;
-    const awayScore = refreshed?.awayScore ?? match.awayScore;
-
-    return NextResponse.json({
-      events: snapshot.events,
-      homeScore,
-      awayScore,
-      livePhase: snapshot.livePhase,
-      liveStatus: snapshot.liveStatus,
-      fetchedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.warn(
-      `[championat-events] failed match=${matchId}`,
-      error instanceof Error ? error.message : error,
-    );
+  if (!result.ok && result.events.length === 0 && !result.snapshot) {
     return NextResponse.json(
-      { error: "Не удалось загрузить события с Championat." },
+      {
+        error: "Не удалось загрузить данные с Championat.",
+        events: [],
+        homeScore: result.homeScore,
+        awayScore: result.awayScore,
+        livePhase: "scheduled",
+        liveStatus: { phase: "scheduled" as const, rawText: "" },
+        fetchedAt: new Date().toISOString(),
+        stale: true,
+      },
       { status: 502 },
     );
   }
+
+  const snapshot = result.snapshot;
+  const cachedPhase = match.livePhaseCache as ChampionatLivePhase | null;
+  const livePhase = snapshot?.livePhase ?? cachedPhase ?? "live";
+  const liveStatus = snapshot?.liveStatus ?? {
+    phase: livePhase,
+    minute: match.liveMinute ?? undefined,
+    rawText: match.liveStatusRaw ?? "",
+  };
+
+  return NextResponse.json({
+    events: result.events,
+    homeScore: result.homeScore,
+    awayScore: result.awayScore,
+    livePhase,
+    liveStatus,
+    fetchedAt: new Date().toISOString(),
+    stale: result.fromCache,
+    syncError: result.ok ? undefined : result.error,
+  });
 }

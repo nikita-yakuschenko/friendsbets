@@ -71,7 +71,10 @@ function parseProtocolSection(
     .first();
   if (!h2.length) return events;
 
-  h2.next(".match-stat")
+  const statBlock = h2.nextAll(".match-stat").first();
+  if (!statBlock.length) return events;
+
+  statBlock
     .find(".match-stat__row")
     .each((idx, row) => {
       const $row = $(row);

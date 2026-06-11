@@ -13,7 +13,7 @@ import { formatLiveScoreLine } from "@/lib/live-match-score";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 
-const POLL_MS = 30_000;
+const POLL_MS = 15_000;
 
 type LiveMatchHomePreviewProps = {
   matchId: string;
