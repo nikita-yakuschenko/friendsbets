@@ -21,6 +21,7 @@ import type {
   SyncMatchesResult,
 } from "@/lib/football-api/types";
 import { championatFinishedTrackingPatch } from "@/lib/football-api/championat/championat-tracking";
+import { inferChampionatFinishedStatus } from "@/lib/football-api/championat/infer-championat-finished-status";
 import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
 import { MATCH_LIVE_TRACKING_MAX_MS } from "@/lib/match-prediction-state";
 import { logOperation } from "@/lib/logger";
@@ -283,6 +284,9 @@ async function enrichMatchesFromChampionatPages(
       id: true,
       externalId: true,
       status: true,
+      startsAt: true,
+      homeScore: true,
+      awayScore: true,
       championatFinishedAt: true,
     },
   });
@@ -333,6 +337,24 @@ async function enrichMatchesFromChampionatPages(
         if (!data.status && match.status === MatchStatus.SCHEDULED) {
           data.status = MatchStatus.LIVE;
         }
+      }
+
+      const inferredFinished = inferChampionatFinishedStatus({
+        match: {
+          status: match.status,
+          startsAt: match.startsAt,
+          homeScore: data.homeScore ?? match.homeScore,
+          awayScore: data.awayScore ?? match.awayScore,
+        },
+        snapshotHomeScore: details.homeScore,
+        snapshotAwayScore: details.awayScore,
+        now,
+      });
+      if (
+        inferredFinished === MatchStatus.FINISHED &&
+        data.status !== MatchStatus.FINISHED
+      ) {
+        data.status = MatchStatus.FINISHED;
       }
 
       const nextStatus = data.status ?? match.status;
@@ -421,11 +443,49 @@ export async function enrichChampionatVenuesOnly(
   return venuesUpdated;
 }
 
+async function syncChampionatCalendarResults(
+  dbTournamentId: string,
+  source: ParsedChampionatTournamentUrl,
+): Promise<{ updated: number; externalRequests: number }> {
+  const externalMatches = await fetchChampionatCalendar(source.calendarUrl);
+  const existing = await prisma.match.findMany({
+    where: {
+      tournamentId: dbTournamentId,
+      externalId: { startsWith: "championat:" },
+    },
+    select: { externalId: true },
+  });
+  const knownIds = new Set(existing.map((row) => row.externalId));
+
+  let updated = 0;
+  for (const match of externalMatches) {
+    if (!knownIds.has(match.externalId)) continue;
+
+    const hasResult =
+      match.status === MatchStatus.FINISHED ||
+      (match.homeScore !== undefined && match.awayScore !== undefined);
+    if (!hasResult) continue;
+
+    const home = await upsertExternalTeam(match.homeTeam);
+    const away = await upsertExternalTeam(match.awayTeam);
+    const result = await upsertExternalMatch(
+      dbTournamentId,
+      match,
+      home.id,
+      away.id,
+    );
+    if (result === "updated") updated += 1;
+  }
+
+  return { updated, externalRequests: 1 };
+}
+
 export async function syncChampionatTournamentQuick(
   dbTournamentId: string,
   source: ParsedChampionatTournamentUrl,
 ): Promise<SyncMatchesResult> {
   const started = Date.now();
+  const calendar = await syncChampionatCalendarResults(dbTournamentId, source);
   const enriched = await enrichMatchesFromChampionatPages(
     dbTournamentId,
     source,
@@ -434,14 +494,14 @@ export async function syncChampionatTournamentQuick(
 
   const result: SyncMatchesResult = {
     created: 0,
-    updated: 0,
+    updated: calendar.updated,
     teamsCreated: 0,
     teamsUpdated: 0,
     venuesUpdated: enriched.venuesUpdated,
     statusesUpdated: enriched.statusesUpdated,
     total: 0,
     mode: "quick",
-    externalRequests: enriched.externalRequests,
+    externalRequests: calendar.externalRequests + enriched.externalRequests,
   };
 
   logOperation("championat-sync", {
@@ -449,9 +509,10 @@ export async function syncChampionatTournamentQuick(
     tournamentId: dbTournamentId,
     durationMs: Date.now() - started,
     total: result.total,
+    calendarUpdated: calendar.updated,
     venuesUpdated: result.venuesUpdated,
     statusesUpdated: result.statusesUpdated ?? 0,
-    externalRequests: enriched.externalRequests,
+    externalRequests: result.externalRequests,
     errors: enriched.errors,
   });
 

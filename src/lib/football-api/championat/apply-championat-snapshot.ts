@@ -2,6 +2,7 @@ import { MatchStatus } from "@/generated/prisma/client";
 import { championatLivePhaseToMatchStatus } from "@/lib/football-api/championat/championat-phase-to-match-status";
 import type { ChampionatMatchLiveSnapshot } from "@/lib/football-api/championat/match-live-snapshot";
 import { championatFinishedTrackingPatch } from "@/lib/football-api/championat/championat-tracking";
+import { inferChampionatFinishedStatus } from "@/lib/football-api/championat/infer-championat-finished-status";
 import { prisma } from "@/lib/db";
 import { notifyMatchResultParticipants } from "@/lib/match-result-notifications";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
@@ -88,6 +89,22 @@ export async function applyChampionatSnapshotToMatch(
     match.startsAt.getTime() > Date.now()
   ) {
     statusFromPhase = MatchStatus.SCHEDULED;
+  }
+
+  const inferredFinished = inferChampionatFinishedStatus({
+    match: {
+      status: match.status,
+      startsAt: match.startsAt,
+      homeScore: updateData.homeScore ?? match.homeScore,
+      awayScore: updateData.awayScore ?? match.awayScore,
+    },
+    snapshotHomeScore: snapshot.homeScore,
+    snapshotAwayScore: snapshot.awayScore,
+    livePhase: snapshot.liveStatus.phase,
+  });
+
+  if (inferredFinished === MatchStatus.FINISHED) {
+    statusFromPhase = MatchStatus.FINISHED;
   }
 
   if (statusFromPhase && statusFromPhase !== match.status) {

@@ -1,3 +1,4 @@
+import { PointsHistoryButton } from "@/components/leaderboard/points-history-button";
 import { UserAvatar } from "@/components/user/user-avatar";
 import { cn } from "@/lib/utils";
 import type { LeaderboardColumn, ScoringRuleLegendItem } from "@/lib/scoring/catalog";
@@ -43,10 +44,16 @@ export function LeaderboardTable({
   rows,
   columns,
   currentUserId,
+  gameRouteParam,
+  canViewAllHistory = false,
+  platformView = false,
 }: {
   rows: LeaderboardRow[];
   columns: LeaderboardColumn[];
   currentUserId: string;
+  gameRouteParam: string;
+  canViewAllHistory?: boolean;
+  platformView?: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-brand-neutral bg-brand-surface">
@@ -125,8 +132,20 @@ export function LeaderboardTable({
                       {row.tierCounts[column.tier] ?? 0}
                     </td>
                   ))}
-                  <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-brand-lime sm:px-4 sm:py-3">
-                    {row.totalPoints}
+                  <td className="px-3 py-2.5 sm:px-4 sm:py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="font-semibold tabular-nums text-brand-lime">
+                        {row.totalPoints}
+                      </span>
+                      {canViewAllHistory || row.userId === currentUserId ? (
+                        <PointsHistoryButton
+                          gameRouteParam={gameRouteParam}
+                          userId={row.userId}
+                          displayName={row.displayName}
+                          platformView={platformView}
+                        />
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               );

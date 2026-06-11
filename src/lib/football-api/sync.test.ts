@@ -279,7 +279,7 @@ describe("syncChampionatTournament", () => {
     expect(store.teams.get("team-existing")?.countryCode).toBeTruthy();
   });
 
-  it("quick sync не тянет календарь и не ходит на страницы матчей без кандидатов", async () => {
+  it("quick sync тянет календарь, но не ходит на страницы матчей без кандидатов", async () => {
     const { fetchChampionatCalendar } = await import(
       "@/lib/football-api/championat/parser"
     );
@@ -292,7 +292,7 @@ describe("syncChampionatTournament", () => {
 
     await syncChampionatTournamentQuick(TOURNAMENT_ID, source);
 
-    expect(fetchChampionatCalendar).not.toHaveBeenCalled();
+    expect(fetchChampionatCalendar).toHaveBeenCalled();
     expect(fetchChampionatMatchDetails).not.toHaveBeenCalled();
   });
 

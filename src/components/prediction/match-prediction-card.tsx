@@ -234,24 +234,34 @@ function FinishedPredictionOutcome({
   prediction,
   points,
   scoreReason,
+  resultPending,
 }: {
   match: MatchCardProps["match"];
   prediction: MatchCardProps["prediction"];
   points: number;
   scoreReason: string | null;
+  resultPending: boolean;
 }) {
   const won = points > 0;
 
   const pillClass = cn(
     "inline-flex w-full max-w-sm flex-col items-center gap-1 rounded-lg border-[0.5px] bg-brand-bg px-5 py-2 text-center text-[11px] leading-snug shadow-[0_4px_16px_rgba(0,0,0,0.3)] sm:max-w-md sm:text-xs",
-    won ? "border-brand-lime/80" : "border-brand-red/80",
+    !prediction
+      ? "border-brand-red/80"
+      : resultPending
+        ? "border-brand-neutral/80"
+        : won
+          ? "border-brand-lime/80"
+          : "border-brand-red/80",
   );
 
   if (!prediction) {
     return (
       <div className={pillClass}>
         <span className="text-brand-muted">Прогноз не сделан</span>
-        <span className="text-brand-muted">Очки не начислены</span>
+        <span className="text-brand-muted">
+          {resultPending ? "Ожидаем результат матча" : "Очки не начислены"}
+        </span>
       </div>
     );
   }
@@ -271,6 +281,18 @@ function FinishedPredictionOutcome({
       </span>
     </span>
   );
+
+  if (resultPending) {
+    return (
+      <div className={pillClass}>
+        <span className="text-brand-muted">Ваш прогноз</span>
+        {predictionScore}
+        <span className="text-brand-muted">
+          Очки начислятся после подтверждения результата
+        </span>
+      </div>
+    );
+  }
 
   if (won) {
     const ruleLabel = scoringReasonWinLabel(scoreReason);
@@ -454,12 +476,16 @@ export function MatchPredictionCard({
         ? "Матч начался"
         : predictionBadgeText;
 
+  const hasOfficialScore =
+    match.homeScore !== null && match.awayScore !== null;
+
+  const resultPending =
+    isFinished &&
+    (match.status !== "FINISHED" || !hasOfficialScore);
+
   const liveScores = inProgress
     ? { home: liveHome, away: liveAway }
-    : isFinished &&
-        match.status === "FINISHED" &&
-        match.homeScore !== null &&
-        match.awayScore !== null
+    : isFinished && hasOfficialScore
       ? { home: match.homeScore, away: match.awayScore }
       : undefined;
 
@@ -569,13 +595,14 @@ export function MatchPredictionCard({
                 Прогноз не сделан
               </p>
             )}
-            {isFinished && match.status === "FINISHED" ? (
+            {isFinished ? (
               <div className="flex justify-center border-t border-brand-neutral/50 pt-3">
                 <FinishedPredictionOutcome
                   match={match}
                   prediction={prediction}
                   points={points}
                   scoreReason={scoreReason}
+                  resultPending={resultPending}
                 />
               </div>
             ) : null}

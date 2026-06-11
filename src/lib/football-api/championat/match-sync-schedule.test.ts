@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { MatchStatus } from "@/generated/prisma/client";
 import {
+  CHAMPIONAT_STALE_RETRY_MS,
+  CHAMPIONAT_STALE_WITH_SCORE_RETRY_MS,
   isChampionatBiDailyPollDay,
   kickoffWallClockMinutesWithOffset,
   shouldPollChampionatMatchNow,
@@ -40,7 +42,7 @@ describe("match-sync-schedule", () => {
     ).toBe(false);
   });
 
-  it("stale-матч не опрашивается чаще CHAMPIONAT_STALE_RETRY_MS", () => {
+  it("stale без счёта не опрашивается чаще CHAMPIONAT_STALE_RETRY_MS", () => {
     vi.useFakeTimers();
     const now = new Date("2026-06-10T22:00:00Z");
     const startsAt = new Date("2026-06-10T10:00:00Z");
@@ -58,10 +60,44 @@ describe("match-sync-schedule", () => {
     expect(
       shouldPollChampionatMatchNow({
         ...base,
-        championatLastSyncAt: new Date(now.getTime() - 5 * 60_000),
+        championatLastSyncAt: new Date(now.getTime() - CHAMPIONAT_STALE_RETRY_MS + 30_000),
       }),
     ).toBe(false);
 
+    expect(
+      shouldPollChampionatMatchNow({
+        ...base,
+        championatLastSyncAt: new Date(now.getTime() - CHAMPIONAT_STALE_RETRY_MS - 1_000),
+      }),
+    ).toBe(true);
+
     vi.useRealTimers();
+  });
+
+  it("stale со счётом опрашивается чаще CHAMPIONAT_STALE_WITH_SCORE_RETRY_MS", () => {
+    const now = new Date("2026-06-10T22:00:00Z");
+    const startsAt = new Date("2026-06-10T10:00:00Z");
+    const base = {
+      startsAt,
+      status: MatchStatus.LIVE,
+      championatTrackActive: true,
+      homeScore: 1,
+      awayScore: 0,
+      now,
+    };
+
+    expect(
+      shouldPollChampionatMatchNow({
+        ...base,
+        championatLastSyncAt: new Date(now.getTime() - CHAMPIONAT_STALE_WITH_SCORE_RETRY_MS + 5_000),
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldPollChampionatMatchNow({
+        ...base,
+        championatLastSyncAt: new Date(now.getTime() - CHAMPIONAT_STALE_WITH_SCORE_RETRY_MS - 1_000),
+      }),
+    ).toBe(true);
   });
 });

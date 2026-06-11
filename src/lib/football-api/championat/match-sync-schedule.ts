@@ -14,8 +14,11 @@ import {
 /** Во время матча и 10 мин после FINISHED — опрос каждые 30 с (cron ≥ 1 мин). */
 export const CHAMPIONAT_LIVE_POLL_INTERVAL_MS = 30_000;
 
-/** Повтор опроса «зависшего» матча (старт давно, в БД ещё не FINISHED). */
-export const CHAMPIONAT_STALE_RETRY_MS = 20 * 60 * 1000;
+/** Повтор опроса «зависшего» матча без счёта в БД. */
+export const CHAMPIONAT_STALE_RETRY_MS = 3 * 60 * 1000;
+
+/** Зависший матч, у которого счёт уже есть — опрашиваем чаще. */
+export const CHAMPIONAT_STALE_WITH_SCORE_RETRY_MS = 60 * 1000;
 
 /** Окно попадания в слот при cron каждые 5–15 мин. */
 export const CHAMPIONAT_SCHEDULED_SLOT_TOLERANCE_MIN = 6;
@@ -162,7 +165,15 @@ export function shouldPollChampionatMatchNow(
   );
   if (stale) {
     const last = input.championatLastSyncAt?.getTime() ?? 0;
-    return now.getTime() - last >= CHAMPIONAT_STALE_RETRY_MS;
+    const hasScore =
+      input.homeScore !== null &&
+      input.homeScore !== undefined &&
+      input.awayScore !== null &&
+      input.awayScore !== undefined;
+    const retryMs = hasScore
+      ? CHAMPIONAT_STALE_WITH_SCORE_RETRY_MS
+      : CHAMPIONAT_STALE_RETRY_MS;
+    return now.getTime() - last >= retryMs;
   }
 
   const needsFastPoll =

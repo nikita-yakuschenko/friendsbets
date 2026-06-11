@@ -49,6 +49,32 @@ describe("applyChampionatSnapshotToMatch", () => {
     );
   });
 
+  it("ставит FINISHED у зависшего матча со счётом на Championat", async () => {
+    vi.setSystemTime(new Date("2026-06-01T16:00:00Z"));
+    const result = await applyChampionatSnapshotToMatch(
+      {
+        ...baseMatch,
+        status: MatchStatus.LIVE,
+        startsAt: new Date("2026-06-01T10:00:00Z"),
+        homeScore: 1,
+        awayScore: 0,
+      },
+      {
+        events: [],
+        homeScore: 1,
+        awayScore: 0,
+        livePhase: "scheduled",
+        liveStatus: { phase: "scheduled", rawText: "" },
+      },
+    );
+    expect(result.updated).toBe(true);
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: MatchStatus.FINISHED }),
+      }),
+    );
+  });
+
   it("обновляет счёт при изменении", async () => {
     const result = await applyChampionatSnapshotToMatch(
       { ...baseMatch, status: MatchStatus.LIVE, startsAt: new Date("2026-06-01T10:00:00Z") },
