@@ -1,14 +1,17 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { InfoHint } from "@/components/ui/info-hint";
 import type { TelegramLinkStatus } from "@/server/actions/telegram";
 import {
   createTelegramLinkAction,
   unlinkTelegramAction,
 } from "@/server/actions/telegram";
+import { openTelegramDeepLink } from "@/lib/telegram/open-deep-link";
 import { cn } from "@/lib/utils";
 
 const TELEGRAM_INFO =
@@ -30,6 +33,8 @@ export function TelegramLinkSection({
   status: TelegramLinkStatus;
   className?: string;
 }) {
+  const router = useRouter();
+  const [pendingDeepLink, setPendingDeepLink] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const shellClass = cn(
@@ -40,6 +45,10 @@ export function TelegramLinkSection({
   const linked = status.linked;
   const badgeText = telegramStatusBadgeText(status);
 
+  useEffect(() => {
+    if (linked) setPendingDeepLink(null);
+  }, [linked]);
+
   function handleLink() {
     startTransition(async () => {
       const result = await createTelegramLinkAction();
@@ -47,10 +56,17 @@ export function TelegramLinkSection({
         toast.error(result.error);
         return;
       }
-      if (result.deepLink) {
-        window.open(result.deepLink, "_blank", "noopener,noreferrer");
-        toast.success(result.message ?? "Откройте Telegram и нажмите Start");
+      if (!result.deepLink) {
+        toast.error("Не удалось получить ссылку для привязки.");
+        return;
       }
+
+      setPendingDeepLink(result.deepLink);
+      openTelegramDeepLink(result.deepLink);
+      toast.success("Открываем Telegram…", {
+        description: "В боте нажмите «Start» или «Запустить».",
+      });
+      router.refresh();
     });
   }
 
@@ -61,6 +77,7 @@ export function TelegramLinkSection({
         toast.error(result.error);
         return;
       }
+      setPendingDeepLink(null);
       toast.success(result.message ?? "Telegram отвязан");
     });
   }
@@ -102,6 +119,32 @@ export function TelegramLinkSection({
           {pending ? "…" : linked ? "Отвязать" : "Привязать"}
         </button>
       </div>
+
+      {pendingDeepLink && !linked ? (
+        <div className="mt-3 space-y-3 border-t border-brand-neutral/50 pt-3">
+          <p className="text-sm text-brand-muted">
+            Нажмите кнопку ниже — откроется бот FriendsBets. В Telegram нажмите
+            «Start» или «Запустить», затем вернитесь на сайт и обновите страницу.
+          </p>
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            onClick={() => openTelegramDeepLink(pendingDeepLink)}
+          >
+            Открыть Telegram
+          </Button>
+          <a
+            href={pendingDeepLink}
+            className="block break-all text-xs text-brand-lime underline-offset-2 hover:underline"
+            onClick={(event) => {
+              event.preventDefault();
+              openTelegramDeepLink(pendingDeepLink);
+            }}
+          >
+            {pendingDeepLink}
+          </a>
+        </div>
+      ) : null}
     </section>
   );
 }
