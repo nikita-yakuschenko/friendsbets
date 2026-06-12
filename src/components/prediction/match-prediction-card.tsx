@@ -630,8 +630,9 @@ export function MatchPredictionCard({
         className="block w-full min-w-0 max-w-full rounded-2xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime"
       >
         <Card
+          id={`match-${match.id}`}
           className={cn(
-            "w-full min-w-0 max-w-full overflow-hidden border-brand-lime/25 p-0",
+            "w-full min-w-0 max-w-full scroll-mt-20 overflow-hidden border-brand-lime/25 p-0",
             liveStatus.phase === "halftime" && "border-brand-neutral/50",
           )}
         >
@@ -642,7 +643,10 @@ export function MatchPredictionCard({
   }
 
   return (
-    <Card className="w-full min-w-0 max-w-full overflow-hidden p-0">
+    <Card
+      id={`match-${match.id}`}
+      className="w-full min-w-0 max-w-full scroll-mt-20 overflow-hidden p-0"
+    >
       {cardInner}
     </Card>
   );

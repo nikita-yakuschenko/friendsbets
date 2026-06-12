@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { GameOversightBanner } from "@/components/game/game-oversight-banner";
 import { LiveMatchCard } from "@/components/game/live-match-card";
 import { LiveMatchesBackButton } from "@/components/game/live-matches-back-button";
@@ -9,6 +9,7 @@ import { getSession } from "@/lib/auth";
 import { isPlatformViewQuery } from "@/lib/game-platform-view";
 import { requireGameViewByRoute } from "@/lib/game-access";
 import { loadChampionatMatchEventsFromDb } from "@/lib/football-api/championat/match-event-store";
+import { resolveFinishedLiveMatchRedirect } from "@/lib/finished-live-match-redirect";
 import { getLiveMatch, getLiveMatches } from "@/server/actions/games";
 
 export const revalidate = 30;
@@ -30,7 +31,15 @@ export default async function LiveMatchPage({
 
   const oversight = view.access.isPlatformOversight;
   const item = await getLiveMatch(gameId, matchId);
-  if (!item) return notFound();
+  if (!item) {
+    const finishedUrl = await resolveFinishedLiveMatchRedirect(
+      gameId,
+      matchId,
+      oversight,
+    );
+    if (finishedUrl) redirect(finishedUrl);
+    return notFound();
+  }
 
   const initialEvents = await loadChampionatMatchEventsFromDb(matchId);
   const allLive = await getLiveMatches(gameId);
