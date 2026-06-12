@@ -27,6 +27,32 @@ function reminderKey(gameId: string, matchId: string, userId: string) {
   return `${gameId}:${matchId}:${userId}:${NOTIFY_KIND}`;
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code: string }).code === "P2002"
+  );
+}
+
+/** Атомарно «занимает» слот отправки до рассылки — защита от параллельных синков. */
+async function claimMatchFinishedReminder(
+  gameId: string,
+  matchId: string,
+  userId: string,
+): Promise<boolean> {
+  try {
+    await prisma.predictionReminder.create({
+      data: { gameId, matchId, userId, kind: NOTIFY_KIND },
+    });
+    return true;
+  } catch (error) {
+    if (isUniqueConstraintError(error)) return false;
+    throw error;
+  }
+}
+
 /** Пересчёт очков и рассылка участникам (один раз на матч). */
 export async function handleMatchFinished(
   tournamentId: string,
@@ -162,6 +188,17 @@ export async function notifyMatchResultParticipants(
         continue;
       }
 
+      const claimed = await claimMatchFinishedReminder(
+        game.id,
+        matchId,
+        participant.userId,
+      );
+      if (!claimed) {
+        result.skipped++;
+        alreadySent.add(key);
+        continue;
+      }
+
       const prediction = predictionByGameUser.get(
         `${game.id}:${participant.userId}`,
       );
@@ -230,17 +267,23 @@ export async function notifyMatchResultParticipants(
           });
         }
 
-        await prisma.predictionReminder.create({
-          data: {
-            gameId: game.id,
-            matchId,
-            userId: participant.userId,
-            kind: NOTIFY_KIND,
-          },
-        });
         alreadySent.add(key);
         result.sent++;
       } catch (error) {
+        try {
+          await prisma.predictionReminder.delete({
+            where: {
+              gameId_matchId_userId_kind: {
+                gameId: game.id,
+                matchId,
+                userId: participant.userId,
+                kind: NOTIFY_KIND,
+              },
+            },
+          });
+        } catch {
+          /* слот уже снят или занят другим воркером */
+        }
         logOperationError("match-result:notify", error, {
           gameId: game.id,
           matchId,

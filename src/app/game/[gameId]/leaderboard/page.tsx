@@ -54,7 +54,6 @@ export default async function LeaderboardPage({
           columns={data.columns}
           currentUserId={session.id}
           gameRouteParam={gameId}
-          canViewAllHistory={showManagementShell}
           platformView={platformOversight}
         />
       )}

@@ -1,7 +1,7 @@
 "use server";
 
 import { MatchStatus } from "@/generated/prisma/client";
-import { canManageGame, requireGameViewByRoute } from "@/lib/game-access";
+import { requireGameViewByRoute } from "@/lib/game-access";
 import {
   buildPointsHistoryEntries,
   resolveChampionAwardedAt,
@@ -23,14 +23,7 @@ export async function getParticipantPointsHistory(
   const view = await requireGameViewByRoute(routeParam, platformView);
   if (!view) return null;
 
-  const { session, gameId } = view;
-  const canViewOthers =
-    view.access.isPlatformOversight ||
-    (await canManageGame(session, gameId));
-
-  if (targetUserId !== session.id && !canViewOthers) {
-    return null;
-  }
+  const { gameId } = view;
 
   const participant = await prisma.gameParticipant.findUnique({
     where: { gameId_userId: { gameId, userId: targetUserId } },

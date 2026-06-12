@@ -39,6 +39,7 @@ vi.mock("@/lib/db", () => ({
     predictionReminder: {
       findMany: vi.fn(),
       create: vi.fn(),
+      delete: vi.fn(),
     },
     userNotification: { create: vi.fn() },
   },
@@ -129,5 +130,32 @@ describe("match result notifications", () => {
     expect(result.sent).toBe(0);
     expect(result.skipped).toBe(1);
     expect(prisma.userNotification.create).not.toHaveBeenCalled();
+  });
+
+  it("не шлёт повторно, если claim занят параллельным воркером", async () => {
+    vi.mocked(prisma.predictionReminder.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.predictionReminder.create).mockRejectedValue({
+      code: "P2002",
+    });
+
+    const result = await notifyMatchResultParticipants("tour-1", "match-1");
+    expect(result.sent).toBe(0);
+    expect(result.skipped).toBe(1);
+    expect(prisma.userNotification.create).not.toHaveBeenCalled();
+  });
+
+  it("резервирует слот до отправки уведомлений", async () => {
+    const order: string[] = [];
+    vi.mocked(prisma.predictionReminder.create).mockImplementation(async () => {
+      order.push("claim");
+      return {} as never;
+    });
+    vi.mocked(prisma.userNotification.create).mockImplementation(async () => {
+      order.push("notify");
+      return {} as never;
+    });
+
+    await notifyMatchResultParticipants("tour-1", "match-1");
+    expect(order).toEqual(["claim", "notify"]);
   });
 });

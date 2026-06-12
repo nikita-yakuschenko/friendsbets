@@ -4,6 +4,7 @@ import { useActionState, useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link";
 import { toast } from "sonner";
 import { LiveBadge } from "@/components/game/live-badge";
+import { FinishedMatchPredictionsButton } from "@/components/prediction/finished-match-predictions-button";
 import { Badge } from "@/components/ui/badge";
 import type {
   ChampionatLivePhase,
@@ -505,9 +506,19 @@ export function MatchPredictionCard({
           <Badge variant="secondary">Матч перенесён</Badge>
         ) : null}
         {!inProgress ? (
-          <Badge variant={isPostponed ? predictionBadgeVariant : statusBadge}>
-            {isPostponed ? predictionBadgeText : statusText}
-          </Badge>
+          <div className="flex items-center gap-1">
+            {isFinished ? (
+              <FinishedMatchPredictionsButton
+                gameRouteParam={gameId}
+                matchId={match.id}
+                homeTeam={match.homeTeam}
+                awayTeam={match.awayTeam}
+              />
+            ) : null}
+            <Badge variant={isPostponed ? predictionBadgeVariant : statusBadge}>
+              {isPostponed ? predictionBadgeText : statusText}
+            </Badge>
+          </div>
         ) : null}
       </CardHeader>
 

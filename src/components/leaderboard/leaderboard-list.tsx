@@ -45,14 +45,12 @@ export function LeaderboardTable({
   columns,
   currentUserId,
   gameRouteParam,
-  canViewAllHistory = false,
   platformView = false,
 }: {
   rows: LeaderboardRow[];
   columns: LeaderboardColumn[];
   currentUserId: string;
   gameRouteParam: string;
-  canViewAllHistory?: boolean;
   platformView?: boolean;
 }) {
   return (
@@ -137,14 +135,12 @@ export function LeaderboardTable({
                       <span className="font-semibold tabular-nums text-brand-lime">
                         {row.totalPoints}
                       </span>
-                      {canViewAllHistory || row.userId === currentUserId ? (
-                        <PointsHistoryButton
-                          gameRouteParam={gameRouteParam}
-                          userId={row.userId}
-                          displayName={row.displayName}
-                          platformView={platformView}
-                        />
-                      ) : null}
+                      <PointsHistoryButton
+                        gameRouteParam={gameRouteParam}
+                        userId={row.userId}
+                        displayName={row.displayName}
+                        platformView={platformView}
+                      />
                     </div>
                   </td>
                 </tr>

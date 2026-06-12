@@ -1,9 +1,11 @@
 "use server";
 
+import { MatchStatus } from "@/generated/prisma/client";
 import { requireAuth } from "@/lib/auth";
 import {
   assertGameParticipant,
   revalidateGamePaths,
+  requireGameViewByRoute,
   resolveGameIdFromRoute,
 } from "@/lib/game-access";
 import { prisma } from "@/lib/db";
@@ -169,5 +171,121 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
     game,
     items,
     stageGroups: buildPredictionStageGroups(items),
+  };
+}
+
+export type MatchPredictionsSummaryRow = {
+  userId: string;
+  displayName: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  points: number | null;
+  scoreReason: string | null;
+  isCurrentUser: boolean;
+};
+
+export type MatchPredictionsSummaryPayload = {
+  homeTeamName: string;
+  awayTeamName: string;
+  actualHome: number | null;
+  actualAway: number | null;
+  resultPending: boolean;
+  rows: MatchPredictionsSummaryRow[];
+};
+
+export async function getMatchPredictionsSummary(
+  routeParam: string,
+  matchId: string,
+  platformView = false,
+): Promise<MatchPredictionsSummaryPayload | null> {
+  const view = await requireGameViewByRoute(routeParam, platformView);
+  if (!view) return null;
+
+  const { session, gameId } = view;
+
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    select: { tournamentId: true },
+  });
+  if (!game) return null;
+
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: {
+      tournamentId: true,
+      status: true,
+      startsAt: true,
+      homeScore: true,
+      awayScore: true,
+      homeTeam: { select: { name: true } },
+      awayTeam: { select: { name: true } },
+    },
+  });
+  if (!match || match.tournamentId !== game.tournamentId) return null;
+
+  const finished =
+    match.status === MatchStatus.FINISHED ||
+    isMatchStaleAwaitingResult(match);
+  if (!finished) return null;
+
+  const hasOfficialScore =
+    match.homeScore !== null && match.awayScore !== null;
+  const resultPending =
+    match.status !== MatchStatus.FINISHED || !hasOfficialScore;
+
+  const [participants, predictions] = await Promise.all([
+    prisma.gameParticipant.findMany({
+      where: { gameId },
+      select: { userId: true, displayName: true },
+    }),
+    prisma.prediction.findMany({
+      where: { gameId, matchId },
+      include: { scores: true },
+    }),
+  ]);
+
+  const predictionByUserId = new Map(
+    predictions.map((prediction) => [prediction.userId, prediction]),
+  );
+
+  const rows: MatchPredictionsSummaryRow[] = participants.map(
+    (participant) => {
+      const prediction = predictionByUserId.get(participant.userId);
+      const points = resultPending
+        ? null
+        : (prediction?.scores.reduce((sum, score) => sum + score.points, 0) ??
+          0);
+
+      return {
+        userId: participant.userId,
+        displayName: participant.displayName,
+        homeScore: prediction?.homeScore ?? null,
+        awayScore: prediction?.awayScore ?? null,
+        points,
+        scoreReason: prediction?.scores[0]?.reason ?? null,
+        isCurrentUser: participant.userId === session.id,
+      };
+    },
+  );
+
+  rows.sort((a, b) => {
+    const aHas = a.homeScore != null && a.awayScore != null;
+    const bHas = b.homeScore != null && b.awayScore != null;
+    if (aHas !== bHas) return aHas ? -1 : 1;
+
+    const aPoints = a.points ?? -1;
+    const bPoints = b.points ?? -1;
+    if (aPoints !== bPoints) return bPoints - aPoints;
+
+    return a.displayName.localeCompare(b.displayName, "ru");
+  });
+
+  return {
+    homeTeamName: match.homeTeam.name,
+    awayTeamName: match.awayTeam.name,
+    actualHome: match.homeScore,
+    actualAway: match.awayScore,
+    resultPending,
+    rows,
   };
 }
