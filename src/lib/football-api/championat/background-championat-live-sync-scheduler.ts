@@ -1,10 +1,9 @@
 import { MatchStatus } from "@/generated/prisma/client";
+import { CHAMPIONAT_LIVE_WORKER_POLL_MS } from "@/lib/football-api/championat/championat-live-constants";
+import { CHAMPIONAT_POST_FINISH_TRACKING_MS } from "@/lib/football-api/championat/championat-tracking";
 import { logOperation, logOperationError } from "@/lib/logger";
 import { MATCH_LIVE_TRACKING_MAX_MS } from "@/lib/match-prediction-state";
 import { prisma } from "@/lib/db";
-
-/** Опрос идущих матчей — чаще общего sync. */
-const LIVE_POLL_MS = 20_000;
 
 const FETCH_GAP_MS = 150;
 
@@ -18,6 +17,9 @@ function sleep(ms: number): Promise<void> {
 
 async function findLiveChampionatMatches(now: Date) {
   const windowStart = new Date(now.getTime() - MATCH_LIVE_TRACKING_MAX_MS);
+  const postFinishSince = new Date(
+    now.getTime() - CHAMPIONAT_POST_FINISH_TRACKING_MS,
+  );
 
   return prisma.match.findMany({
     where: {
@@ -29,6 +31,10 @@ async function findLiveChampionatMatches(now: Date) {
         {
           status: { notIn: [MatchStatus.FINISHED] },
           startsAt: { lte: now, gte: windowStart },
+        },
+        {
+          status: MatchStatus.FINISHED,
+          championatFinishedAt: { gte: postFinishSince },
         },
       ],
     },
@@ -98,10 +104,10 @@ function scheduleNext(): void {
       await runLiveSyncTick();
       scheduleNext();
     })();
-  }, LIVE_POLL_MS);
+  }, CHAMPIONAT_LIVE_WORKER_POLL_MS);
 }
 
-/** Фоновый опрос LIVE-матчей: счёт, фаза, события в БД. */
+/** Фоновый опрос LIVE-матчей (раз в 60 с): счёт, табло, протокол в БД. */
 export function startBackgroundChampionatLiveSyncScheduler(): void {
   if (started) return;
   if (process.env.BACKGROUND_CHAMPIONAT_LIVE_SYNC === "false") return;

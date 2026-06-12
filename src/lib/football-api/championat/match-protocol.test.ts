@@ -36,23 +36,26 @@ describe("parseChampionatMatchProtocolHtml", () => {
     expect(snap.events.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("не склеивает две жёлтые в одной точке таймлайна (Канада — Босния)", () => {
+  it("берёт события только из протокола (Канада — Босния)", () => {
     const events = parseChampionatMatchProtocolHtml(canadaFixture);
-    const yellowCards = events.filter((e) => e.type === "YELLOW_CARD");
 
-    expect(
-      yellowCards.some(
-        (e) =>
-          e.playerName.includes("Демирович") &&
-          e.playerName.includes("Лукич"),
-      ),
-    ).toBe(false);
+    expect(events.every((e) => e.id.startsWith("proto-"))).toBe(true);
+    expect(events.some((e) => e.id.startsWith("tl-"))).toBe(false);
+
+    const goals = events.filter((e) => e.section === "goals");
+    expect(goals).toHaveLength(1);
+    expect(goals[0]?.playerName).toContain("Лукич");
+    expect(goals[0]?.assistName).toContain("Колашинац");
+    expect(goals[0]?.score).toBe("0:1");
+
+    const yellowCards = events.filter((e) => e.type === "YELLOW_CARD");
+    expect(yellowCards).toHaveLength(3);
 
     const demirovic = yellowCards.filter((e) =>
       e.playerName.includes("Демирович"),
     );
-    const lukic = yellowCards.filter((e) =>
-      e.playerName.includes("Лукич") && e.type === "YELLOW_CARD",
+    const lukic = yellowCards.filter(
+      (e) => e.playerName.includes("Лукич") && e.type === "YELLOW_CARD",
     );
 
     expect(demirovic).toHaveLength(1);

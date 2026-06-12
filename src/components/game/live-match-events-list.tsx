@@ -1,11 +1,6 @@
 import { LiveMatchEventIcon } from "@/components/game/live-match-event-icon";
-import { LiveTimelineMarkerIcon } from "@/components/game/live-timeline-marker-icon";
-import { buildLiveTimelineRows } from "@/lib/football-api/championat/build-live-timeline";
 import type { ChampionatLivePhase } from "@/lib/football-api/championat/match-live-phase";
-import {
-  CHAMPIONAT_EVENT_LABELS,
-  type ChampionatMatchEvent,
-} from "@/lib/football-api/championat/match-protocol-types";
+import type { ChampionatMatchEvent } from "@/lib/football-api/championat/match-protocol-types";
 import { cn } from "@/lib/utils";
 
 type LiveMatchEventsListProps = {
@@ -19,88 +14,100 @@ type LiveMatchEventsListProps = {
   syncWarning?: string | null;
 };
 
-function teamLabel(
-  side: ChampionatMatchEvent["teamSide"],
-  homeTeamName: string,
-  awayTeamName: string,
-): string | null {
-  if (side === "home") return homeTeamName;
-  if (side === "away") return awayTeamName;
-  return null;
+function sortByMinute(events: ChampionatMatchEvent[]): ChampionatMatchEvent[] {
+  return [...events].sort((a, b) => {
+    const ma = a.minute ?? 9999;
+    const mb = b.minute ?? 9999;
+    if (ma !== mb) return ma - mb;
+    return a.playerName.localeCompare(b.playerName, "ru");
+  });
 }
 
-function EventSideDetails({
-  event,
-  team,
-  align,
-}: {
-  event: ChampionatMatchEvent;
-  team: string | null;
-  align: "left" | "right";
-}) {
-  const typeLabel = CHAMPIONAT_EVENT_LABELS[event.type];
-
+function ScoreBadge({ score }: { score: string }) {
   return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-col gap-0.5",
-        align === "right" ? "items-end text-right" : "items-start text-left",
-      )}
-    >
-      <p className="text-[11px] font-medium uppercase tracking-wide text-brand-muted">
-        {typeLabel}
-      </p>
-      <p className="text-sm font-medium leading-snug text-white">
-        {event.playerName}
-      </p>
-      {event.assistName ? (
-        <p className="text-xs text-brand-muted">{event.assistName}</p>
-      ) : null}
-      {team ? (
-        <p className="text-[11px] text-brand-muted">{team}</p>
-      ) : null}
-      {event.score ? (
-        <p className="text-xs font-semibold tabular-nums text-brand-lime">
-          {event.score.replace(":", " : ")}
-        </p>
-      ) : null}
-    </div>
+    <span className="inline-flex min-w-[2.25rem] items-center justify-center rounded bg-white/10 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-white">
+      {score}
+    </span>
   );
 }
 
-function TimelineMarkerCenter({
-  label,
-  marker,
-}: {
-  label: string;
-  marker: "start" | "halftime" | "end";
-}) {
+function ProtocolEventRow({ event }: { event: ChampionatMatchEvent }) {
+  const isAway = event.teamSide === "away";
+  const isGoal = event.section === "goals";
+
   return (
-    <div className="flex shrink-0 flex-col items-center gap-1 py-0.5">
-      <LiveTimelineMarkerIcon marker={marker} />
-      <span className="max-w-[5.5rem] text-center text-[11px] font-medium leading-tight text-white">
-        {label}
+    <li
+      className={cn(
+        "flex items-center gap-2 border-b border-white/5 py-2.5 last:border-b-0 sm:gap-3",
+        isAway ? "flex-row-reverse" : "flex-row",
+      )}
+    >
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col gap-0.5",
+          isAway ? "items-end text-right" : "items-start text-left",
+        )}
+      >
+        <span className="text-sm font-medium leading-snug text-white">
+          {event.playerName}
+        </span>
+        {event.assistName ? (
+          <span className="text-xs text-brand-muted">{event.assistName}</span>
+        ) : null}
+      </div>
+
+      <div className="flex shrink-0 items-center justify-center">
+        {isGoal && event.score ? (
+          <ScoreBadge score={event.score} />
+        ) : (
+          <LiveMatchEventIcon type={event.type} />
+        )}
+      </div>
+
+      <span className="w-9 shrink-0 text-center text-sm font-medium tabular-nums text-brand-muted">
+        {event.minuteLabel}
       </span>
-    </div>
+    </li>
+  );
+}
+
+function ProtocolSection({
+  title,
+  events,
+}: {
+  title: string;
+  events: ChampionatMatchEvent[];
+}) {
+  if (events.length === 0) return null;
+
+  return (
+    <section>
+      <h3 className="mb-2 text-sm font-semibold text-white">{title}</h3>
+      <ul className="rounded-xl bg-brand-bg px-3 py-1">
+        {events.map((event) => (
+          <ProtocolEventRow key={event.id} event={event} />
+        ))}
+      </ul>
+    </section>
   );
 }
 
 export function LiveMatchEventsList({
   events,
-  livePhase,
-  matchStatus,
-  homeTeamName,
-  awayTeamName,
   loading,
   error,
   syncWarning,
 }: LiveMatchEventsListProps) {
-  const rows = buildLiveTimelineRows(events, livePhase, matchStatus);
+  const goals = sortByMinute(events.filter((e) => e.section === "goals"));
+  const punishments = sortByMinute(
+    events.filter((e) => e.section === "punishments"),
+  );
+  const hasEvents = goals.length > 0 || punishments.length > 0;
 
-  if (loading && rows.length === 0) {
+  if (loading && !hasEvents) {
     return (
       <p className="rounded-xl bg-brand-bg px-3 py-6 text-center text-sm text-brand-muted">
-        Загрузка событий…
+        Загрузка протокола…
       </p>
     );
   }
@@ -113,7 +120,7 @@ export function LiveMatchEventsList({
     );
   }
 
-  if (rows.length === 0) {
+  if (!hasEvents) {
     return (
       <div className="space-y-3">
         {syncWarning ? (
@@ -129,112 +136,14 @@ export function LiveMatchEventsList({
   }
 
   return (
-    <div className="px-1">
+    <div className="space-y-4">
       {syncWarning ? (
-        <p className="mb-3 rounded-xl border border-brand-neutral/60 bg-brand-bg px-3 py-3 text-center text-sm text-brand-muted">
+        <p className="rounded-xl border border-brand-neutral/60 bg-brand-bg px-3 py-3 text-center text-sm text-brand-muted">
           {syncWarning}
         </p>
       ) : null}
-      <ul>
-        {rows.map((row, index) => {
-          const isFirst = index === 0;
-          const isLast = index === rows.length - 1;
-
-          if (row.kind === "marker") {
-            return (
-              <li
-                key={row.id}
-                className="grid grid-cols-[minmax(0,1fr)_2.75rem_minmax(0,1fr)] items-stretch gap-x-2 sm:grid-cols-[minmax(0,1fr)_3rem_minmax(0,1fr)] sm:gap-x-3"
-              >
-                <div aria-hidden />
-                <div className="flex h-full flex-col items-center">
-                  {!isFirst ? (
-                    <div
-                      className="w-px min-h-3 flex-1 bg-brand-neutral/50"
-                      aria-hidden
-                    />
-                  ) : null}
-                  <TimelineMarkerCenter label={row.label} marker={row.marker} />
-                  {!isLast ? (
-                    <div
-                      className="w-px min-h-3 flex-1 bg-brand-neutral/50"
-                      aria-hidden
-                    />
-                  ) : null}
-                </div>
-                <div aria-hidden />
-              </li>
-            );
-          }
-
-          const event = row.event;
-          const isHome = event.teamSide === "home";
-          const isAway = event.teamSide === "away";
-          const team = teamLabel(event.teamSide, homeTeamName, awayTeamName);
-          const showLeft = isHome || (!isHome && !isAway);
-          const showRight = isAway;
-
-          return (
-            <li
-              key={row.id}
-              className="grid grid-cols-[minmax(0,1fr)_2.75rem_minmax(0,1fr)] items-stretch gap-x-2 sm:grid-cols-[minmax(0,1fr)_3rem_minmax(0,1fr)] sm:gap-x-3"
-            >
-              <div
-                className={cn(
-                  "flex min-w-0 justify-end py-3",
-                  isFirst && "pt-0",
-                  isLast && "pb-0",
-                )}
-              >
-                {showLeft ? (
-                  <EventSideDetails
-                    event={event}
-                    team={team}
-                    align="right"
-                  />
-                ) : null}
-              </div>
-
-              <div className="flex h-full flex-col items-center">
-                {!isFirst ? (
-                  <div
-                    className="w-px min-h-3 flex-1 bg-brand-neutral/50"
-                    aria-hidden
-                  />
-                ) : null}
-                <div className="flex shrink-0 flex-col items-center gap-1 py-0.5">
-                  <LiveMatchEventIcon type={event.type} />
-                  <span className="text-xs font-semibold tabular-nums leading-none text-brand-muted">
-                    {event.minuteLabel}
-                  </span>
-                </div>
-                {!isLast ? (
-                  <div
-                    className="w-px min-h-3 flex-1 bg-brand-neutral/50"
-                    aria-hidden
-                  />
-                ) : null}
-              </div>
-
-              <div
-                className={cn(
-                  "flex min-w-0 justify-start py-3",
-                  isFirst && "pt-0",
-                  isLast && "pb-0",
-                )}
-              >
-                {showRight ? (
-                  <EventSideDetails
-                    event={event}
-                    team={team}
-                    align="left"
-                  />
-                ) : null}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      <ProtocolSection title="Голы" events={goals} />
+      <ProtocolSection title="Наказания" events={punishments} />
     </div>
   );
 }

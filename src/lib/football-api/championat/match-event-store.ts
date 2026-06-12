@@ -64,13 +64,36 @@ export function dbRowToChampionatEvent(row: {
   };
 }
 
+function eventSnapshotKey(event: ChampionatMatchEvent): string {
+  return [
+    event.id,
+    event.type,
+    event.section,
+    event.minute ?? "",
+    event.minuteLabel,
+    event.playerName,
+    event.assistName ?? "",
+    event.score ?? "",
+    event.teamSide ?? "",
+  ].join("|");
+}
+
+/** Сравнивает списки событий без обращения к БД. */
+export function championatMatchEventsEqual(
+  left: ChampionatMatchEvent[],
+  right: ChampionatMatchEvent[],
+): boolean {
+  if (left.length !== right.length) return false;
+  const leftKeys = left.map(eventSnapshotKey).sort();
+  const rightKeys = right.map(eventSnapshotKey).sort();
+  return leftKeys.every((key, index) => key === rightKeys[index]);
+}
+
 /** Сохраняет события протокола (upsert; старые ключи удаляются). */
 export async function persistChampionatMatchEvents(
   matchId: string,
   events: ChampionatMatchEvent[],
 ): Promise<void> {
-  if (events.length === 0) return;
-
   const rows = championatEventsToDbRows(matchId, events);
   const keys = rows.map((row) => row.externalKey);
 
@@ -122,6 +145,48 @@ export async function loadChampionatMatchEventsFromDb(
   return rows.map(dbRowToChampionatEvent);
 }
 
+/** Удаляет устаревшие события из горизонтального таймлайна (до перехода на протокол). */
+export async function removeLegacyTimelineMatchEvents(
+  matchId: string,
+): Promise<number> {
+  const result = await prisma.matchEvent.deleteMany({
+    where: {
+      matchId,
+      externalKey: { startsWith: "tl-" },
+    },
+  });
+  return result.count;
+}
+
+/** Записывает события только если снимок изменился. Пустой протокол не затирает БД. */
+export async function persistChampionatMatchEventsIfChanged(
+  matchId: string,
+  events: ChampionatMatchEvent[],
+): Promise<boolean> {
+  if (events.length === 0) return false;
+
+  const existing = await loadChampionatMatchEventsFromDb(matchId);
+  if (championatMatchEventsEqual(existing, events)) return false;
+
+  await persistChampionatMatchEvents(matchId, events);
+  return true;
+}
+
+function liveStatusCacheEqual(
+  stored: {
+    liveMinute: number | null;
+    livePhaseCache: string | null;
+    liveStatusRaw: string | null;
+  },
+  liveStatus: ChampionatLiveStatus,
+): boolean {
+  return (
+    (stored.liveMinute ?? null) === (liveStatus.minute ?? null) &&
+    (stored.livePhaseCache ?? null) === liveStatus.phase &&
+    (stored.liveStatusRaw ?? "") === (liveStatus.rawText || "")
+  );
+}
+
 export async function persistMatchLiveStatusCache(
   matchId: string,
   liveStatus: ChampionatLiveStatus,
@@ -134,4 +199,24 @@ export async function persistMatchLiveStatusCache(
       liveStatusRaw: liveStatus.rawText || null,
     },
   });
+}
+
+/** Обновляет кэш табло только при изменении строки статуса / фазы / минуты. */
+export async function persistMatchLiveStatusCacheIfChanged(
+  matchId: string,
+  liveStatus: ChampionatLiveStatus,
+): Promise<boolean> {
+  const stored = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: {
+      liveMinute: true,
+      livePhaseCache: true,
+      liveStatusRaw: true,
+    },
+  });
+  if (!stored) return false;
+  if (liveStatusCacheEqual(stored, liveStatus)) return false;
+
+  await persistMatchLiveStatusCache(matchId, liveStatus);
+  return true;
 }

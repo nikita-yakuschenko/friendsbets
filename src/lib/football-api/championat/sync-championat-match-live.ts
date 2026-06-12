@@ -2,8 +2,9 @@ import { MatchStatus } from "@/generated/prisma/client";
 import { applyChampionatSnapshotToMatch } from "@/lib/football-api/championat/apply-championat-snapshot";
 import {
   loadChampionatMatchEventsFromDb,
-  persistChampionatMatchEvents,
-  persistMatchLiveStatusCache,
+  persistChampionatMatchEventsIfChanged,
+  persistMatchLiveStatusCacheIfChanged,
+  removeLegacyTimelineMatchEvents,
 } from "@/lib/football-api/championat/match-event-store";
 import { hasImplausibleStoredScore } from "@/lib/football-api/championat/football-score";
 import { fetchChampionatMatchLiveSnapshot } from "@/lib/football-api/championat/match-live-snapshot";
@@ -18,6 +19,7 @@ export type SyncChampionatMatchLiveResult = {
   homeScore: number | null;
   awayScore: number | null;
   fromCache: boolean;
+  dataChanged: boolean;
   error?: string;
 };
 
@@ -55,11 +57,6 @@ export async function syncChampionatMatchLive(
   match: MatchSyncTarget,
 ): Promise<SyncChampionatMatchLiveResult> {
   const fallbackEvents = await loadChampionatMatchEventsFromDb(match.id);
-  const base = {
-    events: fallbackEvents,
-    homeScore: match.homeScore,
-    awayScore: match.awayScore,
-  };
 
   const source = await resolveChampionatSourceForTournament(match.tournamentId);
   if (!source || !match.externalId?.startsWith("championat:")) {
@@ -74,6 +71,7 @@ export async function syncChampionatMatchLive(
       homeScore: repaired.homeScore,
       awayScore: repaired.awayScore,
       fromCache: true,
+      dataChanged: false,
       error: "no_championat_source",
     };
   }
@@ -84,13 +82,16 @@ export async function syncChampionatMatchLive(
       sportSlug: source.sportSlug,
     });
 
-    await applyChampionatSnapshotToMatch(match, snapshot);
-
-    if (snapshot.events.length > 0) {
-      await persistChampionatMatchEvents(match.id, snapshot.events);
-    }
-
-    await persistMatchLiveStatusCache(match.id, snapshot.liveStatus);
+    const legacyRemoved = await removeLegacyTimelineMatchEvents(match.id);
+    const applyResult = await applyChampionatSnapshotToMatch(match, snapshot);
+    const eventsChanged = await persistChampionatMatchEventsIfChanged(
+      match.id,
+      snapshot.events,
+    );
+    const liveCacheChanged = await persistMatchLiveStatusCacheIfChanged(
+      match.id,
+      snapshot.liveStatus,
+    );
 
     await prisma.match.update({
       where: { id: match.id },
@@ -102,10 +103,7 @@ export async function syncChampionatMatchLive(
       select: { homeScore: true, awayScore: true },
     });
 
-    const events =
-      snapshot.events.length > 0
-        ? snapshot.events
-        : await loadChampionatMatchEventsFromDb(match.id);
+    const events = await loadChampionatMatchEventsFromDb(match.id);
 
     return {
       ok: true,
@@ -113,7 +111,12 @@ export async function syncChampionatMatchLive(
       events,
       homeScore: refreshed?.homeScore ?? match.homeScore,
       awayScore: refreshed?.awayScore ?? match.awayScore,
-      fromCache: snapshot.events.length === 0 && events.length > 0,
+      fromCache: false,
+      dataChanged:
+        applyResult.updated ||
+        eventsChanged ||
+        liveCacheChanged ||
+        legacyRemoved > 0,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "sync_failed";
@@ -128,7 +131,8 @@ export async function syncChampionatMatchLive(
       events: fallbackEvents,
       homeScore: repaired.homeScore,
       awayScore: repaired.awayScore,
-      fromCache: fallbackEvents.length > 0,
+      fromCache: true,
+      dataChanged: false,
       error: message,
     };
   }

@@ -10,7 +10,7 @@ export function warnIfBackgroundCronNotConfigured(): void {
     `${CRON_LOG} CRON_SECRET не задан — настройте Dokploy Scheduled Tasks:`,
     "/api/cron/sync-matches?mode=quick (каждые 1–5 мин в день матчей),",
     "/api/cron/prediction-reminders (каждые 5–10 мин, резерв).",
-    "Напоминания, quick-sync и live-sync Championat (каждые ~20 с) крутятся во встроенных планировщиках при старте контейнера.",
+    "Напоминания (prod), quick-sync и live-sync Championat (каждые 60 с) крутятся во встроенных планировщиках при старте Node.",
     "HTTP cron остаётся резервом; без него и планировщиков счёт не обновляется.",
   );
 }

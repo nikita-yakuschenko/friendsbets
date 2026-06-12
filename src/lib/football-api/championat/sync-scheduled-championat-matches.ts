@@ -57,7 +57,8 @@ async function deactivateExpiredChampionatTracking(now: Date): Promise<number> {
 }
 
 /**
- * Опрос страниц матчей по расписанию (слоты МСК; в матче и 10 мин после FINISHED — каждые 30 с).
+ * Опрос страниц матчей по расписанию (слоты МСК, зависшие матчи).
+ * LIVE и 10 мин после FINISHED — только live-воркер (60 с).
  */
 export async function runScheduledChampionatMatchSyncs(
   options: ScheduledChampionatSyncOptions = {},

@@ -102,7 +102,12 @@ export function LiveMatchCard({
       }
 
       setEventsError(null);
-      setSyncWarning(data.syncError ?? null);
+      setSyncWarning(
+        data.syncError ??
+          (data.stale
+            ? "Данные с Championat обновляются с задержкой. Показан последний сохранённый снимок."
+            : null),
+      );
       if (data.events) setEvents(data.events);
       if (data.liveStatus) {
         setLiveStatus(data.liveStatus);

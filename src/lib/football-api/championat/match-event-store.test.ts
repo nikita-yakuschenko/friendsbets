@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   championatEventsToDbRows,
+  championatMatchEventsEqual,
   dbRowToChampionatEvent,
 } from "@/lib/football-api/championat/match-event-store";
 
@@ -27,5 +28,22 @@ describe("match-event-store", () => {
     const roundTrip = dbRowToChampionatEvent(rows[0]!);
     expect(roundTrip.playerName).toBe("Хулиан Киньонес");
     expect(roundTrip.score).toBe("1:0");
+  });
+
+  it("championatMatchEventsEqual сравнивает снимки событий", () => {
+    const event = {
+      id: "proto-g-0-9-player",
+      type: "GOAL" as const,
+      minute: 9,
+      minuteLabel: "9'",
+      playerName: "Игрок",
+      section: "goals" as const,
+    };
+    expect(championatMatchEventsEqual([event], [{ ...event }])).toBe(true);
+    expect(
+      championatMatchEventsEqual([event], [
+        { ...event, playerName: "Другой" },
+      ]),
+    ).toBe(false);
   });
 });

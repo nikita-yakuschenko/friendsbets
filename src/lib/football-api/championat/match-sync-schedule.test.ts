@@ -19,7 +19,7 @@ describe("match-sync-schedule", () => {
     expect(kickoffWallClockMinutesWithOffset(22 * 60, -12 * 60)).toBe(10 * 60);
   });
 
-  it("shouldPollChampionatMatchNow true для LIVE", () => {
+  it("shouldPollChampionatMatchNow false для LIVE (опрашивает live-воркер)", () => {
     const now = new Date("2026-06-10T18:30:00Z");
     expect(
       shouldPollChampionatMatchNow({
@@ -28,7 +28,7 @@ describe("match-sync-schedule", () => {
         championatTrackActive: true,
         now,
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("shouldPollChampionatMatchNow false при неактивном трекинге", () => {
@@ -79,7 +79,7 @@ describe("match-sync-schedule", () => {
     const startsAt = new Date("2026-06-10T10:00:00Z");
     const base = {
       startsAt,
-      status: MatchStatus.LIVE,
+      status: MatchStatus.SCHEDULED,
       championatTrackActive: true,
       homeScore: 1,
       awayScore: 0,

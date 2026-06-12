@@ -11,9 +11,6 @@ import {
   isMatchWithinLiveTrackingWindow,
 } from "@/lib/match-prediction-state";
 
-/** Во время матча и 10 мин после FINISHED — опрос каждые 30 с (cron ≥ 1 мин). */
-export const CHAMPIONAT_LIVE_POLL_INTERVAL_MS = 30_000;
-
 /** Повтор опроса «зависшего» матча без счёта в БД. */
 export const CHAMPIONAT_STALE_RETRY_MS = 3 * 60 * 1000;
 
@@ -176,17 +173,16 @@ export function shouldPollChampionatMatchNow(
     return now.getTime() - last >= retryMs;
   }
 
-  const needsFastPoll =
+  // LIVE и 10 мин после FINISHED — только background-championat-live-sync-scheduler.
+  if (
     isChampionatLivePollPhase(input.startsAt, now, input.status) ||
     isChampionatPostFinishPollPhase(
       input.status,
       input.championatFinishedAt,
       now,
-    );
-
-  if (needsFastPoll) {
-    const last = input.championatLastSyncAt?.getTime() ?? 0;
-    return now.getTime() - last >= CHAMPIONAT_LIVE_POLL_INTERVAL_MS - 2_000;
+    )
+  ) {
+    return false;
   }
 
   return isWithinScheduledSlot(

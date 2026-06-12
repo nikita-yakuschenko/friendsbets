@@ -20,12 +20,16 @@ export async function register() {
       "@/lib/reminders/background-reminder-scheduler"
     );
     startBackgroundReminderScheduler();
+  }
 
+  if (process.env.BACKGROUND_CHAMPIONAT_SYNC !== "false") {
     const { startBackgroundChampionatSyncScheduler } = await import(
       "@/lib/football-api/championat/background-championat-sync-scheduler"
     );
     startBackgroundChampionatSyncScheduler();
+  }
 
+  if (process.env.BACKGROUND_CHAMPIONAT_LIVE_SYNC !== "false") {
     const { startBackgroundChampionatLiveSyncScheduler } = await import(
       "@/lib/football-api/championat/background-championat-live-sync-scheduler"
     );

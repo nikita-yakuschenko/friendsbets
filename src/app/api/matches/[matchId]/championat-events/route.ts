@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import type { UserRole } from "@/generated/prisma/client";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { sanitizeStoredScore } from "@/lib/football-api/championat/football-score";
-import type { ChampionatLivePhase } from "@/lib/football-api/championat/match-live-status";
+import {
+  isChampionatLiveViewStale,
+  loadChampionatMatchLiveView,
+} from "@/lib/football-api/championat/load-championat-match-live-view";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { syncChampionatMatchLive } from "@/lib/football-api/championat/sync-championat-match-live";
 import { isSuperadmin } from "@/lib/roles";
@@ -34,8 +36,28 @@ function championatSyncErrorMessage(error: string | undefined): string | undefin
   return "Обновление с Championat временно недоступно. Показаны сохранённые данные.";
 }
 
+const matchSelect = {
+  id: true,
+  tournamentId: true,
+  externalId: true,
+  startsAt: true,
+  status: true,
+  homeScore: true,
+  awayScore: true,
+  homeTeamId: true,
+  awayTeamId: true,
+  championatFinishedAt: true,
+  championatLastSyncAt: true,
+  eventsSyncedAt: true,
+  liveMinute: true,
+  livePhaseCache: true,
+  liveStatusRaw: true,
+  homeTeam: { select: { externalId: true } },
+  awayTeam: { select: { externalId: true } },
+} as const;
+
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ matchId: string }> },
 ) {
   const session = await getSession();
@@ -44,26 +66,13 @@ export async function GET(
   }
 
   const { matchId } = await params;
+  const forceSync =
+    new URL(request.url).searchParams.get("force") === "1" &&
+    isSuperadmin(session.role);
 
-  const match = await prisma.match.findUnique({
+  let match = await prisma.match.findUnique({
     where: { id: matchId },
-    select: {
-      id: true,
-      tournamentId: true,
-      externalId: true,
-      startsAt: true,
-      status: true,
-      homeScore: true,
-      awayScore: true,
-      homeTeamId: true,
-      awayTeamId: true,
-      championatFinishedAt: true,
-      liveMinute: true,
-      livePhaseCache: true,
-      liveStatusRaw: true,
-      homeTeam: { select: { externalId: true } },
-      awayTeam: { select: { externalId: true } },
-    },
+    select: matchSelect,
   });
 
   if (!match || !isMatchPredictable(match)) {
@@ -79,49 +88,33 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const result = await syncChampionatMatchLive(match);
+  let syncError: string | undefined;
 
-  const fresh = await prisma.match.findUnique({
-    where: { id: matchId },
-    select: {
-      homeScore: true,
-      awayScore: true,
-      liveMinute: true,
-      livePhaseCache: true,
-      liveStatusRaw: true,
-    },
-  });
+  if (forceSync) {
+    const syncResult = await syncChampionatMatchLive(match);
+    if (!syncResult.ok) {
+      syncError = championatSyncErrorMessage(syncResult.error);
+    }
+    match =
+      (await prisma.match.findUnique({
+        where: { id: matchId },
+        select: matchSelect,
+      })) ?? match;
+  }
 
-  const storedScores = sanitizeStoredScore(
-    fresh?.homeScore ?? result.homeScore,
-    fresh?.awayScore ?? result.awayScore,
-  );
-
-  const snapshot = result.snapshot;
-  const cachedPhase = (fresh?.livePhaseCache ??
-    match.livePhaseCache) as ChampionatLivePhase | null;
-  const livePhase =
-    snapshot?.livePhase ??
-    cachedPhase ??
-    (match.status === "LIVE"
-      ? "live"
-      : match.status === "FINISHED"
-        ? "finished"
-        : "scheduled");
-  const liveStatus = snapshot?.liveStatus ?? {
-    phase: livePhase,
-    minute: fresh?.liveMinute ?? match.liveMinute ?? undefined,
-    rawText: fresh?.liveStatusRaw ?? match.liveStatusRaw ?? "",
-  };
+  const view = await loadChampionatMatchLiveView(matchId, match);
+  const stale =
+    !forceSync &&
+    isChampionatLiveViewStale(match, view.championatLastSyncAt);
 
   return NextResponse.json({
-    events: result.events,
-    homeScore: storedScores.homeScore,
-    awayScore: storedScores.awayScore,
-    livePhase,
-    liveStatus,
+    events: view.events,
+    homeScore: view.homeScore,
+    awayScore: view.awayScore,
+    livePhase: view.livePhase,
+    liveStatus: view.liveStatus,
     fetchedAt: new Date().toISOString(),
-    stale: !result.ok || result.fromCache,
-    syncError: result.ok ? undefined : championatSyncErrorMessage(result.error),
+    stale,
+    syncError,
   });
 }
