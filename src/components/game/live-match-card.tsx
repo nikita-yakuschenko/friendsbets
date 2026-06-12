@@ -12,6 +12,7 @@ import { LiveMatchCardTabs } from "@/components/game/live-match-card-tabs";
 import type { LiveMatchPredictionsPanelProps } from "@/components/game/live-match-predictions-panel";
 import { TeamLabel } from "@/components/team/team-label";
 import type { ChampionatMatchEvent } from "@/lib/football-api/championat/match-protocol-types";
+import { sanitizeStoredScore } from "@/lib/football-api/championat/football-score";
 import { formatLiveScoreLine } from "@/lib/live-match-score";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
@@ -55,8 +56,9 @@ export function LiveMatchCard({
       ? match.startsAt
       : new Date(match.startsAt);
 
-  const [homeScore, setHomeScore] = useState<number | null>(match.homeScore);
-  const [awayScore, setAwayScore] = useState<number | null>(match.awayScore);
+  const initialScore = sanitizeStoredScore(match.homeScore, match.awayScore);
+  const [homeScore, setHomeScore] = useState<number | null>(initialScore.homeScore);
+  const [awayScore, setAwayScore] = useState<number | null>(initialScore.awayScore);
   const [events, setEvents] = useState<ChampionatMatchEvent[]>(initialEvents);
   const [livePhase, setLivePhase] = useState<ChampionatLivePhase>(() =>
     match.status === "FINISHED" ? "finished" : "live",
@@ -67,7 +69,11 @@ export function LiveMatchCard({
   }));
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventsError, setEventsError] = useState<string | null>(null);
-  const scoreRef = useRef({ home: match.homeScore, away: match.awayScore });
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
+  const scoreRef = useRef({
+    home: initialScore.homeScore,
+    away: initialScore.awayScore,
+  });
 
   useEffect(() => {
     scoreRef.current = { home: homeScore, away: awayScore };
@@ -85,15 +91,18 @@ export function LiveMatchCard({
         livePhase?: ChampionatLivePhase;
         liveStatus?: ChampionatLiveStatus;
         error?: string;
+        syncError?: string;
         stale?: boolean;
       };
 
-      if (!res.ok && !data.events?.length) {
+      if (!res.ok) {
         setEventsError(data.error ?? "Не удалось обновить события.");
+        setSyncWarning(null);
         return;
       }
 
       setEventsError(null);
+      setSyncWarning(data.syncError ?? null);
       if (data.events) setEvents(data.events);
       if (data.liveStatus) {
         setLiveStatus(data.liveStatus);
@@ -102,15 +111,17 @@ export function LiveMatchCard({
         setLivePhase(data.livePhase);
       }
 
-      const nextHome = data.homeScore ?? null;
-      const nextAway = data.awayScore ?? null;
-      if (nextHome !== null && nextAway !== null) {
-        const { home: prevHome, away: prevAway } = scoreRef.current;
-        setHomeScore(nextHome);
-        setAwayScore(nextAway);
-        if (nextHome !== prevHome || nextAway !== prevAway) {
-          router.refresh();
-        }
+      const sanitized = sanitizeStoredScore(
+        data.homeScore ?? null,
+        data.awayScore ?? null,
+      );
+      const nextHome = sanitized.homeScore;
+      const nextAway = sanitized.awayScore;
+      const { home: prevHome, away: prevAway } = scoreRef.current;
+      setHomeScore(nextHome);
+      setAwayScore(nextAway);
+      if (nextHome !== prevHome || nextAway !== prevAway) {
+        router.refresh();
       }
     } catch {
       setEventsError("Не удалось обновить события.");
@@ -201,6 +212,7 @@ export function LiveMatchCard({
           matchStatus={match.status}
           eventsLoading={eventsLoading}
           eventsError={eventsError}
+          syncWarning={syncWarning}
           homeTeamName={match.homeTeam.name}
           awayTeamName={match.awayTeam.name}
         />

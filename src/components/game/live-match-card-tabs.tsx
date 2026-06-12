@@ -22,6 +22,7 @@ export function LiveMatchCardTabs({
   events,
   eventsLoading,
   eventsError,
+  syncWarning,
   livePhase,
   matchStatus,
   homeTeamName,
@@ -29,8 +30,9 @@ export function LiveMatchCardTabs({
 }: {
   predictions: LiveMatchPredictionsPanelProps;
   events: ChampionatMatchEvent[];
-  eventsLoading: boolean;
-  eventsError: string | null;
+  eventsLoading?: boolean;
+  eventsError?: string | null;
+  syncWarning?: string | null;
   livePhase: ChampionatLivePhase;
   matchStatus: string;
   homeTeamName: string;
@@ -75,6 +77,7 @@ export function LiveMatchCardTabs({
           awayTeamName={awayTeamName}
           loading={eventsLoading}
           error={eventsError}
+          syncWarning={syncWarning}
         />
       )}
     </div>

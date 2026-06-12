@@ -16,6 +16,7 @@ type LiveMatchEventsListProps = {
   awayTeamName: string;
   loading?: boolean;
   error?: string | null;
+  syncWarning?: string | null;
 };
 
 function teamLabel(
@@ -92,6 +93,7 @@ export function LiveMatchEventsList({
   awayTeamName,
   loading,
   error,
+  syncWarning,
 }: LiveMatchEventsListProps) {
   const rows = buildLiveTimelineRows(events, livePhase, matchStatus);
 
@@ -113,14 +115,26 @@ export function LiveMatchEventsList({
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-xl bg-brand-bg px-3 py-6 text-center text-sm text-brand-muted">
-        Пока нет событий в протоколе матча.
-      </p>
+      <div className="space-y-3">
+        {syncWarning ? (
+          <p className="rounded-xl border border-brand-neutral/60 bg-brand-bg px-3 py-3 text-center text-sm text-brand-muted">
+            {syncWarning}
+          </p>
+        ) : null}
+        <p className="rounded-xl bg-brand-bg px-3 py-6 text-center text-sm text-brand-muted">
+          Пока нет событий в протоколе матча.
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="px-1">
+      {syncWarning ? (
+        <p className="mb-3 rounded-xl border border-brand-neutral/60 bg-brand-bg px-3 py-3 text-center text-sm text-brand-muted">
+          {syncWarning}
+        </p>
+      ) : null}
       <ul>
         {rows.map((row, index) => {
           const isFirst = index === 0;

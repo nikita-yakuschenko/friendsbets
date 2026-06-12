@@ -1,5 +1,6 @@
 import { MatchStatus } from "@/generated/prisma/client";
 import { championatLivePhaseToMatchStatus } from "@/lib/football-api/championat/championat-phase-to-match-status";
+import { hasImplausibleStoredScore } from "@/lib/football-api/championat/football-score";
 import type { ChampionatMatchLiveSnapshot } from "@/lib/football-api/championat/match-live-snapshot";
 import { championatFinishedTrackingPatch } from "@/lib/football-api/championat/championat-tracking";
 import { inferChampionatFinishedStatus } from "@/lib/football-api/championat/infer-championat-finished-status";
@@ -63,11 +64,17 @@ export async function applyChampionatSnapshotToMatch(
     championatFinishedAt?: Date;
   } = {};
 
+  const storedScoreBad = hasImplausibleStoredScore(
+    match.homeScore,
+    match.awayScore,
+  );
+
   if (
     snapshot.homeScore !== undefined &&
     snapshot.awayScore !== undefined &&
     (snapshot.homeScore !== match.homeScore ||
-      snapshot.awayScore !== match.awayScore)
+      snapshot.awayScore !== match.awayScore ||
+      storedScoreBad)
   ) {
     updateData.homeScore = snapshot.homeScore;
     updateData.awayScore = snapshot.awayScore;
@@ -175,6 +182,23 @@ export async function applyChampionatSnapshotToMatch(
     } catch (err) {
       console.warn(
         `[championat] match result notify failed match=${match.id}`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
+  const becameLive =
+    nextStatus === MatchStatus.LIVE && match.status !== MatchStatus.LIVE;
+
+  if (becameLive) {
+    try {
+      const { sendLiveRemindersForMatch } = await import(
+        "@/lib/reminders/prediction-reminders"
+      );
+      await sendLiveRemindersForMatch(match.id);
+    } catch (err) {
+      console.warn(
+        `[championat] live reminder failed match=${match.id}`,
         err instanceof Error ? err.message : err,
       );
     }

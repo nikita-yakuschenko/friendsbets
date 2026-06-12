@@ -80,6 +80,44 @@ type ReminderMatchRow = {
   tournament: { games: GameWithParticipants[] };
 };
 
+const reminderMatchInclude = {
+  homeTeam: true,
+  awayTeam: true,
+  tournament: {
+    include: {
+      games: {
+        select: {
+          id: true,
+          title: true,
+          inviteCode: true,
+          createdById: true,
+          createdBy: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              emailVerifiedAt: true,
+            },
+          },
+          participants: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  emailVerifiedAt: true,
+                  telegramChatId: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
 function appOrigin(origin?: string): string {
   return (origin ?? getAppOriginFromEnv()).replace(/\/$/, "");
 }
@@ -447,6 +485,43 @@ async function processReminderBatch(params: {
   }
 }
 
+/** Уведомление «матч начался» для одного матча (из Championat sync или догон cron). */
+export async function sendLiveRemindersForMatch(
+  matchId: string,
+  now = new Date(),
+): Promise<ReminderRunResult> {
+  const liveSlot = MATCH_REMINDER_SCHEDULE.find((slot) => slot.matchStarted);
+  if (!liveSlot) {
+    return { checked: 0, sent: 0, skipped: 0, errors: 0 };
+  }
+
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    include: reminderMatchInclude,
+  });
+
+  const result: ReminderRunResult = {
+    checked: 0,
+    sent: 0,
+    skipped: 0,
+    errors: 0,
+  };
+
+  if (!match || !isMatchPredictable(match)) return result;
+  if (!isMatchReminderDue(now, match.startsAt, liveSlot)) return result;
+
+  await processReminderBatch({
+    matches: [match as ReminderMatchRow],
+    kind: liveSlot.kind,
+    adminKind: liveSlot.adminKind,
+    label: liveSlot.label,
+    matchStarted: true,
+    result,
+  });
+
+  return result;
+}
+
 export async function sendDuePredictionReminders(
   now = new Date(),
 ): Promise<ReminderRunResult> {
@@ -458,51 +533,13 @@ export async function sendDuePredictionReminders(
     errors: 0,
   };
 
-  const matchInclude = {
-    homeTeam: true,
-    awayTeam: true,
-    tournament: {
-      include: {
-        games: {
-          select: {
-            id: true,
-            title: true,
-            inviteCode: true,
-            createdById: true,
-            createdBy: {
-              select: {
-                id: true,
-                email: true,
-                name: true,
-                emailVerifiedAt: true,
-              },
-            },
-            participants: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    email: true,
-                    name: true,
-                    emailVerifiedAt: true,
-                    telegramChatId: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  } as const;
-
   const [preMatchCandidates, liveCandidates] = await Promise.all([
     prisma.match.findMany({
       where: {
         status: MatchStatus.SCHEDULED,
         startsAt: preMatchReminderCandidateStartsAtRange(now),
       },
-      include: matchInclude,
+      include: reminderMatchInclude,
     }),
     prisma.match.findMany({
       where: {
@@ -510,7 +547,7 @@ export async function sendDuePredictionReminders(
         status: { in: [MatchStatus.SCHEDULED, MatchStatus.LIVE] },
         startsAt: liveReminderCandidateStartsAtRange(now),
       },
-      include: matchInclude,
+      include: reminderMatchInclude,
     }),
   ]);
 

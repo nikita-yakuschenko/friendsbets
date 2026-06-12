@@ -93,4 +93,29 @@ describe("applyChampionatSnapshotToMatch", () => {
       }),
     );
   });
+
+  it("исправляет мусорный счёт 22:0 из парсера времени", async () => {
+    const result = await applyChampionatSnapshotToMatch(
+      {
+        ...baseMatch,
+        status: MatchStatus.LIVE,
+        startsAt: new Date("2026-06-01T10:00:00Z"),
+        homeScore: 22,
+        awayScore: 0,
+      },
+      {
+        events: [],
+        homeScore: 0,
+        awayScore: 0,
+        livePhase: "live",
+        liveStatus: { phase: "live", rawText: "1-й тайм, 19'" },
+      },
+    );
+    expect(result.updated).toBe(true);
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ homeScore: 0, awayScore: 0 }),
+      }),
+    );
+  });
 });

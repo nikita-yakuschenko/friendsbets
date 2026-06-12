@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { UserRole } from "@/generated/prisma/client";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { sanitizeStoredScore } from "@/lib/football-api/championat/football-score";
 import type { ChampionatLivePhase } from "@/lib/football-api/championat/match-live-status";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { syncChampionatMatchLive } from "@/lib/football-api/championat/sync-championat-match-live";
@@ -23,6 +24,14 @@ async function userCanViewMatchLive(
   });
 
   return Boolean(participant);
+}
+
+function championatSyncErrorMessage(error: string | undefined): string | undefined {
+  if (!error) return undefined;
+  if (error === "no_championat_source") {
+    return "Для этого матча не настроен источник Championat.";
+  }
+  return "Обновление с Championat временно недоступно. Показаны сохранённые данные.";
 }
 
 export async function GET(
@@ -72,39 +81,47 @@ export async function GET(
 
   const result = await syncChampionatMatchLive(match);
 
-  if (!result.ok && result.events.length === 0 && !result.snapshot) {
-    return NextResponse.json(
-      {
-        error: "Не удалось загрузить данные с Championat.",
-        events: [],
-        homeScore: result.homeScore,
-        awayScore: result.awayScore,
-        livePhase: "scheduled",
-        liveStatus: { phase: "scheduled" as const, rawText: "" },
-        fetchedAt: new Date().toISOString(),
-        stale: true,
-      },
-      { status: 502 },
-    );
-  }
+  const fresh = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: {
+      homeScore: true,
+      awayScore: true,
+      liveMinute: true,
+      livePhaseCache: true,
+      liveStatusRaw: true,
+    },
+  });
+
+  const storedScores = sanitizeStoredScore(
+    fresh?.homeScore ?? result.homeScore,
+    fresh?.awayScore ?? result.awayScore,
+  );
 
   const snapshot = result.snapshot;
-  const cachedPhase = match.livePhaseCache as ChampionatLivePhase | null;
-  const livePhase = snapshot?.livePhase ?? cachedPhase ?? "live";
+  const cachedPhase = (fresh?.livePhaseCache ??
+    match.livePhaseCache) as ChampionatLivePhase | null;
+  const livePhase =
+    snapshot?.livePhase ??
+    cachedPhase ??
+    (match.status === "LIVE"
+      ? "live"
+      : match.status === "FINISHED"
+        ? "finished"
+        : "scheduled");
   const liveStatus = snapshot?.liveStatus ?? {
     phase: livePhase,
-    minute: match.liveMinute ?? undefined,
-    rawText: match.liveStatusRaw ?? "",
+    minute: fresh?.liveMinute ?? match.liveMinute ?? undefined,
+    rawText: fresh?.liveStatusRaw ?? match.liveStatusRaw ?? "",
   };
 
   return NextResponse.json({
     events: result.events,
-    homeScore: result.homeScore,
-    awayScore: result.awayScore,
+    homeScore: storedScores.homeScore,
+    awayScore: storedScores.awayScore,
     livePhase,
     liveStatus,
     fetchedAt: new Date().toISOString(),
-    stale: result.fromCache,
-    syncError: result.ok ? undefined : result.error,
+    stale: !result.ok || result.fromCache,
+    syncError: result.ok ? undefined : championatSyncErrorMessage(result.error),
   });
 }

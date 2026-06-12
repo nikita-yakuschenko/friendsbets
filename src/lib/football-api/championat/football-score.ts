@@ -33,3 +33,22 @@ export function parsePlausibleFootballScore(
   }
   return { homeScore, awayScore };
 }
+
+export function hasImplausibleStoredScore(
+  homeScore: number | null,
+  awayScore: number | null,
+): boolean {
+  if (homeScore === null || awayScore === null) return false;
+  return !isPlausibleFootballScore(homeScore, awayScore);
+}
+
+/** Не показываем мусор парсера (22:0) — на табло будет 0:0. */
+export function sanitizeStoredScore(
+  homeScore: number | null,
+  awayScore: number | null,
+): { homeScore: number | null; awayScore: number | null } {
+  if (hasImplausibleStoredScore(homeScore, awayScore)) {
+    return { homeScore: null, awayScore: null };
+  }
+  return { homeScore, awayScore };
+}

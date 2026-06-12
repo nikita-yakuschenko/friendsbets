@@ -5,6 +5,7 @@ import {
   persistChampionatMatchEvents,
   persistMatchLiveStatusCache,
 } from "@/lib/football-api/championat/match-event-store";
+import { hasImplausibleStoredScore } from "@/lib/football-api/championat/football-score";
 import { fetchChampionatMatchLiveSnapshot } from "@/lib/football-api/championat/match-live-snapshot";
 import type { ChampionatMatchLiveSnapshot } from "@/lib/football-api/championat/match-live-snapshot";
 import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
@@ -33,6 +34,23 @@ type MatchSyncTarget = {
   championatFinishedAt?: Date | null;
 };
 
+async function repairImplausibleScoreInDb(
+  matchId: string,
+  homeScore: number | null,
+  awayScore: number | null,
+): Promise<{ homeScore: number | null; awayScore: number | null }> {
+  if (!hasImplausibleStoredScore(homeScore, awayScore)) {
+    return { homeScore, awayScore };
+  }
+
+  await prisma.match.update({
+    where: { id: matchId },
+    data: { homeScore: null, awayScore: null },
+  });
+
+  return { homeScore: null, awayScore: null };
+}
+
 export async function syncChampionatMatchLive(
   match: MatchSyncTarget,
 ): Promise<SyncChampionatMatchLiveResult> {
@@ -45,7 +63,19 @@ export async function syncChampionatMatchLive(
 
   const source = await resolveChampionatSourceForTournament(match.tournamentId);
   if (!source || !match.externalId?.startsWith("championat:")) {
-    return { ok: false, ...base, fromCache: true, error: "no_championat_source" };
+    const repaired = await repairImplausibleScoreInDb(
+      match.id,
+      match.homeScore,
+      match.awayScore,
+    );
+    return {
+      ok: false,
+      events: fallbackEvents,
+      homeScore: repaired.homeScore,
+      awayScore: repaired.awayScore,
+      fromCache: true,
+      error: "no_championat_source",
+    };
   }
 
   try {
@@ -87,9 +117,17 @@ export async function syncChampionatMatchLive(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "sync_failed";
+    const repaired = await repairImplausibleScoreInDb(
+      match.id,
+      match.homeScore,
+      match.awayScore,
+    );
+
     return {
       ok: false,
-      ...base,
+      events: fallbackEvents,
+      homeScore: repaired.homeScore,
+      awayScore: repaired.awayScore,
       fromCache: fallbackEvents.length > 0,
       error: message,
     };
