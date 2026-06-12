@@ -28,7 +28,7 @@ export async function getNearestReminderFireAt(
 ): Promise<Date | null> {
   const matches = await prisma.match.findMany({
     where: {
-      status: MatchStatus.SCHEDULED,
+      status: { in: [MatchStatus.SCHEDULED, MatchStatus.LIVE] },
       startsAt: {
         gt: new Date(now.getTime() - LIVE_REMINDER_CATCHUP_MS),
         lte: new Date(now.getTime() + LOOKAHEAD_MS),

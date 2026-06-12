@@ -1,5 +1,6 @@
 import { MatchStatus } from "@/generated/prisma/client";
 import { CHAMPIONAT_WORLD_CUP_2026 } from "@/lib/football-api/championat/constants";
+import { parsePlausibleFootballScore } from "@/lib/football-api/championat/football-score";
 import { parseChampionatMatchStatusFromHtml } from "@/lib/football-api/championat/match-status";
 import { normalizeVenueCityParts } from "@/lib/venue";
 
@@ -13,6 +14,13 @@ export type ChampionatMatchDetails = {
   awayScore?: number;
 };
 
+function parseScoreCandidate(
+  homeRaw: string,
+  awayRaw: string,
+): { homeScore: number; awayScore: number } | null {
+  return parsePlausibleFootballScore(Number(homeRaw), Number(awayRaw));
+}
+
 function parseLiveScoreFromMatchPage(html: string): {
   homeScore?: number;
   awayScore?: number;
@@ -22,22 +30,20 @@ function parseLiveScoreFromMatchPage(html: string): {
     /match-info__score-total[^>]*>[\s\S]*?(\d+)\s*:\s*(\d+)/i,
   );
   if (scoreTotal) {
-    return {
-      homeScore: Number(scoreTotal[1]),
-      awayScore: Number(scoreTotal[2]),
-      impliesLive: true,
-    };
+    const parsed = parseScoreCandidate(scoreTotal[1]!, scoreTotal[2]!);
+    if (parsed) {
+      return { ...parsed, impliesLive: true };
+    }
   }
 
   const halfBlock = html.match(
     /(?:1-?й|2-?й)\s+тайм[\s\S]{0,160}?(\d+)\s*:\s*(\d+)/i,
   );
   if (halfBlock) {
-    return {
-      homeScore: Number(halfBlock[1]),
-      awayScore: Number(halfBlock[2]),
-      impliesLive: true,
-    };
+    const parsed = parseScoreCandidate(halfBlock[1]!, halfBlock[2]!);
+    if (parsed) {
+      return { ...parsed, impliesLive: true };
+    }
   }
 
   const titleBlock = html.match(/<title>[^<]*/i)?.[0] ?? "";
@@ -47,11 +53,10 @@ function parseLiveScoreFromMatchPage(html: string): {
   ) {
     const titleScore = titleBlock.match(/сч[её]т\s+(\d+)\s*:\s*(\d+)/i);
     if (titleScore) {
-      return {
-        homeScore: Number(titleScore[1]),
-        awayScore: Number(titleScore[2]),
-        impliesLive: true,
-      };
+      const parsed = parseScoreCandidate(titleScore[1]!, titleScore[2]!);
+      if (parsed) {
+        return { ...parsed, impliesLive: true };
+      }
     }
   }
 

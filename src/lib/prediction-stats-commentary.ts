@@ -78,7 +78,8 @@ function teamPhrases(team: TeamRef): TeamPhrases {
   const name = teamNominative(team.name);
   return {
     nom: `${flagPrefix(team)}${name}`,
-    acc: `${flagPrefix(team)}${teamAccusative(name)}`,
+    // Без флага: после «за/на» эмодзи ломают порядок символов и дают «за за …» в UI.
+    acc: teamAccusative(name),
     gen: teamGenitive(name),
     believed: teamBelievedForm(name),
     beliefIn: teamBeliefPronoun(name),
@@ -257,7 +258,7 @@ function commentaryForScenario(
         [
           `Один в поле воин! Главное, чтобы ${awayTeam.nom} ${awayTeam.believed} в себя так же сильно, как в ${awayTeam.beliefIn} верит ${scenario.loneName} — единственный, кто поставил на гостей.`,
           `${scenario.loneName} один тянет знамя ${awayTeam.gen}. Большинство за ${homeTeam.acc} — но футбол любит сюрпризы.`,
-          `Один прогноз на ${awayTeam.acc}, и это ${scenario.loneName}. Все остальные за ${homeTeam.acc}. Интрига на месте.`,
+          `Один прогноз за ${awayTeam.acc}, и это ${scenario.loneName}. Все остальные за ${homeTeam.acc}. Интрига на месте.`,
         ],
         `${seed}:lone_away`,
       );

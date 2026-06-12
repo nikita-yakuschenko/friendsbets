@@ -259,4 +259,68 @@ describe("sendDuePredictionReminders", () => {
     expect(liveCreates).toHaveLength(0);
     expect(result.sent).toBe(0);
   });
+
+  it("шлёт LIVE, если Championat уже перевёл матч в LIVE", async () => {
+    const kickoff23 = new Date("2026-06-10T20:00:00.000Z");
+    vi.setSystemTime(kickoff23);
+
+    const liveMatch = {
+      ...baseMatch,
+      id: "match-live",
+      status: MatchStatus.LIVE,
+      startsAt: kickoff23,
+    };
+
+    vi.mocked(prisma.match.findMany).mockImplementation(async (args) => {
+      const where = (args as { where?: { startsAt?: Record<string, Date> } })
+        ?.where?.startsAt;
+      if (!where) return [] as never;
+      const t = kickoff23.getTime();
+      if ("gt" in where && where.gt) {
+        return [] as never;
+      }
+      if ("gte" in where && where.gte && where.lte) {
+        if (t >= where.gte.getTime() && t <= where.lte.getTime()) {
+          return [liveMatch] as never;
+        }
+      }
+      return [] as never;
+    });
+
+    vi.mocked(prisma.prediction.findMany).mockResolvedValue([
+      {
+        gameId: "game-1",
+        matchId: "match-live",
+        userId: "user-1",
+        homeScore: 1,
+        awayScore: 0,
+      },
+      {
+        gameId: "game-1",
+        matchId: "match-live",
+        userId: "user-2",
+        homeScore: 2,
+        awayScore: 1,
+      },
+      {
+        gameId: "game-1",
+        matchId: "match-live",
+        userId: "org-1",
+        homeScore: 0,
+        awayScore: 0,
+      },
+    ] as never);
+
+    const result = await sendDuePredictionReminders(kickoff23);
+
+    const liveCreates = vi
+      .mocked(prisma.predictionReminder.create)
+      .mock.calls.filter(
+        (c) =>
+          (c[0] as { data?: { kind?: string } })?.data?.kind ===
+          PredictionReminderKind.LIVE,
+      );
+    expect(liveCreates.length).toBeGreaterThan(0);
+    expect(result.sent).toBeGreaterThan(0);
+  });
 });

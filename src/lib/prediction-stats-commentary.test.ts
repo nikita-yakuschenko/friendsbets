@@ -130,6 +130,32 @@ describe("prediction stats commentary", () => {
     expect(text).toMatch(/фантазии|коллективн/i);
   });
 
+  it("lone away — без дублирования «за»", () => {
+    const text = buildPredictionStatsCommentary({
+      seed: "m1",
+      homeTeam: { name: "Канада", countryCode: "CA" },
+      awayTeam: { name: "Босния и Герцеговина", countryCode: "BA" },
+      stats: baseStats({
+        total: 15,
+        homeWin: 14,
+        awayWin: 1,
+        mostCommonScore: "2:1",
+        mostCommonCount: 5,
+      }),
+      predictions: [
+        { displayName: "Иван", homeScore: 0, awayScore: 1 },
+        ...Array.from({ length: 14 }, (_, index) => ({
+          displayName: `U${index}`,
+          homeScore: 2,
+          awayScore: 1,
+        })),
+      ],
+    });
+    expect(text).not.toMatch(/(?:на|за)\s+за/i);
+    expect(text).toMatch(/за Боснию и Герцеговину/);
+    expect(text).toMatch(/за Канаду/);
+  });
+
   it("стабильный выбор шутки по seed", () => {
     const input = {
       seed: "stable-id",

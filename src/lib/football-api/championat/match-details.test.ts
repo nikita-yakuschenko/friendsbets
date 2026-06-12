@@ -14,4 +14,25 @@ describe("parseChampionatMatchPageHtml", () => {
     expect(details.homeScore).toBe(2);
     expect(details.awayScore).toBe(0);
   });
+
+  it("не путает время начала 22:00 со счётом", () => {
+    const html = `
+      <div class="match-info__status">1-й тайм, 5'</div>
+      <div class="match-info__title">12 июня 2026, пятница. 22:00 МСК</div>
+      <div class="match-info__score-total">0 : 0</div>
+    `;
+    const details = parseChampionatMatchPageHtml(html);
+    expect(details.homeScore).toBe(0);
+    expect(details.awayScore).toBe(0);
+  });
+
+  it("отклоняет 22:00 из fallback-блока тайма", () => {
+    const html = `
+      <div class="match-info__status">1-й тайм, 5'</div>
+      <div class="match-info__title">12 июня 2026, пятница. 22:00 МСК</div>
+    `;
+    const details = parseChampionatMatchPageHtml(html);
+    expect(details.homeScore).toBeUndefined();
+    expect(details.awayScore).toBeUndefined();
+  });
 });

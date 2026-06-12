@@ -506,7 +506,8 @@ export async function sendDuePredictionReminders(
     }),
     prisma.match.findMany({
       where: {
-        status: MatchStatus.SCHEDULED,
+        // Championat часто переводит матч в LIVE до cron — иначе «старт матча» не уйдёт.
+        status: { in: [MatchStatus.SCHEDULED, MatchStatus.LIVE] },
         startsAt: liveReminderCandidateStartsAtRange(now),
       },
       include: matchInclude,
