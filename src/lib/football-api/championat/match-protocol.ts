@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import type { CheerioAPI } from "cheerio";
+import type { Cheerio, CheerioAPI, Element } from "cheerio";
 import { fetchChampionatHtml } from "@/lib/football-api/championat/fetch-html";
 import {
   championatMatchPageUrl,
@@ -24,7 +24,16 @@ function normalizeWhitespace(value: string): string {
 
 function parseMinute(raw: string): { label: string; minute: number | null } {
   const text = normalizeWhitespace(raw);
-  const match = text.match(/(\d+)\s*[''′]?/);
+  const stoppage = text.match(/^(\d+)\s*\+\s*(\d+)\s*[''′]?/);
+  if (stoppage) {
+    const base = Number(stoppage[1]);
+    const added = Number(stoppage[2]);
+    return {
+      label: `${base}+${added}'`,
+      minute: base + added / 100,
+    };
+  }
+  const match = text.match(/^(\d+)\s*[''′]?/);
   const minute = match ? Number(match[1]) : null;
   const label = minute != null ? `${minute}'` : text;
   return { label, minute };
@@ -126,51 +135,99 @@ function parseProtocolSection(
   return events;
 }
 
+function parseTimelineBubbleRow(
+  $row: Cheerio<Element>,
+  fallbackType: ChampionatMatchEventType,
+  teamSide: ChampionatMatchEvent["teamSide"],
+  eventIdx: number,
+  rowIdx: number,
+): ChampionatMatchEvent | null {
+  const rowClass = $row.attr("class") ?? "";
+  const type =
+    mapTimelineType(rowClass) !== "UNKNOWN"
+      ? mapTimelineType(rowClass)
+      : fallbackType;
+  const section: ChampionatMatchEventSection =
+    type === "YELLOW_CARD" || type === "RED_CARD" ? "punishments" : "goals";
+
+  const minuteText = normalizeWhitespace(
+    $row.find(".match-timeline__bubble-minute").first().text(),
+  );
+  const { label, minute } = parseMinute(minuteText);
+
+  const $title = $row.find(".match-timeline__bubble-title").first();
+  const score = normalizeWhitespace(
+    $title.find(".match-timeline__bubble-score").first().text(),
+  ).replace(/\s/g, "") || undefined;
+
+  let playerName = normalizeWhitespace($title.text());
+  if (score) {
+    playerName = normalizeWhitespace(playerName.replace(score, ""));
+  }
+  if (!playerName) return null;
+
+  return {
+    id: `tl-${eventIdx}-${rowIdx}-${minute ?? "x"}-${playerName}`,
+    type,
+    minute,
+    minuteLabel: label,
+    playerName,
+    score,
+    teamSide,
+    section,
+  };
+}
+
 function parseTimelineEvents($: CheerioAPI): ChampionatMatchEvent[] {
   const events: ChampionatMatchEvent[] = [];
 
-  $(".match-timeline__event").each((idx, el) => {
+  $(".match-timeline__event").each((eventIdx, el) => {
     const $el = $(el);
     const classAttr = $el.attr("class") ?? "";
-    const type = mapTimelineType(classAttr);
-    const section: ChampionatMatchEventSection =
-      type === "YELLOW_CARD" || type === "RED_CARD" ? "punishments" : "goals";
+    const fallbackType = mapTimelineType(classAttr);
 
-    const minuteText =
-      normalizeWhitespace($el.find(".match-timeline__bubble-minute").text()) ||
-      normalizeWhitespace($el.find(".match-timeline__event-bubble").text());
-    const { label, minute } = parseMinute(minuteText);
-
-    const rowText = normalizeWhitespace($el.find(".match-timeline__bubble-row").text());
-    let playerName = rowText.replace(label, "").trim();
-    let score: string | undefined;
-
-    const scoreMatch = rowText.match(/(\d+\s*:\s*\d+)/);
-    if (scoreMatch) {
-      score = scoreMatch[1].replace(/\s/g, "");
-      playerName = rowText
-        .replace(scoreMatch[0], "")
-        .replace(label, "")
-        .trim();
-    }
-
-    if (!playerName) return;
-
-    const teamBlockClass =
-      $el.parent().parent().attr("class") ?? "";
+    const teamBlockClass = $el.parent().parent().attr("class") ?? "";
     const teamSide = teamBlockClass.includes("_team1")
       ? "home"
       : teamBlockClass.includes("_team2")
         ? "away"
         : undefined;
 
+    const rows = $el.find(".match-timeline__bubble-row");
+    if (rows.length > 0) {
+      rows.each((rowIdx, row) => {
+        const parsed = parseTimelineBubbleRow(
+          $(row),
+          fallbackType,
+          teamSide,
+          eventIdx,
+          rowIdx,
+        );
+        if (parsed) events.push(parsed);
+      });
+      return;
+    }
+
+    const minuteText = normalizeWhitespace(
+      $el.find(".match-timeline__bubble-minute").first().text(),
+    );
+    const { label, minute } = parseMinute(minuteText);
+    const playerName = normalizeWhitespace(
+      $el.find(".match-timeline__bubble-title").first().text(),
+    );
+    if (!playerName) return;
+
+    const section: ChampionatMatchEventSection =
+      fallbackType === "YELLOW_CARD" || fallbackType === "RED_CARD"
+        ? "punishments"
+        : "goals";
+
     events.push({
-      id: `tl-${idx}-${minute ?? "x"}-${playerName}`,
-      type,
+      id: `tl-${eventIdx}-0-${minute ?? "x"}-${playerName}`,
+      type: fallbackType,
       minute,
       minuteLabel: label,
       playerName,
-      score,
       teamSide,
       section,
     });
