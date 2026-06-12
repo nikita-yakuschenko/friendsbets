@@ -11,6 +11,8 @@ function match(
     id,
     startsAt,
     status,
+    homeScore: null,
+    awayScore: null,
     homeTeam: { externalId: `championat:team:${id}-h` },
     awayTeam: { externalId: `championat:team:${id}-a` },
   };
@@ -21,18 +23,32 @@ describe("findNextNotStartedMatch", () => {
     vi.useRealTimers();
   });
 
-  it("выбирает ближайший SCHEDULED, пропуская уже идущие LIVE", () => {
-    const now = new Date("2026-06-13T23:55:00Z");
+  it("не отбрасывает ранний LIVE до effective kickoff (04:00 МСК vs 22:00)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-12T21:45:00.000Z")); // 00:45 МСК, 13 июня
+
+    const next = findNextNotStartedMatch([
+      match("usa", new Date("2026-06-13T01:00:00.000Z"), MatchStatus.LIVE),
+      match("qat", new Date("2026-06-13T19:00:00.000Z")),
+    ]);
+
+    expect(next?.id).toBe("usa");
+    vi.useRealTimers();
+  });
+
+  it("пропускает матч, который уже идёт для участников", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-13T23:55:00Z"));
     const next = findNextNotStartedMatch(
       [
         match("m1-live", new Date("2026-06-13T20:00:00Z"), MatchStatus.LIVE),
         match("m3", new Date("2026-06-14T00:00:00Z")),
         match("m4", new Date("2026-06-14T04:00:00Z")),
       ],
-      now,
     );
 
     expect(next?.id).toBe("m3");
+    vi.useRealTimers();
   });
 
   it("не возвращает матч после effective kickoff", () => {

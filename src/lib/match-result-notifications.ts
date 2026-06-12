@@ -7,7 +7,6 @@ import { createUserNotification } from "@/lib/create-user-notification";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { findNextNotStartedMatch } from "@/lib/football-api/match-visibility";
-import { getMatchKickoffRevealDelayMs } from "@/lib/match-kickoff-delay";
 import { computeGameLeaderboard } from "@/lib/leaderboard/compute-game-leaderboard";
 import { logOperationError, maskEmail } from "@/lib/logger";
 import {
@@ -117,8 +116,7 @@ export async function notifyMatchResultParticipants(
   const candidateMatches = await prisma.match.findMany({
     where: {
       tournamentId,
-      status: MatchStatus.SCHEDULED,
-      startsAt: { gt: new Date(now.getTime() - getMatchKickoffRevealDelayMs()) },
+      status: { in: [MatchStatus.SCHEDULED, MatchStatus.LIVE] },
     },
     include: {
       homeTeam: { select: { name: true, countryCode: true, externalId: true } },
