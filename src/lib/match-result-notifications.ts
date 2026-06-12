@@ -6,7 +6,8 @@ import {
 import { createUserNotification } from "@/lib/create-user-notification";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
-import { isMatchPredictable } from "@/lib/football-api/match-visibility";
+import { findNextNotStartedMatch } from "@/lib/football-api/match-visibility";
+import { getMatchKickoffRevealDelayMs } from "@/lib/match-kickoff-delay";
 import { computeGameLeaderboard } from "@/lib/leaderboard/compute-game-leaderboard";
 import { logOperationError, maskEmail } from "@/lib/logger";
 import {
@@ -113,11 +114,11 @@ export async function notifyMatchResultParticipants(
 
   const gameIds = games.map((game) => game.id);
   const now = new Date();
-  const upcomingMatches = await prisma.match.findMany({
+  const candidateMatches = await prisma.match.findMany({
     where: {
       tournamentId,
       status: MatchStatus.SCHEDULED,
-      startsAt: { gt: now },
+      startsAt: { gt: new Date(now.getTime() - getMatchKickoffRevealDelayMs()) },
     },
     include: {
       homeTeam: { select: { name: true, countryCode: true, externalId: true } },
@@ -125,7 +126,7 @@ export async function notifyMatchResultParticipants(
     },
     orderBy: { startsAt: "asc" },
   });
-  const nextMatch = upcomingMatches.find((row) => isMatchPredictable(row)) ?? null;
+  const nextMatch = findNextNotStartedMatch(candidateMatches, now) ?? null;
 
   const predictions = await prisma.prediction.findMany({
     where: { gameId: { in: gameIds }, matchId },

@@ -12,6 +12,7 @@ import type {
 import { formatLiveScoreLine } from "@/lib/live-match-score";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
+import { useTickingLiveStatus } from "@/hooks/use-ticking-live-status";
 
 const POLL_MS = 15_000;
 
@@ -51,6 +52,13 @@ export function LiveMatchHomePreview({
     phase: match.status === "FINISHED" ? "finished" : "live",
     rawText: "",
   }));
+  const [liveStatusSyncedAt, setLiveStatusSyncedAt] = useState<string | null>(
+    null,
+  );
+  const tickingLiveStatus = useTickingLiveStatus(
+    liveStatus,
+    liveStatusSyncedAt,
+  );
 
   const fetchPhase = useCallback(async () => {
     try {
@@ -61,6 +69,7 @@ export function LiveMatchHomePreview({
       const data = (await res.json()) as {
         livePhase?: ChampionatLivePhase;
         liveStatus?: ChampionatLiveStatus;
+        liveStatusSyncedAt?: string | null;
         homeScore?: number | null;
         awayScore?: number | null;
       };
@@ -68,6 +77,9 @@ export function LiveMatchHomePreview({
         setLiveStatus(data.liveStatus);
       } else if (data.livePhase) {
         setLiveStatus((prev) => ({ ...prev, phase: data.livePhase! }));
+      }
+      if (data.liveStatusSyncedAt) {
+        setLiveStatusSyncedAt(data.liveStatusSyncedAt);
       }
       if (data.homeScore != null && data.awayScore != null) {
         setHomeScore(data.homeScore);
@@ -89,7 +101,7 @@ export function LiveMatchHomePreview({
   }, [fetchPhase]);
 
   const liveScore = formatLiveScoreLine(homeScore, awayScore);
-  const isHalftime = liveStatus.phase === "halftime";
+  const isHalftime = tickingLiveStatus.phase === "halftime";
 
   return (
     <section>
@@ -102,7 +114,7 @@ export function LiveMatchHomePreview({
         <CardContent className="relative flex flex-col gap-3 px-4 py-3">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <LiveBadge status={liveStatus} />
+              <LiveBadge status={tickingLiveStatus} />
               {match.stage ? (
                 <p className="text-sm text-brand-muted">{match.stage}</p>
               ) : null}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { UserRole } from "@/generated/prisma/client";
+import { MatchStatus } from "@/generated/prisma/client";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
@@ -8,6 +9,7 @@ import {
 } from "@/lib/football-api/championat/load-championat-match-live-view";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { syncChampionatMatchLive } from "@/lib/football-api/championat/sync-championat-match-live";
+import { isMatchInProgress } from "@/lib/match-prediction-state";
 import { isSuperadmin } from "@/lib/roles";
 
 async function userCanViewMatchLive(
@@ -88,6 +90,14 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const canViewLiveData =
+    match.status === MatchStatus.FINISHED ||
+    isMatchInProgress(match) ||
+    forceSync;
+  if (!canViewLiveData) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   let syncError: string | undefined;
 
   if (forceSync) {
@@ -113,6 +123,7 @@ export async function GET(
     awayScore: view.awayScore,
     livePhase: view.livePhase,
     liveStatus: view.liveStatus,
+    liveStatusSyncedAt: view.championatLastSyncAt?.toISOString() ?? null,
     fetchedAt: new Date().toISOString(),
     stale,
     syncError,

@@ -1,3 +1,6 @@
+import { MatchStatus } from "@/generated/prisma/client";
+import { getEffectiveKickoffAt } from "@/lib/match-kickoff-delay";
+
 type TeamLike = {
   externalId?: string | null;
 };
@@ -5,6 +8,11 @@ type TeamLike = {
 type MatchLike = {
   homeTeam: TeamLike;
   awayTeam: TeamLike;
+};
+
+type ScheduleMatchCandidate = MatchLike & {
+  startsAt: Date;
+  status: MatchStatus;
 };
 
 export function isPlaceholderTeamExternalId(
@@ -20,4 +28,25 @@ export function isMatchPredictable(match: MatchLike): boolean {
     !isPlaceholderTeamExternalId(match.homeTeam.externalId) &&
     !isPlaceholderTeamExternalId(match.awayTeam.externalId)
   );
+}
+
+/** Ближайший по расписанию матч, который ещё не начался. */
+export function findNextNotStartedMatch<T extends ScheduleMatchCandidate>(
+  matches: Iterable<T>,
+  now: Date = new Date(),
+): T | null {
+  const nowMs = now.getTime();
+  let best: T | null = null;
+
+  for (const match of matches) {
+    if (match.status !== MatchStatus.SCHEDULED) continue;
+    if (!isMatchPredictable(match)) continue;
+    if (getEffectiveKickoffAt(match.startsAt).getTime() <= nowMs) continue;
+
+    if (!best || match.startsAt.getTime() < best.startsAt.getTime()) {
+      best = match;
+    }
+  }
+
+  return best;
 }

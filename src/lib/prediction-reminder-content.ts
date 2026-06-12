@@ -18,7 +18,6 @@ import { formatDateTimeMoscow, formatRelativeTime } from "@/lib/utils";
 
 import { NOTIFICATION_SIGNOFF } from "@/lib/notification-signoff";
 import { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
-import { resolveTeamFlagCode } from "@/lib/football-api/championat/team-country-codes";
 import { joinTournamentNotificationBody } from "@/lib/tournament-notification-lead";
 
 export { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
@@ -30,28 +29,12 @@ export function predictionsAbsoluteUrl(
   return absoluteAppUrl(gamePath(inviteCode, "predictions"), origin);
 }
 
-function countryCodeToFlagEmoji(code: string | null | undefined): string {
-  if (!code || code.length !== 2) return "";
-  const upper = code.trim().toUpperCase();
-  if (!/^[A-Z]{2}$/.test(upper)) return "";
-  return String.fromCodePoint(
-    ...[...upper].map((char) => 0x1f1e6 + char.charCodeAt(0) - 65),
-  );
-}
-
+/** Текст уведомлений: без флагов — в Telegram они часто рендерятся как «ca - ва». */
 export function formatPredictionMatchLine(
   home: { name: string; countryCode: string | null },
   away: { name: string; countryCode: string | null },
 ): string {
-  const homeFlag = countryCodeToFlagEmoji(
-    resolveTeamFlagCode(home.name, home.countryCode),
-  );
-  const awayFlag = countryCodeToFlagEmoji(
-    resolveTeamFlagCode(away.name, away.countryCode),
-  );
-  const homePart = homeFlag ? `${home.name} ${homeFlag}` : home.name;
-  const awayPart = awayFlag ? `${awayFlag} ${away.name}` : away.name;
-  return `${homePart} - ${awayPart}`;
+  return `${home.name} — ${away.name}`;
 }
 
 /** In-app: приветствие + матч открытия (без URL). */

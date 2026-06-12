@@ -21,6 +21,7 @@ import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 import { savePredictionAction } from "@/server/actions/predictions";
 import type { ActionResult } from "@/server/actions/auth";
+import { useTickingLiveStatus } from "@/hooks/use-ticking-live-status";
 
 /** Одна ширина для «Сделать прогноз», «Изменить прогноз» и «Сохранить». */
 const matchActionButtonClassName = "w-[14.5rem] max-w-full shrink-0";
@@ -344,6 +345,13 @@ export function MatchPredictionCard({
     phase: "live",
     rawText: "",
   });
+  const [liveStatusSyncedAt, setLiveStatusSyncedAt] = useState<string | null>(
+    null,
+  );
+  const tickingLiveStatus = useTickingLiveStatus(
+    liveStatus,
+    liveStatusSyncedAt,
+  );
   const [state, formAction, pending] = useActionState<
     ActionResult | undefined,
     FormData
@@ -363,11 +371,15 @@ export function MatchPredictionCard({
         awayScore?: number | null;
         livePhase?: ChampionatLivePhase;
         liveStatus?: ChampionatLiveStatus;
+        liveStatusSyncedAt?: string | null;
       };
       if (data.liveStatus) {
         setLiveStatus(data.liveStatus);
       } else if (data.livePhase) {
         setLiveStatus((prev) => ({ ...prev, phase: data.livePhase! }));
+      }
+      if (data.liveStatusSyncedAt) {
+        setLiveStatusSyncedAt(data.liveStatusSyncedAt);
       }
       if (data.homeScore != null && data.awayScore != null) {
         setLiveHome(data.homeScore);
@@ -501,7 +513,7 @@ export function MatchPredictionCard({
         )}
       >
         {inProgress ? (
-          <LiveBadge status={liveStatus} />
+          <LiveBadge status={tickingLiveStatus} />
         ) : isPostponed ? (
           <Badge variant="secondary">Матч перенесён</Badge>
         ) : null}
@@ -633,7 +645,7 @@ export function MatchPredictionCard({
           id={`match-${match.id}`}
           className={cn(
             "w-full min-w-0 max-w-full scroll-mt-20 overflow-hidden border-brand-lime/25 p-0",
-            liveStatus.phase === "halftime" && "border-brand-neutral/50",
+            tickingLiveStatus.phase === "halftime" && "border-brand-neutral/50",
           )}
         >
           {cardInner}

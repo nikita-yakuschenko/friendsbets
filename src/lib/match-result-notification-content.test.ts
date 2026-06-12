@@ -45,6 +45,25 @@ describe("match result notification content", () => {
     expect(body).toContain("Не забудьте сделать прогноз");
   });
 
+  it("telegram выводит названия команд без букв кодов стран", () => {
+    const html = buildMatchResultTelegramHtml({
+      ...base,
+      homeTeam: { name: "Канада", countryCode: "CA" },
+      awayTeam: { name: "Босния и Герцеговина", countryCode: "BA" },
+      nextMatch: {
+        homeTeam: { name: "Катар", countryCode: "QA" },
+        awayTeam: { name: "Швейцария", countryCode: "CH" },
+        startsAt: new Date("2026-06-13T19:00:00.000Z"),
+        hasPrediction: false,
+      },
+      origin: "https://friendsbets.ru",
+    });
+    expect(html).toContain("Канада — Босния и Герцеговина");
+    expect(html).toContain("Катар — Швейцария");
+    expect(html).not.toMatch(/\bca\b/i);
+    expect(html).not.toMatch(/\bqa\b/i);
+  });
+
   it("telegram содержит ссылку на прогнозы", () => {
     const html = buildMatchResultTelegramHtml({
       ...base,

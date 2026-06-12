@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { MatchStatus } from "@/generated/prisma/client";
 import type { PredictionMatchItem } from "@/lib/predictions-list";
 import {
+  buildPredictionStageGroups,
   isFinishedPredictionItem,
   partitionAllPredictionItems,
   predictionMatchFinishedSortAt,
   sortFinishedPredictionItems,
+  sortUpcomingPredictionsBySchedule,
 } from "@/lib/predictions-list";
 
 function item(
@@ -20,7 +22,7 @@ function item(
       id: partial.id ?? "m1",
       startsAt: partial.startsAt ?? new Date("2026-04-15T20:00:00Z"),
       status: partial.status ?? MatchStatus.SCHEDULED,
-      stage: "Тур",
+      stage: partial.stage ?? "Тур",
       venueName: null,
       venueCity: null,
       homeScore: null,
@@ -78,6 +80,67 @@ describe("predictions list sorting", () => {
     expect(part.upcoming.map((i) => i.match.id)).toEqual(["up"]);
     expect(part.finished.map((i) => i.match.id)).toEqual(["fin"]);
     expect(part.postponed.map((i) => i.match.id)).toEqual(["post"]);
+  });
+
+  it("сортирует предстоящие строго по расписанию", () => {
+    const sorted = sortUpcomingPredictionsBySchedule([
+      item({
+        id: "aus-tur",
+        stage: "Группа D - Тур 1",
+        startsAt: new Date("2026-06-14T04:00:00Z"),
+      }),
+      item({
+        id: "usa-par",
+        stage: "Группа D - Тур 1",
+        startsAt: new Date("2026-06-13T01:00:00Z"),
+      }),
+      item({
+        id: "qat-che",
+        stage: "Группа B - Тур 1",
+        startsAt: new Date("2026-06-13T19:00:00Z"),
+      }),
+      item({
+        id: "bra-mar",
+        stage: "Группа C - Тур 1",
+        startsAt: new Date("2026-06-13T22:00:00Z"),
+      }),
+    ]);
+
+    expect(sorted.map((i) => i.match.id)).toEqual([
+      "usa-par",
+      "qat-che",
+      "bra-mar",
+      "aus-tur",
+    ]);
+  });
+
+  it("группирует предстоящие по хронологии, а не целиком по туру", () => {
+    const groups = buildPredictionStageGroups(
+      [
+        item({
+          id: "d-late",
+          stage: "Группа D - Тур 1",
+          startsAt: new Date("2026-06-14T04:00:00Z"),
+        }),
+        item({
+          id: "d-early",
+          stage: "Группа D - Тур 1",
+          startsAt: new Date("2026-06-13T01:00:00Z"),
+        }),
+        item({
+          id: "b-mid",
+          stage: "Группа B - Тур 1",
+          startsAt: new Date("2026-06-13T19:00:00Z"),
+        }),
+      ],
+      "upcoming",
+    );
+
+    expect(groups.flatMap((g) => g.items.map((i) => i.match.id))).toEqual([
+      "d-early",
+      "b-mid",
+      "d-late",
+    ]);
   });
 
   it("определяет завершённый через stale", () => {

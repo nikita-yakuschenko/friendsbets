@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_MATCH_KICKOFF_REVEAL_DELAY_MS } from "@/lib/match-kickoff-delay";
 import {
   getMatchReminderFireAt,
   isMatchReminderDue,
@@ -32,8 +33,12 @@ describe("match reminder schedule", () => {
     expect(isMatchReminderDue(fiveMinBefore, kickoff, liveSlot)).toBe(false);
   });
 
-  it("LIVE шлёт ровно в kickoff", () => {
-    expect(isMatchReminderDue(kickoff, kickoff, liveSlot)).toBe(true);
+  it("LIVE не шлёт в расписание kickoff, только после задержки раскрытия", () => {
+    expect(isMatchReminderDue(kickoff, kickoff, liveSlot)).toBe(false);
+    const effectiveKickoff = new Date(
+      kickoff.getTime() + DEFAULT_MATCH_KICKOFF_REVEAL_DELAY_MS,
+    );
+    expect(isMatchReminderDue(effectiveKickoff, kickoff, liveSlot)).toBe(true);
   });
 
   it("M15 в 22:55 для kickoff 23:00 — due, но это не LIVE", () => {
@@ -42,10 +47,19 @@ describe("match reminder schedule", () => {
     expect(isMatchReminderDue(fiveMinBefore, kickoff, liveSlot)).toBe(false);
   });
 
-  it("live due после старта с догоном до 2 ч", () => {
-    const late = new Date(kickoff.getTime() + 30 * 60 * 1000);
-    const tooLate = new Date(kickoff.getTime() + 3 * 60 * 60 * 1000);
+  it("live due после effective kickoff с догоном до 2 ч", () => {
+    const effectiveKickoff = new Date(
+      kickoff.getTime() + DEFAULT_MATCH_KICKOFF_REVEAL_DELAY_MS,
+    );
+    const late = new Date(effectiveKickoff.getTime() + 30 * 60 * 1000);
+    const tooLate = new Date(effectiveKickoff.getTime() + 3 * 60 * 60 * 1000);
     expect(isMatchReminderDue(late, kickoff, liveSlot)).toBe(true);
     expect(isMatchReminderDue(tooLate, kickoff, liveSlot)).toBe(false);
+  });
+
+  it("fireAt для LIVE — effective kickoff", () => {
+    expect(getMatchReminderFireAt(kickoff, liveSlot).getTime()).toBe(
+      kickoff.getTime() + DEFAULT_MATCH_KICKOFF_REVEAL_DELAY_MS,
+    );
   });
 });

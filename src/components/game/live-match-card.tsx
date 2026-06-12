@@ -16,6 +16,7 @@ import { sanitizeStoredScore } from "@/lib/football-api/championat/football-scor
 import { formatLiveScoreLine } from "@/lib/live-match-score";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
+import { useTickingLiveStatus } from "@/hooks/use-ticking-live-status";
 
 const POLL_MS = 15_000;
 
@@ -67,6 +68,13 @@ export function LiveMatchCard({
     phase: match.status === "FINISHED" ? "finished" : "live",
     rawText: "",
   }));
+  const [liveStatusSyncedAt, setLiveStatusSyncedAt] = useState<string | null>(
+    null,
+  );
+  const tickingLiveStatus = useTickingLiveStatus(
+    liveStatus,
+    liveStatusSyncedAt,
+  );
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventsError, setEventsError] = useState<string | null>(null);
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
@@ -90,6 +98,7 @@ export function LiveMatchCard({
         awayScore?: number | null;
         livePhase?: ChampionatLivePhase;
         liveStatus?: ChampionatLiveStatus;
+        liveStatusSyncedAt?: string | null;
         error?: string;
         syncError?: string;
         stale?: boolean;
@@ -114,6 +123,9 @@ export function LiveMatchCard({
         setLivePhase(data.liveStatus.phase);
       } else if (data.livePhase) {
         setLivePhase(data.livePhase);
+      }
+      if (data.liveStatusSyncedAt) {
+        setLiveStatusSyncedAt(data.liveStatusSyncedAt);
       }
 
       const sanitized = sanitizeStoredScore(
@@ -151,7 +163,7 @@ export function LiveMatchCard({
   const hasPenalties =
     match.homePenaltyScore != null && match.awayPenaltyScore != null;
   const liveScore = formatLiveScoreLine(homeScore, awayScore);
-  const isHalftime = liveStatus.phase === "halftime";
+  const isHalftime = tickingLiveStatus.phase === "halftime";
 
   return (
     <Card
@@ -162,7 +174,7 @@ export function LiveMatchCard({
     >
       <CardContent className="px-4 py-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <LiveBadge status={liveStatus} />
+          <LiveBadge status={tickingLiveStatus} />
           {match.stage ? (
             <p className="text-sm text-brand-muted">{match.stage}</p>
           ) : null}

@@ -1,5 +1,6 @@
 import type { ChampionatLiveStatus } from "@/lib/football-api/championat/match-live-status";
 import type { ChampionatMatchEvent } from "@/lib/football-api/championat/match-protocol-types";
+import { sortChampionatMatchEventsByMinute } from "@/lib/football-api/championat/match-minute-sort";
 import { prisma } from "@/lib/db";
 
 export function championatEventsToDbRows(
@@ -18,12 +19,7 @@ export function championatEventsToDbRows(
   teamSide: string | null;
   sortOrder: number;
 }> {
-  const sorted = [...events].sort((a, b) => {
-    const ma = a.minute ?? 9999;
-    const mb = b.minute ?? 9999;
-    if (ma !== mb) return ma - mb;
-    return a.playerName.localeCompare(b.playerName, "ru");
-  });
+  const sorted = sortChampionatMatchEventsByMinute(events);
 
   return sorted.map((event, index) => ({
     matchId,

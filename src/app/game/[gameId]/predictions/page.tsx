@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { notFound, redirect } from "next/navigation";
 import { gamePath } from "@/lib/game-path";
 import { ContentContainer } from "@/components/layout/content-container";
@@ -21,6 +22,7 @@ import {
   partitionUpcomingPredictionItems,
   sortFinishedPredictionItems,
   sortPostponedPredictionItems,
+  sortUpcomingPredictionsBySchedule,
   type PredictionMatchItem,
 } from "@/lib/predictions-list";
 import { ChampionBetPicker } from "@/components/prediction/champion-bet-picker";
@@ -40,6 +42,61 @@ function countByFilter(
     }
   }
   return counts;
+}
+
+function predictionStageLabel(item: PredictionMatchItem): string {
+  return item.match.stage?.trim() || "Матч";
+}
+
+function ChronologicalPredictionsSection({
+  items,
+  gameId,
+  liveHrefFor,
+  sectionSuffix,
+}: {
+  items: PredictionMatchItem[];
+  gameId: string;
+  liveHrefFor: (matchId: string) => string;
+  sectionSuffix?: string;
+}) {
+  const sorted = sortUpcomingPredictionsBySchedule(items);
+  if (sorted.length === 0) return null;
+
+  return (
+    <div className="min-w-0 space-y-4">
+      {sorted.map((item, index) => {
+        const stage = predictionStageLabel(item);
+        const prevStage =
+          index > 0 ? predictionStageLabel(sorted[index - 1]!) : null;
+        const showHeader = stage !== prevStage;
+
+        return (
+          <Fragment key={item.match.id}>
+            {showHeader ? (
+              <h2 className="pt-2 text-sm font-medium uppercase tracking-wide text-brand-muted first:pt-0">
+                {sectionSuffix ? `${stage} · ${sectionSuffix}` : stage}
+              </h2>
+            ) : null}
+            <MatchPredictionCard
+              gameId={gameId}
+              match={item.match}
+              canPredict={item.canPredict}
+              prediction={item.prediction}
+              locked={item.locked}
+              postponed={item.postponed}
+              inProgress={item.inProgress}
+              staleAwaitingResult={item.staleAwaitingResult}
+              liveHref={
+                item.inProgress ? liveHrefFor(item.match.id) : undefined
+              }
+              points={item.points}
+              scoreReason={item.scoreReason}
+            />
+          </Fragment>
+        );
+      })}
+    </div>
+  );
 }
 
 export default async function PredictionsPage({
@@ -97,29 +154,21 @@ export default async function PredictionsPage({
     postponedOnlyItems = sortPostponedPredictionItems(filteredItems);
   }
 
-  const stageGroupItems =
-    activeFilter === "finished"
-      ? finishedOnlyItems
-      : activeFilter === "postponed"
-        ? postponedOnlyItems
-      : activeFilter === "upcoming" || activeFilter === "all"
-        ? upcomingOnlyItems
-        : filteredItems;
-
-  const stageGroups = buildPredictionStageGroups(
-    stageGroupItems,
-    activeFilter === "finished" ? "finished" : "upcoming",
-  );
-
   const finishedStageGroups =
-    activeFilter === "all"
+    activeFilter === "all" || activeFilter === "finished"
       ? buildPredictionStageGroups(finishedOnlyItems, "finished")
       : [];
 
-  const postponedStageGroups =
-    activeFilter === "all"
-      ? buildPredictionStageGroups(postponedOnlyItems, "upcoming")
-      : [];
+  const showUpcomingSection =
+    activeFilter === "upcoming" || activeFilter === "all";
+  const showPostponedSection =
+    activeFilter === "postponed" || activeFilter === "all";
+
+  const hasListContent =
+    inProgressItems.length > 0 ||
+    (showUpcomingSection && upcomingOnlyItems.length > 0) ||
+    (showPostponedSection && postponedOnlyItems.length > 0) ||
+    finishedStageGroups.length > 0;
 
   return (
     <ContentContainer>
@@ -151,10 +200,7 @@ export default async function PredictionsPage({
         ) : null}
       </div>
 
-      {inProgressItems.length === 0 &&
-      stageGroups.length === 0 &&
-      finishedStageGroups.length === 0 &&
-      postponedStageGroups.length === 0 ? (
+      {!hasListContent ? (
         <Card>
           <CardContent className="py-8 text-center text-brand-muted">
             {resolvePredictionsEmptyMessage(activeFilter, data.items)}
@@ -186,68 +232,25 @@ export default async function PredictionsPage({
               ))}
             </div>
           ) : null}
-          {stageGroups.map((group) => (
-            <section key={group.id} className="min-w-0 space-y-4">
-              <h2 className="text-sm font-medium uppercase tracking-wide text-brand-muted">
-                {group.stage}
-              </h2>
-              <div className="min-w-0 space-y-4">
-                {group.items.map((item) => (
-                  <MatchPredictionCard
-                    key={item.match.id}
-                    gameId={data.game.id}
-                    match={item.match}
-                    canPredict={item.canPredict}
-                    prediction={item.prediction}
-                    locked={item.locked}
-                    postponed={item.postponed}
-                    inProgress={item.inProgress}
-                    staleAwaitingResult={item.staleAwaitingResult}
-                    liveHref={
-                    item.inProgress
-                      ? liveHrefFor(item.match.id)
-                      : undefined
-                  }
-                    points={item.points}
-                    scoreReason={item.scoreReason}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+          {showUpcomingSection && upcomingOnlyItems.length > 0 ? (
+            <ChronologicalPredictionsSection
+              items={upcomingOnlyItems}
+              gameId={data.game.id}
+              liveHrefFor={liveHrefFor}
+            />
+          ) : null}
+          {showPostponedSection && postponedOnlyItems.length > 0 ? (
+            <ChronologicalPredictionsSection
+              items={postponedOnlyItems}
+              gameId={data.game.id}
+              liveHrefFor={liveHrefFor}
+              sectionSuffix="перенесённые"
+            />
+          ) : null}
           {finishedStageGroups.map((group) => (
             <section key={`finished-${group.id}`} className="min-w-0 space-y-4">
               <h2 className="text-sm font-medium uppercase tracking-wide text-brand-muted">
                 {group.stage}
-              </h2>
-              <div className="min-w-0 space-y-4">
-                {group.items.map((item) => (
-                  <MatchPredictionCard
-                    key={item.match.id}
-                    gameId={data.game.id}
-                    match={item.match}
-                    canPredict={item.canPredict}
-                    prediction={item.prediction}
-                    locked={item.locked}
-                    postponed={item.postponed}
-                    inProgress={item.inProgress}
-                    staleAwaitingResult={item.staleAwaitingResult}
-                    liveHref={
-                    item.inProgress
-                      ? liveHrefFor(item.match.id)
-                      : undefined
-                  }
-                    points={item.points}
-                    scoreReason={item.scoreReason}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
-          {postponedStageGroups.map((group) => (
-            <section key={`postponed-${group.id}`} className="min-w-0 space-y-4">
-              <h2 className="text-sm font-medium uppercase tracking-wide text-brand-muted">
-                {group.stage} · перенесённые
               </h2>
               <div className="min-w-0 space-y-4">
                 {group.items.map((item) => (

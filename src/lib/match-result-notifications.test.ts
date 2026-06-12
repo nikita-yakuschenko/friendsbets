@@ -144,6 +144,47 @@ describe("match result notifications", () => {
     expect(prisma.userNotification.create).not.toHaveBeenCalled();
   });
 
+  it("в следующем матче указывает ближайший ещё не начавшийся", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-13T23:55:00Z"));
+
+    vi.mocked(prisma.match.findMany).mockResolvedValue([
+      {
+        id: "match-live",
+        startsAt: new Date("2026-06-13T20:00:00Z"),
+        status: MatchStatus.LIVE,
+        homeTeam: { name: "Матч 2", countryCode: null, externalId: "championat:team:2" },
+        awayTeam: { name: "B", countryCode: null, externalId: "championat:team:3" },
+      },
+      {
+        id: "match-next",
+        startsAt: new Date("2026-06-14T00:00:00Z"),
+        status: MatchStatus.SCHEDULED,
+        homeTeam: { name: "Матч 3", countryCode: null, externalId: "championat:team:4" },
+        awayTeam: { name: "D", countryCode: null, externalId: "championat:team:5" },
+      },
+    ] as never);
+
+    await notifyMatchResultParticipants("tour-1", "match-1");
+
+    expect(prisma.userNotification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          body: expect.stringContaining("Матч 3 — D"),
+        }),
+      }),
+    );
+    expect(prisma.userNotification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          body: expect.not.stringContaining("Матч 2 — B"),
+        }),
+      }),
+    );
+
+    vi.useRealTimers();
+  });
+
   it("резервирует слот до отправки уведомлений", async () => {
     const order: string[] = [];
     vi.mocked(prisma.predictionReminder.create).mockImplementation(async () => {

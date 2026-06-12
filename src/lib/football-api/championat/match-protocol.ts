@@ -10,6 +10,8 @@ import type {
   ChampionatMatchEventSection,
   ChampionatMatchEventType,
 } from "@/lib/football-api/championat/match-protocol-types";
+import { CHAMPIONAT_EVENT_LABELS } from "@/lib/football-api/championat/match-protocol-types";
+import { sortChampionatMatchEventsByMinute } from "@/lib/football-api/championat/match-minute-sort";
 
 export type {
   ChampionatMatchEvent,
@@ -52,6 +54,21 @@ function mapCardType(iconClass: string): ChampionatMatchEventType {
   return "UNKNOWN";
 }
 
+/** Подпись под игроком в блоке «Наказания» (аналог ассиста у гола). */
+function punishmentDetailLabel(
+  type: ChampionatMatchEventType,
+  iconTitle: string | undefined,
+  subText: string | undefined,
+): string {
+  const title = normalizeWhitespace(iconTitle ?? "");
+  if (title) return title;
+
+  const sub = normalizeWhitespace(subText ?? "");
+  if (sub) return sub;
+
+  return CHAMPIONAT_EVENT_LABELS[type];
+}
+
 function parseRowMinute(
   $: CheerioAPI,
   row: Parameters<CheerioAPI>[0],
@@ -65,12 +82,7 @@ function parseRowMinute(
 }
 
 function sortProtocolEvents(events: ChampionatMatchEvent[]): ChampionatMatchEvent[] {
-  return [...events].sort((a, b) => {
-    const ma = a.minute ?? 9999;
-    const mb = b.minute ?? 9999;
-    if (ma !== mb) return ma - mb;
-    return a.playerName.localeCompare(b.playerName, "ru");
-  });
+  return sortChampionatMatchEventsByMinute(events);
 }
 
 function parseProtocolSection(
@@ -123,12 +135,21 @@ function parseProtocolSection(
       }
 
       const iconClass = $row.find(".match-icon").attr("class") ?? "";
+      const type = mapCardType(iconClass);
+      const punishmentSub = normalizeWhitespace(
+        $row.find(".match-stat__player-sub").text(),
+      );
       events.push({
         id: `proto-c-${idx}-${minute ?? "x"}-${playerName}`,
-        type: mapCardType(iconClass),
+        type,
         minute,
         minuteLabel: label,
         playerName,
+        assistName: punishmentDetailLabel(
+          type,
+          $row.find(".match-icon").attr("title"),
+          punishmentSub || undefined,
+        ),
         teamSide,
         section,
       });

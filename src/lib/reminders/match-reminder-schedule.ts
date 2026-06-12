@@ -1,4 +1,5 @@
 import { PredictionReminderKind } from "@/generated/prisma/client";
+import { getEffectiveKickoffAt } from "@/lib/match-kickoff-delay";
 
 /** Догоняем «старт матча», если проверка опоздала (до 2 ч после kickoff). */
 export const LIVE_REMINDER_CATCHUP_MS = 2 * 60 * 60 * 1000;
@@ -48,7 +49,7 @@ export function getMatchReminderFireAt(
   startsAt: Date,
   slot: Pick<MatchReminderSlot, "minutesBefore" | "matchStarted">,
 ): Date {
-  if (slot.matchStarted) return startsAt;
+  if (slot.matchStarted) return getEffectiveKickoffAt(startsAt);
   return new Date(startsAt.getTime() - slot.minutesBefore * 60 * 1000);
 }
 
@@ -59,9 +60,10 @@ export function isMatchReminderDue(
   slot: Pick<MatchReminderSlot, "minutesBefore" | "matchStarted">,
 ): boolean {
   if (slot.matchStarted) {
+    const effectiveKickoff = getEffectiveKickoffAt(startsAt);
     return (
-      now.getTime() >= startsAt.getTime() &&
-      now.getTime() < startsAt.getTime() + LIVE_REMINDER_CATCHUP_MS
+      now.getTime() >= effectiveKickoff.getTime() &&
+      now.getTime() < effectiveKickoff.getTime() + LIVE_REMINDER_CATCHUP_MS
     );
   }
   const fireAt = getMatchReminderFireAt(startsAt, slot);

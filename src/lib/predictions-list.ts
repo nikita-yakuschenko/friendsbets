@@ -150,10 +150,41 @@ export function sortPredictionItemsForFilter(
   return items;
 }
 
+function buildChronologicalStageGroups(
+  items: PredictionMatchItem[],
+): { id: string; stage: string; items: PredictionMatchItem[] }[] {
+  const sorted = [...items].sort(byKickoffAsc);
+  const groups: { id: string; stage: string; items: PredictionMatchItem[] }[] =
+    [];
+
+  for (const item of sorted) {
+    const stage = item.match.stage?.trim() || "Матч";
+    const last = groups[groups.length - 1];
+    if (last && last.stage === stage) {
+      last.items.push(item);
+    } else {
+      groups.push({ id: item.match.id, stage, items: [item] });
+    }
+  }
+
+  return groups;
+}
+
+/** Предстоящие матчи строго по расписанию (kickoff ↑). */
+export function sortUpcomingPredictionsBySchedule(
+  items: PredictionMatchItem[],
+): PredictionMatchItem[] {
+  return [...items].sort(byKickoffAsc);
+}
+
 export function buildPredictionStageGroups(
   items: PredictionMatchItem[],
   mode: PredictionStageGroupSortMode = "upcoming",
 ) {
+  if (mode === "upcoming") {
+    return buildChronologicalStageGroups(items);
+  }
+
   const byStage = new Map<string, PredictionMatchItem[]>();
   for (const item of items) {
     const stage = item.match.stage?.trim() || "Матч";

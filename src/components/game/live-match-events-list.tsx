@@ -1,6 +1,7 @@
 import { LiveMatchEventIcon } from "@/components/game/live-match-event-icon";
 import type { ChampionatLivePhase } from "@/lib/football-api/championat/match-live-phase";
 import type { ChampionatMatchEvent } from "@/lib/football-api/championat/match-protocol-types";
+import { sortChampionatMatchEventsByMinute } from "@/lib/football-api/championat/match-minute-sort";
 import { cn } from "@/lib/utils";
 
 type LiveMatchEventsListProps = {
@@ -13,15 +14,6 @@ type LiveMatchEventsListProps = {
   error?: string | null;
   syncWarning?: string | null;
 };
-
-function sortByMinute(events: ChampionatMatchEvent[]): ChampionatMatchEvent[] {
-  return [...events].sort((a, b) => {
-    const ma = a.minute ?? 9999;
-    const mb = b.minute ?? 9999;
-    if (ma !== mb) return ma - mb;
-    return a.playerName.localeCompare(b.playerName, "ru");
-  });
-}
 
 function ScoreBadge({ score }: { score: string }) {
   return (
@@ -98,8 +90,10 @@ export function LiveMatchEventsList({
   error,
   syncWarning,
 }: LiveMatchEventsListProps) {
-  const goals = sortByMinute(events.filter((e) => e.section === "goals"));
-  const punishments = sortByMinute(
+  const goals = sortChampionatMatchEventsByMinute(
+    events.filter((e) => e.section === "goals"),
+  );
+  const punishments = sortChampionatMatchEventsByMinute(
     events.filter((e) => e.section === "punishments"),
   );
   const hasEvents = goals.length > 0 || punishments.length > 0;

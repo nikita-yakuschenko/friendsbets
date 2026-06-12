@@ -12,7 +12,10 @@ import {
 } from "@/lib/game-access";
 import { isSuperadmin } from "@/lib/roles";
 import { prisma } from "@/lib/db";
-import { isMatchPredictable } from "@/lib/football-api/match-visibility";
+import {
+  findNextNotStartedMatch,
+  isMatchPredictable,
+} from "@/lib/football-api/match-visibility";
 import { syncChampionBetPoints } from "@/lib/champion-bet";
 import { computeLivePredictionStats } from "@/lib/live-match-stats";
 import { buildPredictionStatsCommentary } from "@/lib/prediction-stats-commentary";
@@ -151,11 +154,16 @@ export async function getGameOverview(routeParam: string, userId: string) {
   const myRow = myIndex >= 0 ? leaderboard[myIndex] : null;
   const leader = leaderboard[0] ?? null;
 
-  const upcomingMatches = matches.filter(
-    (match) =>
-      match.startsAt.getTime() > Date.now() && isMatchPredictable(match),
-  );
-  const nextMatch = upcomingMatches[0] ?? null;
+  const now = new Date();
+  const predictableMatches = matches.filter((match) => isMatchPredictable(match));
+  const upcomingMatches = predictableMatches
+    .filter(
+      (match) =>
+        match.status === MatchStatus.SCHEDULED &&
+        match.startsAt.getTime() > now.getTime(),
+    )
+    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+  const nextMatch = findNextNotStartedMatch(predictableMatches, now) ?? null;
   const nextMatchPrediction = nextMatch
     ? (myPredictions.find((prediction) => prediction.matchId === nextMatch.id) ?? null)
     : null;

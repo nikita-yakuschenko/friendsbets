@@ -15,6 +15,7 @@ export type ChampionatMatchEvent = {
   minuteLabel: string;
   playerName: string;
   assistName?: string;
+  /** Гол: имя ассистента. Наказание: тип карточки / причина (вторая строка в UI). */
   score?: string;
   teamSide?: "home" | "away";
   section: ChampionatMatchEventSection;

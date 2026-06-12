@@ -1,4 +1,5 @@
 import { MatchStatus } from "@/generated/prisma/client";
+import { isMatchRevealed } from "@/lib/match-kickoff-delay";
 
 /** Основное + доп. время + перерыв + запас на задержку синка Championat. */
 export const MATCH_LIVE_TRACKING_MAX_MS = 3 * 60 * 60 * 1000;
@@ -50,14 +51,18 @@ export function isMatchStaleAwaitingResult(
   return !isMatchWithinLiveTrackingWindow(match, referenceNow);
 }
 
-/** Уже стартовал, но ещё не завершён (вкладка «Предстоящие», прогноз закрыт). */
-export function isMatchInProgress(match: MatchPredictionStateInput): boolean {
+/** Лайв и раскрытие чужих прогнозов — после effective kickoff (расписание + задержка). */
+export function isMatchInProgress(
+  match: MatchPredictionStateInput,
+  referenceNow: Date = new Date(),
+): boolean {
   if (match.status === MatchStatus.FINISHED) return false;
   if (match.status === MatchStatus.CANCELLED) return false;
   if (isMatchPostponed(match)) return false;
-  if (!isMatchWithinLiveTrackingWindow(match)) return false;
+  if (!isMatchRevealed(match.startsAt, referenceNow)) return false;
+  if (!isMatchWithinLiveTrackingWindow(match, referenceNow)) return false;
   if (match.status === MatchStatus.LIVE) return true;
-  if (match.startsAt.getTime() > Date.now()) return false;
-  // Уже должен был начаться; в БД ещё SCHEDULED, пока тянется синк с Championat
+  if (match.startsAt.getTime() > referenceNow.getTime()) return false;
+  // После effective kickoff; в БД ещё SCHEDULED, пока тянется синк с Championat
   return match.status === MatchStatus.SCHEDULED;
 }

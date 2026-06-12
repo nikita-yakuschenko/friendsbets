@@ -72,6 +72,19 @@ describe("match prediction state", () => {
     ).toBe(true);
   });
 
+  it("блокирует после старта scheduled, но лайв ещё не раскрыт", () => {
+    const kickoff = new Date("2026-06-01T12:00:00Z");
+    vi.setSystemTime(new Date("2026-06-01T12:01:00Z"));
+    const match = {
+      status: MatchStatus.SCHEDULED,
+      startsAt: kickoff,
+      homeScore: null,
+      awayScore: null,
+    };
+    expect(isMatchLockedForPredictions(match)).toBe(true);
+    expect(isMatchInProgress(match)).toBe(false);
+  });
+
   it("считает идущий LIVE в окне отслеживания", () => {
     vi.setSystemTime(new Date(kickoffPast.getTime() + 30 * 60 * 1000));
     expect(
@@ -84,14 +97,41 @@ describe("match prediction state", () => {
     ).toBe(true);
   });
 
-  it("считает идущим SCHEDULED после kickoff в окне", () => {
-    vi.setSystemTime(new Date(kickoffPast.getTime() + 45 * 60 * 1000));
+  it("считает идущим SCHEDULED после effective kickoff в окне", () => {
+    const kickoff = new Date("2026-06-01T10:00:00Z");
+    vi.setSystemTime(new Date(kickoff.getTime() + 45 * 60 * 1000));
     expect(
       isMatchInProgress({
         status: MatchStatus.SCHEDULED,
-        startsAt: kickoffPast,
+        startsAt: kickoff,
         homeScore: null,
         awayScore: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("не считает идущим LIVE до effective kickoff", () => {
+    const kickoff = new Date("2026-06-01T12:00:00Z");
+    vi.setSystemTime(new Date("2026-06-01T12:01:00Z"));
+    expect(
+      isMatchInProgress({
+        status: MatchStatus.LIVE,
+        startsAt: kickoff,
+        homeScore: 1,
+        awayScore: 0,
+      }),
+    ).toBe(false);
+  });
+
+  it("считает идущим LIVE после effective kickoff", () => {
+    const kickoff = new Date("2026-06-01T12:00:00Z");
+    vi.setSystemTime(new Date("2026-06-01T12:04:00Z"));
+    expect(
+      isMatchInProgress({
+        status: MatchStatus.LIVE,
+        startsAt: kickoff,
+        homeScore: 1,
+        awayScore: 0,
       }),
     ).toBe(true);
   });
