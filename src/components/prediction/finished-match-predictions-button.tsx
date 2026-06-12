@@ -230,21 +230,21 @@ export function FinishedMatchPredictionsButton({
             <AlertDialogTitle className="text-base sm:text-lg">
               Прогнозы участников
             </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="mt-1 space-y-1 text-xs sm:text-sm">
-                <MatchTeamsRow
-                  homeTeam={homeTeam}
-                  awayTeam={awayTeam}
-                  className="text-white/90"
-                />
-                {scoreLabel ? (
-                  <p className="text-brand-muted">
-                    Итог{scoreLabel}
-                  </p>
-                ) : resultPending ? (
-                  <p className="text-brand-muted">Ожидаем официальный результат</p>
-                ) : null}
-              </div>
+            <AlertDialogDescription className="mt-1 space-y-1 text-xs sm:text-sm">
+              <MatchTeamsRow
+                homeTeam={homeTeam}
+                awayTeam={awayTeam}
+                className="text-white/90"
+              />
+              {scoreLabel ? (
+                <span className="block text-brand-muted">
+                  Итог{scoreLabel}
+                </span>
+              ) : resultPending ? (
+                <span className="block text-brand-muted">
+                  Ожидаем официальный результат
+                </span>
+              ) : null}
             </AlertDialogDescription>
           </div>
 
