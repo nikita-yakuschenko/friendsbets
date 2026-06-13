@@ -54,12 +54,15 @@ export function isChampionatLiveViewStale(
   now: Date = new Date(),
 ): boolean {
   const tracking =
-    isMatchInProgress({
-      status: match.status,
-      startsAt: match.startsAt,
-      homeScore: null,
-      awayScore: null,
-    }) ||
+    isMatchInProgress(
+      {
+        status: match.status,
+        startsAt: match.startsAt,
+        homeScore: null,
+        awayScore: null,
+      },
+      now,
+    ) ||
     isChampionatPostFinishPollPhase(
       match.status,
       match.championatFinishedAt,

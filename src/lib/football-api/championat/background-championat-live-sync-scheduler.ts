@@ -27,7 +27,10 @@ async function findLiveChampionatMatches(now: Date) {
       championatTrackActive: true,
       status: { notIn: [MatchStatus.CANCELLED] },
       OR: [
-        { status: MatchStatus.LIVE },
+        {
+          status: MatchStatus.LIVE,
+          startsAt: { lte: now },
+        },
         {
           status: { notIn: [MatchStatus.FINISHED] },
           startsAt: { lte: now, gte: windowStart },
@@ -51,7 +54,7 @@ async function findLiveChampionatMatches(now: Date) {
       championatFinishedAt: true,
     },
     orderBy: { startsAt: "desc" },
-    take: 20,
+    take: 50,
   });
 }
 

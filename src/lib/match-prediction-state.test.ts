@@ -72,7 +72,7 @@ describe("match prediction state", () => {
     ).toBe(true);
   });
 
-  it("блокирует после старта scheduled, но лайв ещё не раскрыт", () => {
+  it("блокирует прогноз после старта scheduled, но лайв ещё не раскрыт", () => {
     const kickoff = new Date("2026-06-01T12:00:00Z");
     vi.setSystemTime(new Date("2026-06-01T12:01:00Z"));
     const match = {

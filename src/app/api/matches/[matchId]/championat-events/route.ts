@@ -100,7 +100,12 @@ export async function GET(
 
   let syncError: string | undefined;
 
-  if (forceSync) {
+  const shouldBackgroundSync =
+    !forceSync &&
+    (isMatchInProgress(match) || match.status === MatchStatus.FINISHED) &&
+    isChampionatLiveViewStale(match, match.championatLastSyncAt);
+
+  if (forceSync || shouldBackgroundSync) {
     const syncResult = await syncChampionatMatchLive(match);
     if (!syncResult.ok) {
       syncError = championatSyncErrorMessage(syncResult.error);
@@ -115,6 +120,7 @@ export async function GET(
   const view = await loadChampionatMatchLiveView(matchId, match);
   const stale =
     !forceSync &&
+    !syncError &&
     isChampionatLiveViewStale(match, view.championatLastSyncAt);
 
   return NextResponse.json({

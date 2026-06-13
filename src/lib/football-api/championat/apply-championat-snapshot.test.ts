@@ -35,6 +35,22 @@ describe("applyChampionatSnapshotToMatch", () => {
     championatFinishedAt: null,
   };
 
+  it("не ставит LIVE у будущего матча, даже если Championat отдаёт счёт и 1-й тайм", async () => {
+    const result = await applyChampionatSnapshotToMatch(
+      { ...baseMatch, status: MatchStatus.SCHEDULED },
+      {
+        events: [],
+        homeScore: 0,
+        awayScore: 1,
+        livePhase: "live",
+        liveStatus: { phase: "live", rawText: "1-й тайм, 24'" },
+        status: MatchStatus.LIVE,
+      },
+    );
+    expect(result.updated).toBe(false);
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
   it("сбрасывает ложный LIVE у будущего матча", async () => {
     const result = await applyChampionatSnapshotToMatch(baseMatch, {
       events: [],

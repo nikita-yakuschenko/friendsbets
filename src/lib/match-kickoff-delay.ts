@@ -24,3 +24,11 @@ export function isMatchRevealed(
 ): boolean {
   return getEffectiveKickoffAt(startsAt).getTime() <= now.getTime();
 }
+
+/** Kickoff по расписанию в БД уже наступил (без задержки раскрытия). */
+export function hasScheduledKickoffStarted(
+  startsAt: Date,
+  now: Date = new Date(),
+): boolean {
+  return startsAt.getTime() <= now.getTime();
+}

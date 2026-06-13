@@ -1,5 +1,5 @@
 import { MatchStatus } from "@/generated/prisma/client";
-import { isMatchRevealed } from "@/lib/match-kickoff-delay";
+import { isMatchRevealed, hasScheduledKickoffStarted } from "@/lib/match-kickoff-delay";
 
 /** Основное + доп. время + перерыв + запас на задержку синка Championat. */
 export const MATCH_LIVE_TRACKING_MAX_MS = 3 * 60 * 60 * 1000;
@@ -60,6 +60,7 @@ export function isMatchInProgress(
   if (match.status === MatchStatus.CANCELLED) return false;
   if (isMatchPostponed(match)) return false;
   if (!isMatchRevealed(match.startsAt, referenceNow)) return false;
+  if (!hasScheduledKickoffStarted(match.startsAt, referenceNow)) return false;
   if (!isMatchWithinLiveTrackingWindow(match, referenceNow)) return false;
   if (match.status === MatchStatus.LIVE) return true;
   if (match.startsAt.getTime() > referenceNow.getTime()) return false;

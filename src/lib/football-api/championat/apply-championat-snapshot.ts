@@ -4,6 +4,7 @@ import { hasImplausibleStoredScore } from "@/lib/football-api/championat/footbal
 import type { ChampionatMatchLiveSnapshot } from "@/lib/football-api/championat/match-live-snapshot";
 import { championatFinishedTrackingPatch } from "@/lib/football-api/championat/championat-tracking";
 import { inferChampionatFinishedStatus } from "@/lib/football-api/championat/infer-championat-finished-status";
+import { hasScheduledKickoffStarted } from "@/lib/match-kickoff-delay";
 import { prisma } from "@/lib/db";
 import { notifyMatchResultParticipants } from "@/lib/match-result-notifications";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
@@ -25,20 +26,19 @@ function reconcileStatusFromChampionat(
   match: MatchSnapshotTarget,
   snapshot: ChampionatMatchLiveSnapshot,
   proposed: MatchStatus | undefined,
+  now: Date = new Date(),
 ): MatchStatus | undefined {
   if (!proposed) return undefined;
 
-  const kickoffFuture = match.startsAt.getTime() > Date.now();
-  const snapshotHasScore =
-    snapshot.homeScore !== undefined && snapshot.awayScore !== undefined;
+  const kickoffFuture = !hasScheduledKickoffStarted(match.startsAt, now);
 
+  // До kickoff по расписанию Championat не может перевести матч в LIVE/FINISHED.
   if (
-    proposed === MatchStatus.LIVE &&
     kickoffFuture &&
-    !snapshotHasScore &&
-    snapshot.liveStatus.phase === "scheduled"
+    (proposed === MatchStatus.LIVE || proposed === MatchStatus.FINISHED)
   ) {
-    return match.status === MatchStatus.LIVE
+    return match.status === MatchStatus.LIVE ||
+      match.status === MatchStatus.FINISHED
       ? MatchStatus.SCHEDULED
       : undefined;
   }
@@ -55,6 +55,8 @@ export async function applyChampionatSnapshotToMatch(
   match: MatchSnapshotTarget,
   snapshot: ChampionatMatchLiveSnapshot,
 ): Promise<ApplyChampionatSnapshotResult> {
+  const now = new Date();
+  const kickoffReached = hasScheduledKickoffStarted(match.startsAt, now);
   const updateData: {
     homeScore?: number;
     awayScore?: number;
@@ -70,6 +72,7 @@ export async function applyChampionatSnapshotToMatch(
   );
 
   if (
+    kickoffReached &&
     snapshot.homeScore !== undefined &&
     snapshot.awayScore !== undefined &&
     (snapshot.homeScore !== match.homeScore ||
@@ -87,13 +90,15 @@ export async function applyChampionatSnapshotToMatch(
     match,
     snapshot,
     rawStatusFromPhase,
+    now,
   );
 
   if (
     !statusFromPhase &&
+    kickoffReached &&
     match.status === MatchStatus.LIVE &&
     snapshot.liveStatus.phase === "scheduled" &&
-    match.startsAt.getTime() > Date.now()
+    match.startsAt.getTime() > now.getTime()
   ) {
     statusFromPhase = MatchStatus.SCHEDULED;
   }
@@ -110,17 +115,22 @@ export async function applyChampionatSnapshotToMatch(
     livePhase: snapshot.liveStatus.phase,
   });
 
-  if (inferredFinished === MatchStatus.FINISHED) {
+  if (kickoffReached && inferredFinished === MatchStatus.FINISHED) {
     statusFromPhase = MatchStatus.FINISHED;
   }
 
   if (statusFromPhase && statusFromPhase !== match.status) {
     updateData.status = statusFromPhase;
   } else if (
+    kickoffReached &&
     updateData.homeScore !== undefined &&
     match.status === MatchStatus.SCHEDULED
   ) {
     updateData.status = MatchStatus.LIVE;
+  }
+
+  if (!kickoffReached && match.status === MatchStatus.LIVE) {
+    updateData.status = MatchStatus.SCHEDULED;
   }
 
   const nextStatus = updateData.status ?? match.status;
