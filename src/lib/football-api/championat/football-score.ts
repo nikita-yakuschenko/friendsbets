@@ -39,14 +39,59 @@ export function hasImplausibleStoredScore(
   awayScore: number | null,
 ): boolean {
   if (homeScore === null || awayScore === null) return false;
-  return !isPlausibleFootballScore(homeScore, awayScore);
+  return parsePlausibleFootballScore(homeScore, awayScore) === null;
 }
 
-/** Не показываем мусор парсера (22:0) — на табло будет 0:0. */
+/** В БД счёт храним только для идущего LIVE (после kickoff) или FINISHED. */
+export function scoresAllowedInMatchDb(
+  status: string,
+  startsAt: Date,
+  now: Date = new Date(),
+): boolean {
+  if (status === "FINISHED") return true;
+  if (status === "LIVE" && startsAt.getTime() <= now.getTime()) return true;
+  return false;
+}
+
+export function normalizeMatchScoresForDb(
+  status: string,
+  startsAt: Date,
+  homeScore: number | null | undefined,
+  awayScore: number | null | undefined,
+  now: Date = new Date(),
+): { homeScore: number | null; awayScore: number | null } {
+  if (!scoresAllowedInMatchDb(status, startsAt, now)) {
+    return { homeScore: null, awayScore: null };
+  }
+  if (
+    homeScore === null ||
+    homeScore === undefined ||
+    awayScore === null ||
+    awayScore === undefined
+  ) {
+    return { homeScore: null, awayScore: null };
+  }
+  return parsePlausibleFootballScore(homeScore, awayScore) ?? {
+    homeScore: null,
+    awayScore: null,
+  };
+}
+
+/** Не показываем мусор парсера и счёт до старта / у SCHEDULED. */
 export function sanitizeStoredScore(
   homeScore: number | null,
   awayScore: number | null,
+  options?: { status?: string; startsAt?: Date; now?: Date },
 ): { homeScore: number | null; awayScore: number | null } {
+  if (options?.status && options.startsAt) {
+    return normalizeMatchScoresForDb(
+      options.status,
+      options.startsAt,
+      homeScore,
+      awayScore,
+      options.now,
+    );
+  }
   if (hasImplausibleStoredScore(homeScore, awayScore)) {
     return { homeScore: null, awayScore: null };
   }

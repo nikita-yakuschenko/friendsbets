@@ -1,6 +1,6 @@
 import { MatchStatus } from "@/generated/prisma/client";
 import { championatLivePhaseToMatchStatus } from "@/lib/football-api/championat/championat-phase-to-match-status";
-import { hasImplausibleStoredScore } from "@/lib/football-api/championat/football-score";
+import { hasImplausibleStoredScore, normalizeMatchScoresForDb, parsePlausibleFootballScore } from "@/lib/football-api/championat/football-score";
 import type { ChampionatMatchLiveSnapshot } from "@/lib/football-api/championat/match-live-snapshot";
 import { championatFinishedTrackingPatch } from "@/lib/football-api/championat/championat-tracking";
 import { inferChampionatFinishedStatus } from "@/lib/football-api/championat/infer-championat-finished-status";
@@ -32,15 +32,8 @@ function reconcileStatusFromChampionat(
 
   const kickoffFuture = !hasScheduledKickoffStarted(match.startsAt, now);
 
-  // До kickoff по расписанию Championat не может перевести матч в LIVE/FINISHED.
-  if (
-    kickoffFuture &&
-    (proposed === MatchStatus.LIVE || proposed === MatchStatus.FINISHED)
-  ) {
-    return match.status === MatchStatus.LIVE ||
-      match.status === MatchStatus.FINISHED
-      ? MatchStatus.SCHEDULED
-      : undefined;
+  if (kickoffFuture && (proposed === MatchStatus.LIVE || proposed === MatchStatus.FINISHED)) {
+    return MatchStatus.SCHEDULED;
   }
 
   return proposed;
@@ -71,16 +64,20 @@ export async function applyChampionatSnapshotToMatch(
     match.awayScore,
   );
 
+  const parsedSnapshot =
+    snapshot.homeScore !== undefined && snapshot.awayScore !== undefined
+      ? parsePlausibleFootballScore(snapshot.homeScore, snapshot.awayScore)
+      : null;
+
   if (
     kickoffReached &&
-    snapshot.homeScore !== undefined &&
-    snapshot.awayScore !== undefined &&
-    (snapshot.homeScore !== match.homeScore ||
-      snapshot.awayScore !== match.awayScore ||
+    parsedSnapshot &&
+    (parsedSnapshot.homeScore !== match.homeScore ||
+      parsedSnapshot.awayScore !== match.awayScore ||
       storedScoreBad)
   ) {
-    updateData.homeScore = snapshot.homeScore;
-    updateData.awayScore = snapshot.awayScore;
+    updateData.homeScore = parsedSnapshot.homeScore;
+    updateData.awayScore = parsedSnapshot.awayScore;
   }
 
   const rawStatusFromPhase =
@@ -134,8 +131,24 @@ export async function applyChampionatSnapshotToMatch(
   }
 
   const nextStatus = updateData.status ?? match.status;
-  const homeScore = updateData.homeScore ?? match.homeScore;
-  const awayScore = updateData.awayScore ?? match.awayScore;
+  const normalizedScores = normalizeMatchScoresForDb(
+    nextStatus,
+    match.startsAt,
+    updateData.homeScore ?? match.homeScore,
+    updateData.awayScore ?? match.awayScore,
+    now,
+  );
+
+  if (
+    normalizedScores.homeScore !== (updateData.homeScore ?? match.homeScore) ||
+    normalizedScores.awayScore !== (updateData.awayScore ?? match.awayScore)
+  ) {
+    updateData.homeScore = normalizedScores.homeScore;
+    updateData.awayScore = normalizedScores.awayScore;
+  }
+
+  const homeScore = normalizedScores.homeScore;
+  const awayScore = normalizedScores.awayScore;
 
   if (
     nextStatus === MatchStatus.FINISHED &&
@@ -148,6 +161,11 @@ export async function applyChampionatSnapshotToMatch(
       match.homeTeamId,
       match.awayTeamId,
     );
+  } else if (
+    nextStatus !== MatchStatus.FINISHED &&
+    match.winnerTeamId != null
+  ) {
+    updateData.winnerTeamId = null;
   }
 
   const trackingPatch = championatFinishedTrackingPatch(

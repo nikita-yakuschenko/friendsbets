@@ -25,6 +25,7 @@ import { inferChampionatFinishedStatus } from "@/lib/football-api/championat/inf
 import { resolveChampionatSourceForTournament } from "@/lib/football-api/championat/resolve-source";
 import { MATCH_LIVE_TRACKING_MAX_MS } from "@/lib/match-prediction-state";
 import { logOperation } from "@/lib/logger";
+import { normalizeMatchScoresForDb } from "@/lib/football-api/championat/football-score";
 import { handleMatchFinished } from "@/lib/match-result-notifications";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
 import { deriveWinnerTeamId } from "@/lib/utils";
@@ -119,18 +120,6 @@ async function upsertExternalMatch(
   homeTeamId: string,
   awayTeamId: string,
 ): Promise<"created" | "updated" | "unchanged"> {
-  const winnerTeamId =
-    match.status === MatchStatus.FINISHED &&
-    match.homeScore !== undefined &&
-    match.awayScore !== undefined
-      ? deriveWinnerTeamId(
-          match.homeScore,
-          match.awayScore,
-          homeTeamId,
-          awayTeamId,
-        )
-      : null;
-
   const existing = await prisma.match.findFirst({
     where: { tournamentId, externalId: match.externalId },
   });
@@ -146,18 +135,50 @@ async function upsertExternalMatch(
           now,
         );
 
+  const normalizedScores = normalizeMatchScoresForDb(
+    match.status,
+    match.startsAt,
+    match.homeScore ?? null,
+    match.awayScore ?? null,
+    now,
+  );
+
+  let status = match.status;
+  if (
+    status === MatchStatus.LIVE &&
+    match.startsAt.getTime() > now.getTime()
+  ) {
+    status = MatchStatus.SCHEDULED;
+  }
+  if (
+    status === MatchStatus.FINISHED &&
+    match.startsAt.getTime() > now.getTime()
+  ) {
+    status = MatchStatus.SCHEDULED;
+  }
+
   const data = {
     stage: match.stage,
     homeTeamId,
     awayTeamId,
     startsAt: match.startsAt,
-    status: match.status,
-    homeScore: match.homeScore ?? null,
-    awayScore: match.awayScore ?? null,
-    winnerTeamId,
+    status,
+    homeScore: normalizedScores.homeScore,
+    awayScore: normalizedScores.awayScore,
+    winnerTeamId:
+      status === MatchStatus.FINISHED &&
+      normalizedScores.homeScore !== null &&
+      normalizedScores.awayScore !== null
+        ? deriveWinnerTeamId(
+            normalizedScores.homeScore,
+            normalizedScores.awayScore,
+            homeTeamId,
+            awayTeamId,
+          )
+        : null,
     championatTrackActive: tracking.championatTrackActive ?? true,
     championatFinishedAt:
-      match.status === MatchStatus.FINISHED
+      status === MatchStatus.FINISHED
         ? (tracking.championatFinishedAt ?? now)
         : null,
   };
@@ -250,7 +271,10 @@ async function enrichMatchesFromChampionatPages(
   const nearBehind = new Date(now.getTime() - 3 * 60 * 60 * 1000);
 
   const quickOr = [
-    { status: MatchStatus.LIVE },
+    {
+      status: MatchStatus.LIVE,
+      startsAt: { lte: now },
+    },
     {
       status: MatchStatus.SCHEDULED,
       startsAt: { gte: nearBehind, lte: nearAhead },
@@ -324,32 +348,66 @@ async function enrichMatchesFromChampionatPages(
         data.venueCity = normalizeVenueCity(details.venueCity) ?? null;
       }
 
+      const kickoffReached = match.startsAt.getTime() <= now.getTime();
+
       if (details.status && details.status !== match.status) {
-        data.status = details.status;
+        if (
+          kickoffReached ||
+          (details.status !== MatchStatus.LIVE &&
+            details.status !== MatchStatus.FINISHED)
+        ) {
+          data.status = details.status;
+        }
       }
 
       if (
         details.homeScore !== undefined &&
         details.awayScore !== undefined
       ) {
-        data.homeScore = details.homeScore;
-        data.awayScore = details.awayScore;
-        if (!data.status && match.status === MatchStatus.SCHEDULED) {
-          data.status = MatchStatus.LIVE;
+        const proposedStatus = data.status ?? match.status;
+        const normalized = normalizeMatchScoresForDb(
+          proposedStatus,
+          match.startsAt,
+          details.homeScore,
+          details.awayScore,
+          now,
+        );
+        if (normalized.homeScore !== null && normalized.awayScore !== null) {
+          data.homeScore = normalized.homeScore;
+          data.awayScore = normalized.awayScore;
+          if (
+            kickoffReached &&
+            !data.status &&
+            match.status === MatchStatus.SCHEDULED
+          ) {
+            data.status = MatchStatus.LIVE;
+          }
         }
       }
 
-      const inferredFinished = inferChampionatFinishedStatus({
-        match: {
-          status: match.status,
-          startsAt: match.startsAt,
-          homeScore: data.homeScore ?? match.homeScore,
-          awayScore: data.awayScore ?? match.awayScore,
-        },
-        snapshotHomeScore: details.homeScore,
-        snapshotAwayScore: details.awayScore,
-        now,
-      });
+      if (!kickoffReached) {
+        if (match.status === MatchStatus.LIVE || data.status === MatchStatus.LIVE) {
+          data.status = MatchStatus.SCHEDULED;
+        }
+        if (match.homeScore !== null || match.awayScore !== null) {
+          data.homeScore = null;
+          data.awayScore = null;
+        }
+      }
+
+      const inferredFinished = kickoffReached
+        ? inferChampionatFinishedStatus({
+            match: {
+              status: match.status,
+              startsAt: match.startsAt,
+              homeScore: data.homeScore ?? match.homeScore,
+              awayScore: data.awayScore ?? match.awayScore,
+            },
+            snapshotHomeScore: details.homeScore,
+            snapshotAwayScore: details.awayScore,
+            now,
+          })
+        : undefined;
       if (
         inferredFinished === MatchStatus.FINISHED &&
         data.status !== MatchStatus.FINISHED
@@ -358,6 +416,20 @@ async function enrichMatchesFromChampionatPages(
       }
 
       const nextStatus = data.status ?? match.status;
+      const finalScores = normalizeMatchScoresForDb(
+        nextStatus,
+        match.startsAt,
+        data.homeScore ?? match.homeScore,
+        data.awayScore ?? match.awayScore,
+        now,
+      );
+      if (
+        finalScores.homeScore !== (data.homeScore ?? match.homeScore) ||
+        finalScores.awayScore !== (data.awayScore ?? match.awayScore)
+      ) {
+        data.homeScore = finalScores.homeScore;
+        data.awayScore = finalScores.awayScore;
+      }
       Object.assign(
         data,
         championatFinishedTrackingPatch(

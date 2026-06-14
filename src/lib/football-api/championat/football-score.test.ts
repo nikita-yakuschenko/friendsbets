@@ -3,6 +3,7 @@ import {
   hasImplausibleStoredScore,
   isLikelyKickoffTime,
   isPlausibleFootballScore,
+  normalizeMatchScoresForDb,
   parsePlausibleFootballScore,
   sanitizeStoredScore,
 } from "@/lib/football-api/championat/football-score";
@@ -27,10 +28,25 @@ describe("isPlausibleFootballScore", () => {
     expect(parsePlausibleFootballScore(2, 1)).toEqual({ homeScore: 2, awayScore: 1 });
   });
 
-  it("hasImplausibleStoredScore ловит 22:0 в БД", () => {
+  it("hasImplausibleStoredScore ловит время начала как счёт", () => {
     expect(hasImplausibleStoredScore(22, 0)).toBe(true);
+    expect(hasImplausibleStoredScore(20, 0)).toBe(true);
     expect(hasImplausibleStoredScore(0, 0)).toBe(false);
     expect(hasImplausibleStoredScore(null, 0)).toBe(false);
+  });
+
+  it("normalizeMatchScoresForDb не хранит счёт у SCHEDULED", () => {
+    const kickoff = new Date("2026-06-14T17:00:00Z");
+    expect(
+      normalizeMatchScoresForDb("SCHEDULED", kickoff, 20, 0, new Date("2026-06-14T12:00:00Z")),
+    ).toEqual({ homeScore: null, awayScore: null });
+  });
+
+  it("normalizeMatchScoresForDb хранит счёт у FINISHED", () => {
+    const kickoff = new Date("2026-06-14T17:00:00Z");
+    expect(
+      normalizeMatchScoresForDb("FINISHED", kickoff, 2, 1, new Date("2026-06-14T20:00:00Z")),
+    ).toEqual({ homeScore: 2, awayScore: 1 });
   });
 
   it("sanitizeStoredScore скрывает мусорный счёт", () => {
