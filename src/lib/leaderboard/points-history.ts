@@ -1,4 +1,5 @@
 import { isKnockoutStage } from "@/lib/match-stage";
+import { pickCanonicalPredictionScore } from "@/lib/scoring/prediction-score-record";
 
 export type PointsHistoryMatchEntry = {
   id: string;
@@ -70,8 +71,8 @@ export function buildPointsHistoryEntries(params: {
   const entries: PointsHistoryEntry[] = [];
 
   for (const prediction of params.predictions) {
-    for (const score of prediction.scores) {
-      if (score.points <= 0) continue;
+    const score = pickCanonicalPredictionScore(prediction.scores);
+    if (!score || score.points <= 0) continue;
       if (
         prediction.match.homeScore === null ||
         prediction.match.awayScore === null
@@ -94,7 +95,6 @@ export function buildPointsHistoryEntries(params: {
         actualHome: prediction.match.homeScore,
         actualAway: prediction.match.awayScore,
       });
-    }
   }
 
   if (params.championPick && params.championPick.points > 0) {

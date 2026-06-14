@@ -24,6 +24,7 @@ import {
   MATCH_LIVE_TRACKING_MAX_MS,
 } from "@/lib/match-prediction-state";
 import { calculatePredictionScore } from "@/lib/scoring";
+import { sumPredictionScorePoints } from "@/lib/scoring/prediction-score-record";
 import { persistMatchPredictionScores } from "@/lib/scoring/recalculate-match-scores";
 import { getLeaderboardColumns } from "@/lib/scoring/catalog";
 import type { ScoreTier } from "@/lib/scoring/rules";
@@ -131,7 +132,7 @@ export async function getGameOverview(routeParam: string, userId: string) {
     .map((participant) => {
       const matchPoints = participant.user.predictions.reduce(
         (sum, prediction) =>
-          sum + prediction.scores.reduce((acc, score) => acc + score.points, 0),
+          sum + sumPredictionScorePoints(prediction.scores),
         0,
       );
       const totalPoints =
@@ -249,7 +250,7 @@ export async function getLeaderboardData(routeParam: string) {
       const predictions = participant.user.predictions;
       const matchPoints = predictions.reduce(
         (sum, prediction) =>
-          sum + prediction.scores.reduce((acc, score) => acc + score.points, 0),
+          sum + sumPredictionScorePoints(prediction.scores),
         0,
       );
       const totalPoints =

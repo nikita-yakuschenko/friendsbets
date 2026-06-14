@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { sumPredictionScorePoints } from "@/lib/scoring/prediction-score-record";
 
 export type GameLeaderboardRow = {
   userId: string;
@@ -37,7 +38,7 @@ export async function computeGameLeaderboard(
       displayName: participant.displayName,
       totalPoints: participant.user.predictions.reduce(
         (sum, prediction) =>
-          sum + prediction.scores.reduce((acc, score) => acc + score.points, 0),
+          sum + sumPredictionScorePoints(prediction.scores),
         0,
       ),
     }))

@@ -329,14 +329,12 @@ model Prediction {
 
 model PredictionScore {
   id           String   @id @default(cuid())
-  predictionId String
+  predictionId String   @unique
   points       Int
   reason       String
   calculatedAt DateTime @default(now())
 
   prediction Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
-
-  @@index([predictionId])
 }
 
 model PredictionReminder {

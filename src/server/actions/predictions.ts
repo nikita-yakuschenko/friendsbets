@@ -20,6 +20,10 @@ import { isKnockoutStage } from "@/lib/match-stage";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import type { PredictionMatchItem } from "@/lib/predictions-list";
 import { buildPredictionStageGroups } from "@/lib/predictions-list";
+import {
+  pickCanonicalPredictionScore,
+  sumPredictionScorePoints,
+} from "@/lib/scoring/prediction-score-record";
 import type { ActionResult } from "@/server/actions/auth";
 
 export async function savePredictionAction(
@@ -161,9 +165,8 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
       postponed: isMatchPostponed(match),
       inProgress: isMatchInProgress(match),
       staleAwaitingResult: isMatchStaleAwaitingResult(match),
-      points:
-        saved?.scores.reduce((sum, score) => sum + score.points, 0) ?? 0,
-      scoreReason: saved?.scores[0]?.reason ?? null,
+      points: saved ? sumPredictionScorePoints(saved.scores) : 0,
+      scoreReason: pickCanonicalPredictionScore(saved?.scores ?? [])?.reason ?? null,
     };
   });
 
@@ -253,8 +256,9 @@ export async function getMatchPredictionsSummary(
       const prediction = predictionByUserId.get(participant.userId);
       const points = resultPending
         ? null
-        : (prediction?.scores.reduce((sum, score) => sum + score.points, 0) ??
-          0);
+        : prediction
+          ? sumPredictionScorePoints(prediction.scores)
+          : 0;
 
       return {
         userId: participant.userId,
@@ -262,7 +266,8 @@ export async function getMatchPredictionsSummary(
         homeScore: prediction?.homeScore ?? null,
         awayScore: prediction?.awayScore ?? null,
         points,
-        scoreReason: prediction?.scores[0]?.reason ?? null,
+        scoreReason:
+          pickCanonicalPredictionScore(prediction?.scores ?? [])?.reason ?? null,
         isCurrentUser: participant.userId === session.id,
       };
     },

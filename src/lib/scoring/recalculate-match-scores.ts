@@ -22,21 +22,23 @@ export async function persistMatchPredictionScores(
   });
 
   await prisma.$transaction(async (tx) => {
-    await tx.predictionScore.deleteMany({
-      where: { predictionId: { in: predictions.map((p) => p.id) } },
-    });
-
     for (const prediction of predictions) {
       const result = calculatePredictionScore(
         prediction,
         match,
         game.scoringRule,
       );
-      await tx.predictionScore.create({
-        data: {
+      await tx.predictionScore.upsert({
+        where: { predictionId: prediction.id },
+        create: {
           predictionId: prediction.id,
           points: result.points,
           reason: result.reason,
+        },
+        update: {
+          points: result.points,
+          reason: result.reason,
+          calculatedAt: new Date(),
         },
       });
     }

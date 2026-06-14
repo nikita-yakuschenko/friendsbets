@@ -79,6 +79,45 @@ describe("buildPointsHistoryEntries", () => {
     });
   });
 
+  it("не дублирует начисление при нескольких PredictionScore", () => {
+    const entries = buildPointsHistoryEntries({
+      predictions: [
+        {
+          id: "p1",
+          homeScore: 2,
+          awayScore: 1,
+          scores: [
+            {
+              id: "s-old",
+              points: 1,
+              reason: "Голы одной команды",
+              calculatedAt: new Date("2026-06-14T13:00:00Z"),
+            },
+            {
+              id: "s-new",
+              points: 1,
+              reason: "Голы одной команды",
+              calculatedAt: new Date("2026-06-14T16:11:00Z"),
+            },
+          ],
+          match: {
+            stage: "Группа C",
+            startsAt: new Date("2026-06-14T01:00:00Z"),
+            homeScore: 1,
+            awayScore: 1,
+            homeTeam: { name: "Бразилия", countryCode: "BR" },
+            awayTeam: { name: "Марокко", countryCode: "MA" },
+          },
+        },
+      ],
+      championPick: null,
+      championAwardedAt: null,
+    });
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.points).toBe(1);
+  });
+
   it("пропускает нулевые начисления", () => {
     const entries = buildPointsHistoryEntries({
       predictions: [
