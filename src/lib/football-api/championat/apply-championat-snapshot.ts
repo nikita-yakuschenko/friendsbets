@@ -19,6 +19,7 @@ type MatchSnapshotTarget = {
   awayScore: number | null;
   homeTeamId: string;
   awayTeamId: string;
+  winnerTeamId?: string | null;
   championatFinishedAt?: Date | null;
 };
 
@@ -51,8 +52,8 @@ export async function applyChampionatSnapshotToMatch(
   const now = new Date();
   const kickoffReached = hasScheduledKickoffStarted(match.startsAt, now);
   const updateData: {
-    homeScore?: number;
-    awayScore?: number;
+    homeScore?: number | null;
+    awayScore?: number | null;
     status?: MatchStatus;
     winnerTeamId?: string | null;
     championatTrackActive?: boolean;

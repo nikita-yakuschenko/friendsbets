@@ -33,6 +33,7 @@ type MatchSyncTarget = {
   awayScore: number | null;
   homeTeamId: string;
   awayTeamId: string;
+  winnerTeamId?: string | null;
   championatFinishedAt?: Date | null;
 };
 

@@ -83,6 +83,7 @@ export async function runScheduledChampionatMatchSyncs(
       awayScore: true,
       homeTeamId: true,
       awayTeamId: true,
+      winnerTeamId: true,
       championatLastSyncAt: true,
       championatFinishedAt: true,
       championatTrackActive: true,

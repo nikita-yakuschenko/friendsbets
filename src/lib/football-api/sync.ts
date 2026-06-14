@@ -334,8 +334,8 @@ async function enrichMatchesFromChampionatPages(
         venueName?: string | null;
         venueCity?: string | null;
         status?: MatchStatus;
-        homeScore?: number;
-        awayScore?: number;
+        homeScore?: number | null;
+        awayScore?: number | null;
         championatTrackActive?: boolean;
         championatFinishedAt?: Date;
       } = {};

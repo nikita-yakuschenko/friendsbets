@@ -48,6 +48,7 @@ const matchSelect = {
   awayScore: true,
   homeTeamId: true,
   awayTeamId: true,
+  winnerTeamId: true,
   championatFinishedAt: true,
   championatLastSyncAt: true,
   eventsSyncedAt: true,

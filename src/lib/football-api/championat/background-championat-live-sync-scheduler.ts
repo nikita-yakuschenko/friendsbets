@@ -51,6 +51,7 @@ async function findLiveChampionatMatches(now: Date) {
       awayScore: true,
       homeTeamId: true,
       awayTeamId: true,
+      winnerTeamId: true,
       championatFinishedAt: true,
     },
     orderBy: { startsAt: "desc" },
