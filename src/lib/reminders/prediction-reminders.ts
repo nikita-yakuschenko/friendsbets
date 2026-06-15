@@ -26,6 +26,7 @@ import {
   liveReminderCandidateStartsAtRange,
   MATCH_REMINDER_SCHEDULE,
   preMatchReminderCandidateStartsAtRange,
+  preMatchReminderEligibleStatusFilter,
 } from "@/lib/reminders/match-reminder-schedule";
 import { deliverMatchReminderToUser } from "@/lib/reminders/reminder-delivery";
 import { getAppOriginFromEnv } from "@/lib/app-origin";
@@ -536,7 +537,7 @@ export async function sendDuePredictionReminders(
   const [preMatchCandidates, liveCandidates] = await Promise.all([
     prisma.match.findMany({
       where: {
-        status: MatchStatus.SCHEDULED,
+        status: preMatchReminderEligibleStatusFilter(),
         startsAt: preMatchReminderCandidateStartsAtRange(now),
       },
       include: reminderMatchInclude,

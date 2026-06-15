@@ -1,4 +1,4 @@
-import { MatchStatus, PredictionReminderKind } from "@/generated/prisma/client";
+import { PredictionReminderKind } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { logOperationError, maskEmail } from "@/lib/logger";
@@ -12,6 +12,7 @@ import {
   isNightReminderDue,
   isNightWindowKickoffMsk,
 } from "@/lib/reminders/night-match-schedule";
+import { preMatchReminderEligibleStatusFilter } from "@/lib/reminders/match-reminder-schedule";
 import { deliverMatchReminderToUser } from "@/lib/reminders/reminder-delivery";
 import type { ReminderRunResult } from "@/lib/reminders/prediction-reminders";
 
@@ -60,7 +61,7 @@ export async function sendNightBatchPredictionReminders(
 
   const matches = await prisma.match.findMany({
     where: {
-      status: MatchStatus.SCHEDULED,
+      status: preMatchReminderEligibleStatusFilter(),
       startsAt: { gt: now, lte: horizon },
     },
     include: {

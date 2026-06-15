@@ -1,11 +1,23 @@
-import { PredictionReminderKind } from "@/generated/prisma/client";
+import { MatchStatus, PredictionReminderKind } from "@/generated/prisma/client";
 import { getEffectiveKickoffAt } from "@/lib/match-kickoff-delay";
+
+/** Матчи в этих статусах не кандидаты на прематчевые напоминания. */
+export const PREMATCH_REMINDER_EXCLUDED_STATUSES = [
+  MatchStatus.FINISHED,
+  MatchStatus.CANCELLED,
+  MatchStatus.POSTPONED,
+] as const;
+
+/** Прематч: kickoff в будущем; LIVE до старта (ошибка синка) не блокирует H1. */
+export function preMatchReminderEligibleStatusFilter() {
+  return { notIn: [...PREMATCH_REMINDER_EXCLUDED_STATUSES] };
+}
 
 /** Догоняем «старт матча», если проверка опоздала (до 2 ч после kickoff). */
 export const LIVE_REMINDER_CATCHUP_MS = 2 * 60 * 60 * 1000;
 
-/** Горизонт загрузки кандидатов для прематчевых напоминаний (3 ч + запас). */
-export const PREMATCH_LOAD_HORIZON_MS = 3 * 60 * 60 * 1000 + 15 * 60 * 1000;
+/** Горизонт загрузки кандидатов для прематчевых напоминаний (1 ч + запас на cron). */
+export const PREMATCH_LOAD_HORIZON_MS = 60 * 60 * 1000 + 15 * 60 * 1000;
 
 /**
  * Контрольные моменты до старта матча — привязка к startsAt, как у H24 открытия.
@@ -13,24 +25,10 @@ export const PREMATCH_LOAD_HORIZON_MS = 3 * 60 * 60 * 1000 + 15 * 60 * 1000;
  */
 export const MATCH_REMINDER_SCHEDULE = [
   {
-    kind: PredictionReminderKind.H3,
-    adminKind: PredictionReminderKind.H3_ADMIN,
-    minutesBefore: 180,
-    label: "3 часа",
-    matchStarted: false,
-  },
-  {
     kind: PredictionReminderKind.H1,
     adminKind: PredictionReminderKind.H1_ADMIN,
     minutesBefore: 60,
     label: "1 час",
-    matchStarted: false,
-  },
-  {
-    kind: PredictionReminderKind.M15,
-    adminKind: PredictionReminderKind.M15_ADMIN,
-    minutesBefore: 15,
-    label: "15 минут",
     matchStarted: false,
   },
   {

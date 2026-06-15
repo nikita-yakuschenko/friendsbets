@@ -219,7 +219,7 @@ export async function applyChampionatSnapshotToMatch(
   const becameLive =
     nextStatus === MatchStatus.LIVE && match.status !== MatchStatus.LIVE;
 
-  if (becameLive) {
+  if (becameLive && kickoffReached) {
     try {
       const { sendLiveRemindersForMatch } = await import(
         "@/lib/reminders/prediction-reminders"

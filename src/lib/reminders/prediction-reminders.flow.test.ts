@@ -1,3 +1,4 @@
+import { DEFAULT_MATCH_KICKOFF_REVEAL_DELAY_MS } from "@/lib/match-kickoff-delay";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GameParticipantRole,
@@ -27,7 +28,7 @@ import { prisma } from "@/lib/db";
 import { sendDuePredictionReminders } from "@/lib/reminders/prediction-reminders";
 
 const kickoff = new Date("2026-06-10T18:00:00Z");
-const now = new Date("2026-06-10T15:00:00Z");
+const now = new Date("2026-06-10T17:00:00Z");
 
 const baseMatch = {
   id: "match-1",
@@ -110,7 +111,7 @@ describe("sendDuePredictionReminders", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           userId: "user-1",
-          kind: PredictionReminderKind.H3,
+          kind: PredictionReminderKind.H1,
         }),
       }),
     );
@@ -122,19 +123,19 @@ describe("sendDuePredictionReminders", () => {
         gameId: "game-1",
         matchId: "match-1",
         userId: "user-1",
-        kind: PredictionReminderKind.H3,
+        kind: PredictionReminderKind.H1,
       },
       {
         gameId: "game-1",
         matchId: "match-1",
         userId: "org-1",
-        kind: PredictionReminderKind.H3,
+        kind: PredictionReminderKind.H1,
       },
       {
         gameId: "game-1",
         matchId: "match-1",
         userId: "org-1",
-        kind: PredictionReminderKind.H3_ADMIN,
+        kind: PredictionReminderKind.H1_ADMIN,
       },
     ] as never);
 
@@ -262,7 +263,10 @@ describe("sendDuePredictionReminders", () => {
 
   it("шлёт LIVE, если Championat уже перевёл матч в LIVE", async () => {
     const kickoff23 = new Date("2026-06-10T20:00:00.000Z");
-    vi.setSystemTime(kickoff23);
+    const afterReveal = new Date(
+      kickoff23.getTime() + DEFAULT_MATCH_KICKOFF_REVEAL_DELAY_MS,
+    );
+    vi.setSystemTime(afterReveal);
 
     const liveMatch = {
       ...baseMatch,
@@ -311,7 +315,7 @@ describe("sendDuePredictionReminders", () => {
       },
     ] as never);
 
-    const result = await sendDuePredictionReminders(kickoff23);
+    const result = await sendDuePredictionReminders(afterReveal);
 
     const liveCreates = vi
       .mocked(prisma.predictionReminder.create)
@@ -321,6 +325,36 @@ describe("sendDuePredictionReminders", () => {
           PredictionReminderKind.LIVE,
       );
     expect(liveCreates.length).toBeGreaterThan(0);
+    expect(result.sent).toBeGreaterThan(0);
+  });
+
+  it("шлёт H1, если Championat ошибочно перевёл матч в LIVE до kickoff", async () => {
+    const phantomLiveMatch = {
+      ...baseMatch,
+      id: "match-phantom-live",
+      status: MatchStatus.LIVE,
+    };
+
+    vi.mocked(prisma.match.findMany).mockImplementation(async (args) => {
+      const where = (args as { where?: { startsAt?: Record<string, Date> } })
+        ?.where?.startsAt;
+      if (!where || !("gt" in where) || !where.gt) return [] as never;
+      const t = kickoff.getTime();
+      if (t <= where.gt.getTime()) return [] as never;
+      if (where.lte && t > where.lte.getTime()) return [] as never;
+      return [phantomLiveMatch] as never;
+    });
+
+    const result = await sendDuePredictionReminders(now);
+
+    expect(prisma.predictionReminder.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "user-1",
+          kind: PredictionReminderKind.H1,
+        }),
+      }),
+    );
     expect(result.sent).toBeGreaterThan(0);
   });
 });

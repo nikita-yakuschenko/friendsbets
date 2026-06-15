@@ -1,5 +1,4 @@
 import {
-  MatchStatus,
   PredictionReminderKind,
 } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
@@ -16,6 +15,7 @@ import {
   getOpeningH24FireAt,
   isOpeningH24Due,
 } from "@/lib/reminders/opening-match-h24-schedule";
+import { preMatchReminderEligibleStatusFilter } from "@/lib/reminders/match-reminder-schedule";
 import type { ReminderRunResult } from "@/lib/reminders/prediction-reminders";
 import { deliverMatchReminderToUser } from "@/lib/reminders/reminder-delivery";
 import { findOpeningMatchForTournament } from "@/lib/tournament-opening-reminder";
@@ -88,7 +88,7 @@ async function loadOpeningMatchesDueH24(
 ): Promise<OpeningH24MatchRow[]> {
   const candidates = await prisma.match.findMany({
     where: {
-      status: MatchStatus.SCHEDULED,
+      status: preMatchReminderEligibleStatusFilter(),
       startsAt: {
         gt: now,
         lte: new Date(now.getTime() + LOOKAHEAD_MS),
@@ -151,7 +151,7 @@ export async function getNearestOpeningH24FireAt(
 ): Promise<Date | null> {
   const candidates = await prisma.match.findMany({
     where: {
-      status: MatchStatus.SCHEDULED,
+      status: preMatchReminderEligibleStatusFilter(),
       startsAt: { gt: now, lte: new Date(now.getTime() + LOOKAHEAD_MS) },
     },
     select: {
