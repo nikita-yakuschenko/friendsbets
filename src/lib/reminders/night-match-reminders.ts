@@ -14,6 +14,7 @@ import {
 } from "@/lib/reminders/night-match-schedule";
 import { preMatchReminderEligibleStatusFilter } from "@/lib/reminders/match-reminder-schedule";
 import { deliverMatchReminderToUser } from "@/lib/reminders/reminder-delivery";
+import type { ReminderEmailBatch } from "@/lib/reminders/reminder-email-batch";
 import type { ReminderRunResult } from "@/lib/reminders/prediction-reminders";
 
 const NIGHT_KIND = PredictionReminderKind.H18_NIGHT;
@@ -37,6 +38,9 @@ type NightMatchRow = {
           name: string;
           emailVerifiedAt: Date | null;
           telegramChatId: bigint | null;
+          notifyByEmail: boolean;
+          notifyByTelegram: boolean;
+          notifyInApp: boolean;
         };
       }>;
     }>;
@@ -49,6 +53,7 @@ function nightReminderKey(gameId: string, matchId: string, userId: string) {
 
 export async function sendNightBatchPredictionReminders(
   now = new Date(),
+  emailBatch?: ReminderEmailBatch,
 ): Promise<ReminderRunResult> {
   const result: ReminderRunResult = {
     checked: 0,
@@ -83,6 +88,9 @@ export async function sendNightBatchPredictionReminders(
                       name: true,
                       emailVerifiedAt: true,
                       telegramChatId: true,
+                      notifyByEmail: true,
+                      notifyByTelegram: true,
+                      notifyInApp: true,
                     },
                   },
                 },
@@ -217,15 +225,26 @@ export async function sendNightBatchPredictionReminders(
     try {
       const delivered = await deliverMatchReminderToUser({
         userId: batch.user.id,
+        userName: batch.displayName,
         email: batch.user.email,
         emailVerifiedAt: batch.user.emailVerifiedAt,
         telegramChatId: batch.user.telegramChatId,
+        notifyByEmail: batch.user.notifyByEmail,
+        notifyByTelegram: batch.user.notifyByTelegram,
+        notifyInApp: batch.user.notifyInApp,
         title,
         inAppBody,
         inviteCode: batch.game.inviteCode,
         emailSubject: title,
         emailText: emailContent.text,
         emailHtml: emailContent.html,
+        emailSection: {
+          type: "night_missing",
+          gameTitle: batch.game.title,
+          inviteCode: batch.game.inviteCode,
+          matches: matchBlocks,
+        },
+        emailBatch,
         telegramHtml,
         logTag: "reminders:night-batch",
       });

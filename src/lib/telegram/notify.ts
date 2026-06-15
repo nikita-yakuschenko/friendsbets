@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { shouldNotifyByTelegram } from "@/lib/notification-preferences";
 import { sendTelegramMessage } from "@/lib/telegram/api";
 import { isTelegramConfigured } from "@/lib/telegram/config";
 import { withNotificationSignoff } from "@/lib/notification-signoff";
@@ -16,12 +17,15 @@ export function pushTelegramToUser(userId: string, text: string): void {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { telegramChatId: true },
+        select: {
+          telegramChatId: true,
+          notifyByTelegram: true,
+        },
       });
-      if (!user?.telegramChatId) return;
+      if (!user || !shouldNotifyByTelegram(user)) return;
 
       await sendTelegramMessage(
-        user.telegramChatId,
+        user.telegramChatId!,
         appendTelegramChannelFooter(withNotificationSignoff(text)),
       );
     } catch (error) {
@@ -43,7 +47,7 @@ export function pushTelegramBroadcast(title: string, body: string): void {
     try {
       const users = await prisma.user.findMany({
         where: { telegramChatId: { not: null } },
-        select: { telegramChatId: true },
+        select: { telegramChatId: true, notifyByTelegram: true },
       });
 
       const message = appendTelegramChannelFooter(
@@ -51,7 +55,7 @@ export function pushTelegramBroadcast(title: string, body: string): void {
       );
 
       for (const user of users) {
-        if (!user.telegramChatId) continue;
+        if (!user.telegramChatId || !shouldNotifyByTelegram(user)) continue;
         try {
           await sendTelegramMessage(user.telegramChatId, message);
         } catch (error) {

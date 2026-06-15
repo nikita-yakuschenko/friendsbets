@@ -105,6 +105,7 @@ export async function unlinkTelegramForUser(userId: string): Promise<void> {
       telegramLinkedAt: null,
       telegramLinkToken: null,
       telegramLinkExpiresAt: null,
+      notifyByTelegram: false,
     },
   });
 }

@@ -82,6 +82,9 @@ model User {
   telegramLinkedAt           DateTime?
   telegramLinkToken          String?   @unique
   telegramLinkExpiresAt      DateTime?
+  notifyByEmail              Boolean   @default(true)
+  notifyByTelegram           Boolean   @default(true)
+  notifyInApp                Boolean   @default(true)
   activeGameId               String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

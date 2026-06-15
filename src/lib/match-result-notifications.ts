@@ -17,6 +17,11 @@ import {
 } from "@/lib/match-result-notification-content";
 import { calculatePredictionScore } from "@/lib/scoring";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
+import {
+  shouldNotifyByEmail,
+  shouldNotifyByTelegram,
+  shouldNotifyInApp,
+} from "@/lib/notification-preferences";
 import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 import { sendTelegramMessage } from "@/lib/telegram/api";
 import { isTelegramConfigured } from "@/lib/telegram/config";
@@ -102,6 +107,9 @@ export async function notifyMatchResultParticipants(
               name: true,
               emailVerifiedAt: true,
               telegramChatId: true,
+              notifyByEmail: true,
+              notifyByTelegram: true,
+              notifyInApp: true,
             },
           },
         },
@@ -241,29 +249,59 @@ export async function notifyMatchResultParticipants(
       });
 
       try {
-        await createUserNotification({
-          userId: participant.userId,
-          kind: UserNotificationKind.MATCH_RESULT,
-          title,
-          body: inAppBody,
-          actionInviteCode: game.inviteCode,
-        });
+        const user = participant.user;
+        const prefs = {
+          notifyByEmail: user.notifyByEmail,
+          notifyByTelegram: user.notifyByTelegram,
+          notifyInApp: user.notifyInApp,
+          emailVerifiedAt: user.emailVerifiedAt,
+          telegramChatId: user.telegramChatId,
+        };
 
-        if (participant.user.telegramChatId && isTelegramConfigured()) {
+        if (shouldNotifyInApp(prefs)) {
+          await createUserNotification({
+            userId: participant.userId,
+            kind: UserNotificationKind.MATCH_RESULT,
+            title,
+            body: inAppBody,
+            actionInviteCode: game.inviteCode,
+          });
+        }
+
+        if (shouldNotifyByTelegram(prefs) && isTelegramConfigured()) {
           await sendTelegramMessage(
-            participant.user.telegramChatId,
+            user.telegramChatId!,
             appendTelegramChannelFooter(telegramHtml),
             { parseMode: "HTML" },
           );
         }
 
-        if (participant.user.emailVerifiedAt) {
+        if (shouldNotifyByEmail(prefs)) {
           await sendEmail({
-            to: participant.user.email,
+            to: user.email,
             subject: `FriendsBets: ${title}`,
             text: emailContent.text,
             html: emailContent.html,
           });
+        }
+
+        if (
+          !shouldNotifyInApp(prefs) &&
+          !shouldNotifyByTelegram(prefs) &&
+          !shouldNotifyByEmail(prefs)
+        ) {
+          result.skipped++;
+          await prisma.predictionReminder.delete({
+            where: {
+              gameId_matchId_userId_kind: {
+                gameId: game.id,
+                matchId,
+                userId: participant.userId,
+                kind: NOTIFY_KIND,
+              },
+            },
+          });
+          continue;
         }
 
         alreadySent.add(key);

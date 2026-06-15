@@ -12,6 +12,11 @@ import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 import { sendTelegramMessage } from "@/lib/telegram/api";
 import { isTelegramConfigured } from "@/lib/telegram/config";
 import { formatRelativeTime } from "@/lib/utils";
+import {
+  shouldNotifyByEmail,
+  shouldNotifyByTelegram,
+  shouldNotifyInApp,
+} from "@/lib/notification-preferences";
 
 type OpeningMatchTeams = {
   id: string;
@@ -98,6 +103,9 @@ export async function notifyOpeningMatchOnTournamentJoin(
           email: true,
           emailVerifiedAt: true,
           telegramChatId: true,
+          notifyByEmail: true,
+          notifyByTelegram: true,
+          notifyInApp: true,
         },
       }),
       prisma.gameParticipant.findUnique({
@@ -132,18 +140,28 @@ export async function notifyOpeningMatchOnTournamentJoin(
       timeLabel: formatRelativeTime(new Date(match.startsAt)),
     });
 
-    await createUserNotification({
-      userId,
-      kind: UserNotificationKind.MISSING_PREDICTION,
-      title,
-      body: inAppBody,
-      actionInviteCode: game.inviteCode,
-    });
+    const prefs = {
+      notifyByEmail: user.notifyByEmail,
+      notifyByTelegram: user.notifyByTelegram,
+      notifyInApp: user.notifyInApp,
+      emailVerifiedAt: user.emailVerifiedAt,
+      telegramChatId: user.telegramChatId,
+    };
 
-    if (user.telegramChatId && isTelegramConfigured()) {
+    if (shouldNotifyInApp(prefs)) {
+      await createUserNotification({
+        userId,
+        kind: UserNotificationKind.MISSING_PREDICTION,
+        title,
+        body: inAppBody,
+        actionInviteCode: game.inviteCode,
+      });
+    }
+
+    if (shouldNotifyByTelegram(prefs) && isTelegramConfigured()) {
       try {
         await sendTelegramMessage(
-          user.telegramChatId,
+          user.telegramChatId!,
           appendTelegramChannelFooter(telegramHtml),
           { parseMode: "HTML" },
         );
@@ -152,7 +170,7 @@ export async function notifyOpeningMatchOnTournamentJoin(
       }
     }
 
-    if (user.emailVerifiedAt) {
+    if (shouldNotifyByEmail(prefs)) {
       try {
         await sendEmail({
           to: user.email,

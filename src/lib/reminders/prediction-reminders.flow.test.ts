@@ -30,6 +30,12 @@ import { sendDuePredictionReminders } from "@/lib/reminders/prediction-reminders
 const kickoff = new Date("2026-06-10T18:00:00Z");
 const now = new Date("2026-06-10T17:00:00Z");
 
+const defaultNotifyPrefs = {
+  notifyByEmail: true,
+  notifyByTelegram: false,
+  notifyInApp: true,
+};
+
 const baseMatch = {
   id: "match-1",
   status: MatchStatus.SCHEDULED,
@@ -59,6 +65,7 @@ const baseMatch = {
               email: "u1@test.com",
               name: "U1",
               emailVerifiedAt: new Date(),
+              ...defaultNotifyPrefs,
             },
           },
           {
@@ -70,6 +77,7 @@ const baseMatch = {
               email: "u2@test.com",
               name: "U2",
               emailVerifiedAt: null,
+              ...defaultNotifyPrefs,
             },
           },
           {
@@ -81,6 +89,7 @@ const baseMatch = {
               email: "org@test.com",
               name: "Org",
               emailVerifiedAt: new Date(),
+              ...defaultNotifyPrefs,
             },
           },
         ],
@@ -131,12 +140,6 @@ describe("sendDuePredictionReminders", () => {
         userId: "org-1",
         kind: PredictionReminderKind.H1,
       },
-      {
-        gameId: "game-1",
-        matchId: "match-1",
-        userId: "org-1",
-        kind: PredictionReminderKind.H1_ADMIN,
-      },
     ] as never);
 
     const result = await sendDuePredictionReminders(now);
@@ -173,13 +176,22 @@ describe("sendDuePredictionReminders", () => {
     expect(result.sent).toBe(0);
   });
 
-  it("шлёт организатору список missing", async () => {
+  it("не шлёт организатору письмо о чужих missing", async () => {
     await sendDuePredictionReminders(now);
 
     const adminCalls = sendEmailMock.mock.calls.filter((c) =>
       String((c[0] as { subject?: string })?.subject).includes("кто не поставил"),
     );
-    expect(adminCalls.length).toBeGreaterThan(0);
+    expect(adminCalls).toHaveLength(0);
+  });
+
+  it("шлёт организатору не больше одного email за прогон", async () => {
+    await sendDuePredictionReminders(now);
+
+    const orgCalls = sendEmailMock.mock.calls.filter((c) =>
+      String((c[0] as { to?: string })?.to).includes("org@test.com"),
+    );
+    expect(orgCalls.length).toBeLessThanOrEqual(1);
   });
 
   it("ошибка email не блокирует in-app и sent record", async () => {

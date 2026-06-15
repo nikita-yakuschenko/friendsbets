@@ -26,14 +26,12 @@ export const PREMATCH_LOAD_HORIZON_MS = 60 * 60 * 1000 + 15 * 60 * 1000;
 export const MATCH_REMINDER_SCHEDULE = [
   {
     kind: PredictionReminderKind.H1,
-    adminKind: PredictionReminderKind.H1_ADMIN,
     minutesBefore: 60,
     label: "1 час",
     matchStarted: false,
   },
   {
     kind: PredictionReminderKind.LIVE,
-    adminKind: PredictionReminderKind.LIVE_ADMIN,
     minutesBefore: 0,
     label: "старт матча",
     matchStarted: true,

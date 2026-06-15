@@ -7,6 +7,13 @@ vi.mock("@/lib/game-organizer-users", () => ({
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    user: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    gameJoinRequest: {
+      findUnique: vi.fn(),
+    },
     userNotification: {
       count: vi.fn(),
       findFirst: vi.fn(),
@@ -17,6 +24,11 @@ vi.mock("@/lib/db", () => ({
       deleteMany: vi.fn(),
     },
   },
+}));
+
+vi.mock("@/lib/telegram/notify", () => ({
+  pushTelegramToUsers: vi.fn(),
+  pushTelegramToUser: vi.fn(),
 }));
 
 import { getGameOrganizerUserIds } from "@/lib/game-organizer-users";
@@ -35,6 +47,20 @@ describe("notifications", () => {
 
   it("notifyOrganizersOfJoinRequest создаёт записи организаторам", async () => {
     vi.mocked(getGameOrganizerUserIds).mockResolvedValue(["org-1", "org-2"]);
+    vi.mocked(prisma.user.findMany).mockResolvedValue([
+      {
+        id: "org-1",
+        notifyInApp: true,
+        notifyByTelegram: true,
+        telegramChatId: BigInt(1),
+      },
+      {
+        id: "org-2",
+        notifyInApp: true,
+        notifyByTelegram: false,
+        telegramChatId: null,
+      },
+    ] as never);
     vi.mocked(prisma.userNotification.createMany).mockResolvedValue({ count: 2 });
 
     await notifyOrganizersOfJoinRequest("game-1", "req-1");
@@ -62,6 +88,13 @@ describe("notifications", () => {
   });
 
   it("notifyJoinRequestApproved и Rejected", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      notifyInApp: true,
+    } as never);
+    vi.mocked(prisma.gameJoinRequest.findUnique).mockResolvedValue({
+      game: { title: "Cup" },
+    } as never);
+
     await notifyJoinRequestApproved("u1", "req-1");
     expect(prisma.userNotification.create).toHaveBeenCalledWith({
       data: {

@@ -10,6 +10,11 @@ import { postTelegramChannelNews } from "@/lib/telegram/channel";
 import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 import { sendTelegramMessage } from "@/lib/telegram/api";
 import { isTelegramChannelConfigured, isTelegramConfigured } from "@/lib/telegram/config";
+import {
+  shouldNotifyByEmail,
+  shouldNotifyByTelegram,
+  shouldNotifyInApp,
+} from "@/lib/notification-preferences";
 
 export type BroadcastAudience = "all" | "organizers" | "personal";
 
@@ -94,6 +99,9 @@ export async function sendPlatformNotificationBroadcast(params: {
       email: true,
       emailVerifiedAt: true,
       telegramChatId: true,
+      notifyByEmail: true,
+      notifyByTelegram: true,
+      notifyInApp: true,
     },
   });
 
@@ -104,17 +112,25 @@ export async function sendPlatformNotificationBroadcast(params: {
   let emailSkippedUnverified = 0;
 
   for (const user of users) {
-    const linked = user.telegramChatId != null;
-    const verified = user.emailVerifiedAt != null;
+    const prefs = {
+      notifyByEmail: user.notifyByEmail,
+      notifyByTelegram: user.notifyByTelegram,
+      notifyInApp: user.notifyInApp,
+      emailVerifiedAt: user.emailVerifiedAt,
+      telegramChatId: user.telegramChatId,
+    };
+    const linked = shouldNotifyByTelegram(prefs);
+    const verified = shouldNotifyByEmail(prefs);
+    const inAppEnabled = shouldNotifyInApp(prefs);
 
     if (params.channels.telegram && linked) {
       telegramQueue.push({ id: user.id, chatId: user.telegramChatId! });
-    } else if (params.channels.inApp) {
+    } else if (params.channels.inApp && inAppEnabled) {
       inAppUserIds.push(user.id);
       if (params.channels.telegram && !linked) {
         telegramFallbackInApp++;
       }
-    } else if (params.channels.telegram && !linked) {
+    } else if (params.channels.telegram && !linked && inAppEnabled) {
       inAppUserIds.push(user.id);
       telegramFallbackInApp++;
     }
@@ -122,7 +138,7 @@ export async function sendPlatformNotificationBroadcast(params: {
     if (params.channels.email) {
       if (verified) {
         emailQueue.push({ id: user.id, email: user.email });
-      } else {
+      } else if (user.emailVerifiedAt == null) {
         emailSkippedUnverified++;
       }
     }
@@ -156,14 +172,17 @@ export async function sendPlatformNotificationBroadcast(params: {
       } catch (error) {
         console.error(`[broadcast:telegram:${user.id}]`, error);
         if (!params.channels.inApp) {
-          await createUserNotification({
-            userId: user.id,
-            kind: UserNotificationKind.PLATFORM_BROADCAST,
-            title: trimmedTitle,
-            body: trimmedBody,
-          });
-          inApp++;
-          telegramFallbackInApp++;
+          const fallbackUser = users.find((row) => row.id === user.id);
+          if (fallbackUser && shouldNotifyInApp(fallbackUser)) {
+            await createUserNotification({
+              userId: user.id,
+              kind: UserNotificationKind.PLATFORM_BROADCAST,
+              title: trimmedTitle,
+              body: trimmedBody,
+            });
+            inApp++;
+            telegramFallbackInApp++;
+          }
         }
       }
     }

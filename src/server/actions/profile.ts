@@ -15,8 +15,69 @@ export async function getProfileForUser(userId: string) {
       name: true,
       avatarUrl: true,
       updatedAt: true,
+      emailVerifiedAt: true,
+      notifyByEmail: true,
+      notifyByTelegram: true,
+      notifyInApp: true,
     },
   });
+}
+
+function parsePreferenceFlag(value: FormDataEntryValue | null): boolean {
+  return value === "1" || value === "on" || value === "true";
+}
+
+export async function updateNotificationPreferencesAction(
+  _prev: ActionResult | undefined,
+  formData: FormData,
+): Promise<ActionResult> {
+  const session = await requireAuth();
+  const current = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: {
+      emailVerifiedAt: true,
+      telegramChatId: true,
+      notifyByEmail: true,
+      notifyByTelegram: true,
+      notifyInApp: true,
+    },
+  });
+  if (!current) {
+    return { error: "Пользователь не найден." };
+  }
+
+  const notifyByEmail = parsePreferenceFlag(formData.get("notifyByEmail"));
+  const notifyByTelegram = parsePreferenceFlag(formData.get("notifyByTelegram"));
+  const notifyInApp = parsePreferenceFlag(formData.get("notifyInApp"));
+
+  if (
+    notifyByEmail === current.notifyByEmail &&
+    notifyByTelegram === current.notifyByTelegram &&
+    notifyInApp === current.notifyInApp
+  ) {
+    return { error: "Нет изменений для сохранения." };
+  }
+
+  if (notifyByEmail && !current.emailVerifiedAt) {
+    return { error: "Сначала подтвердите email." };
+  }
+
+  if (notifyByTelegram && current.telegramChatId == null) {
+    return { error: "Сначала привяжите Telegram." };
+  }
+
+  await prisma.user.update({
+    where: { id: session.id },
+    data: {
+      notifyByEmail: current.emailVerifiedAt ? notifyByEmail : false,
+      notifyByTelegram:
+        current.telegramChatId != null ? notifyByTelegram : false,
+      notifyInApp,
+    },
+  });
+
+  revalidatePath("/profile");
+  return { success: true };
 }
 
 export async function updateProfileAction(

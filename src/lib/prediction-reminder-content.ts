@@ -19,6 +19,14 @@ import { formatDateTimeMoscow, formatRelativeTime } from "@/lib/utils";
 import { NOTIFICATION_SIGNOFF } from "@/lib/notification-signoff";
 import { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
 import { joinTournamentNotificationBody } from "@/lib/tournament-notification-lead";
+import type { ReminderEmailSection } from "@/lib/reminders/reminder-email-section";
+import {
+  OPENING_H24_SIGNOFF,
+  OPENING_H24_TITLE,
+  OPENING_H24_WITHOUT_PREDICTION_TEXT,
+  OPENING_H24_WITH_PREDICTION_TEXT,
+  openingH24EmailSubject,
+} from "@/lib/reminders/opening-match-h24-content";
 
 export { PREDICTION_CTA_LABEL } from "@/lib/prediction-cta";
 
@@ -381,4 +389,175 @@ export function buildMissingPredictionReminderText(params: {
 export function predictionsLinkFromEnv(inviteCode: string): string {
   const origin = getAppOriginFromEnv().replace(/\/$/, "");
   return `${origin}${gamePath(inviteCode, "predictions")}`;
+}
+
+function combinedEmailSubject(sections: ReminderEmailSection[]): string {
+  if (sections.length === 1) {
+    const section = sections[0]!;
+    if (section.type === "prematch_missing" && section.matches.length === 1) {
+      const match = section.matches[0]!;
+      const timeLabel = match.timeLabel ?? "скоро";
+      return `FriendsBets: прогноз через ${timeLabel} — ${match.homeTeam} — ${match.awayTeam}`;
+    }
+    if (section.type === "match_started" && section.matches.length === 1) {
+      const match = section.matches[0]!;
+      return `FriendsBets: матч начался — ${match.homeTeam} — ${match.awayTeam}`;
+    }
+    if (section.type === "night_missing") {
+      return section.matches.length === 1
+        ? `FriendsBets: прогноз — ${section.matches[0]!.homeTeam.name} — ${section.matches[0]!.awayTeam.name}`
+        : `FriendsBets: прогноз — ${section.matches.length} предстоящих матча`;
+    }
+    if (section.type === "opening_h24") {
+      return openingH24EmailSubject(
+        section.homeTeam.name,
+        section.awayTeam.name,
+      );
+    }
+  }
+  return `FriendsBets: ${sections.length} уведомления`;
+}
+
+/** Одно письмо на получателя: несколько событий за один прогон cron. */
+export function buildCombinedReminderEmailContent(params: {
+  userName: string;
+  sections: ReminderEmailSection[];
+  origin?: string;
+}): { subject: string; text: string; html: string } {
+  const textParts: string[] = [`Привет, ${params.userName}!`, ""];
+  const htmlBlocks: string[] = [];
+  const ctas = new Map<string, string>();
+
+  for (const section of params.sections) {
+    const link = predictionsAbsoluteUrl(section.inviteCode, params.origin);
+    ctas.set(section.inviteCode, link);
+
+    if (section.type === "prematch_missing") {
+      textParts.push(`Турнир «${section.gameTitle}»`);
+      textParts.push("Вы ещё не сделали прогноз:");
+      for (const match of section.matches) {
+        const startsAt = match.startsAt ? new Date(match.startsAt) : null;
+        textParts.push(
+          `- ${match.homeTeam} — ${match.awayTeam}${
+            startsAt
+              ? ` (${formatDateTimeMoscow(startsAt)}${match.timeLabel ? `, через ${match.timeLabel}` : ""})`
+              : ""
+          }`,
+        );
+        htmlBlocks.push(
+          renderMatchCard({
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            gameTitle: section.gameTitle,
+            startsAtLabel: startsAt
+              ? formatDateTimeMoscow(startsAt)
+              : "скоро",
+            timeLabel: match.timeLabel ?? "скоро",
+          }),
+        );
+      }
+      textParts.push("", `${PREDICTION_CTA_LABEL}: ${link}`, "");
+    } else if (section.type === "match_started") {
+      textParts.push(`Турнир «${section.gameTitle}» — матч начался:`);
+      for (const match of section.matches) {
+        const detail =
+          match.predictedHome != null && match.predictedAway != null
+            ? `Ваш прогноз: ${match.predictedHome}:${match.predictedAway}`
+            : "Прогноз не сделан";
+        textParts.push(`- ${match.homeTeam} — ${match.awayTeam}. ${detail}`);
+        htmlBlocks.push(
+          `${renderMatchCard({
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            gameTitle: section.gameTitle,
+            startsAtLabel: "сейчас",
+          })}<p style="margin:14px 0 0;">${escapeHtml(detail)}</p>`,
+        );
+      }
+      textParts.push("", `${PREDICTION_CTA_LABEL}: ${link}`, "");
+    } else if (section.type === "night_missing") {
+      const nightBody = buildNightBatchInAppBody({
+        gameTitle: section.gameTitle,
+        matches: section.matches,
+      });
+      textParts.push(nightBody, "", `${PREDICTION_CTA_LABEL}: ${link}`, "");
+      for (const match of section.matches) {
+        htmlBlocks.push(
+          renderMatchCard({
+            homeTeam: match.homeTeam.name,
+            awayTeam: match.awayTeam.name,
+            gameTitle: section.gameTitle,
+            startsAtLabel: formatDateTimeMoscow(match.startsAt),
+            timeLabel: formatRelativeTime(match.startsAt),
+          }),
+        );
+      }
+    } else if (section.type === "opening_h24") {
+      const detail = section.hasPrediction
+        ? OPENING_H24_WITH_PREDICTION_TEXT
+        : OPENING_H24_WITHOUT_PREDICTION_TEXT;
+      textParts.push(
+        joinTournamentNotificationBody(section.gameTitle, [
+          "Завтра стартует турнир.",
+          detail,
+          "",
+          `Матч открытия: ${formatPredictionMatchLine(section.homeTeam, section.awayTeam)}`,
+          "",
+          OPENING_H24_SIGNOFF,
+        ]),
+        "",
+      );
+      if (!section.hasPrediction) {
+        textParts.push(`${PREDICTION_CTA_LABEL}: ${link}`, "");
+      }
+      htmlBlocks.push(
+        renderMatchCard({
+          homeTeam: section.homeTeam.name,
+          awayTeam: section.awayTeam.name,
+          gameTitle: section.gameTitle,
+          startsAtLabel: `Матч открытия · ${formatPredictionMatchLine(section.homeTeam, section.awayTeam)}`,
+          timeLabel: "24 часа до старта",
+        }),
+      );
+    }
+  }
+
+  textParts.push(NOTIFICATION_SIGNOFF);
+
+  const primaryCta =
+    ctas.size === 1
+      ? {
+          label: PREDICTION_CTA_LABEL,
+          href: [...ctas.values()][0]!,
+        }
+      : undefined;
+
+  const html = renderEmailLayout({
+    preheader: combinedEmailSubject(params.sections),
+    badge: "FriendsBets",
+    title:
+      params.sections.length === 1
+        ? params.sections[0]!.type === "match_started"
+          ? "Матч начался"
+          : params.sections[0]!.type === "opening_h24"
+            ? OPENING_H24_TITLE
+            : "Успейте поставить прогноз"
+        : "Сводка уведомлений",
+    introHtml: `
+      <p style="margin:0 0 14px;">Привет, <strong style="color:${EMAIL_BRAND.heading};font-weight:600;">${escapeHtml(params.userName)}</strong>!</p>
+      <p style="margin:0;">${
+        params.sections.length === 1
+          ? "Ниже — актуальные события по вашим турнирам."
+          : `За это время накопилось ${params.sections.length} событий.`
+      }</p>`,
+    blocksHtml: htmlBlocks.join(""),
+    cta: primaryCta,
+    footnote: "Письмо отправлено автоматически.",
+  });
+
+  return {
+    subject: combinedEmailSubject(params.sections),
+    text: textParts.join("\n"),
+    html,
+  };
 }

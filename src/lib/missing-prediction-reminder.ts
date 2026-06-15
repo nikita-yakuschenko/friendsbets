@@ -11,6 +11,11 @@ import { appendTelegramChannelFooter } from "@/lib/telegram/format";
 import { sendTelegramMessage } from "@/lib/telegram/api";
 import { isTelegramConfigured } from "@/lib/telegram/config";
 import { formatRelativeTime } from "@/lib/utils";
+import {
+  shouldNotifyByEmail,
+  shouldNotifyByTelegram,
+  shouldNotifyInApp,
+} from "@/lib/notification-preferences";
 
 export type MissingReminderChannel =
   | "telegram"
@@ -57,12 +62,22 @@ async function deliverToUser(params: {
   email: string;
   emailVerifiedAt: Date | null;
   telegramChatId: bigint | null;
+  notifyByEmail: boolean;
+  notifyByTelegram: boolean;
+  notifyInApp: boolean;
   channel: MissingReminderChannel;
   payload: ReminderPayload;
 }): Promise<{ inApp: boolean; email: boolean; telegram: boolean; skipped: boolean }> {
   const result = { inApp: false, email: false, telegram: false, skipped: false };
-  const linked = params.telegramChatId != null;
-  const verified = params.emailVerifiedAt != null;
+  const prefs = {
+    notifyByEmail: params.notifyByEmail,
+    notifyByTelegram: params.notifyByTelegram,
+    notifyInApp: params.notifyInApp,
+    emailVerifiedAt: params.emailVerifiedAt,
+    telegramChatId: params.telegramChatId,
+  };
+  const linked = shouldNotifyByTelegram(prefs);
+  const verified = shouldNotifyByEmail(prefs);
   const { payload } = params;
 
   if (params.channel === "telegram") {
@@ -79,8 +94,12 @@ async function deliverToUser(params: {
         console.error(`[missing-reminder:telegram:${params.userId}]`, error);
       }
     }
-    await createInAppNotification(params.userId, payload);
-    result.inApp = true;
+    if (shouldNotifyInApp(prefs)) {
+      await createInAppNotification(params.userId, payload);
+      result.inApp = true;
+    } else {
+      result.skipped = true;
+    }
     return result;
   }
 
@@ -105,8 +124,12 @@ async function deliverToUser(params: {
   }
 
   if (params.channel === "inApp") {
-    await createInAppNotification(params.userId, payload);
-    result.inApp = true;
+    if (shouldNotifyInApp(prefs)) {
+      await createInAppNotification(params.userId, payload);
+      result.inApp = true;
+    } else {
+      result.skipped = true;
+    }
     return result;
   }
 
@@ -137,8 +160,10 @@ async function deliverToUser(params: {
     }
   }
 
-  await createInAppNotification(params.userId, payload);
-  result.inApp = true;
+  if (shouldNotifyInApp(prefs)) {
+    await createInAppNotification(params.userId, payload);
+    result.inApp = true;
+  }
 
   if (!result.inApp && !result.email && !result.telegram) {
     result.skipped = true;
@@ -191,6 +216,9 @@ export async function sendMissingPredictionReminders(params: {
       email: true,
       emailVerifiedAt: true,
       telegramChatId: true,
+      notifyByEmail: true,
+      notifyByTelegram: true,
+      notifyInApp: true,
     },
   });
   const userById = new Map(users.map((u) => [u.id, u]));
@@ -254,6 +282,9 @@ export async function sendMissingPredictionReminders(params: {
       email: user.email,
       emailVerifiedAt: user.emailVerifiedAt,
       telegramChatId: user.telegramChatId,
+      notifyByEmail: user.notifyByEmail,
+      notifyByTelegram: user.notifyByTelegram,
+      notifyInApp: user.notifyInApp,
       channel: params.channel,
       payload,
     });

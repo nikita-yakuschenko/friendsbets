@@ -3,7 +3,6 @@ import {
   MatchStatus,
   PredictionReminderKind,
 } from "@/generated/prisma/client";
-import { sendEmail } from "@/lib/email";
 import { postTelegramChannelNews } from "@/lib/telegram/channel";
 import {
   buildChannelMatchReminderText,
@@ -13,12 +12,9 @@ import {
 } from "@/lib/telegram/reminder-messages";
 import { isTelegramConfigured } from "@/lib/telegram/config";
 import {
-  buildAdminMissingPredictionsEmail,
-  buildPredictionReminderEmail,
-} from "@/lib/email/templates";
-import {
   buildMatchStartedEmailContent,
   buildMatchStartedInAppBody,
+  buildMissingPredictionEmailContent,
   buildMissingPredictionInAppBody,
 } from "@/lib/prediction-reminder-content";
 import {
@@ -29,14 +25,13 @@ import {
   preMatchReminderEligibleStatusFilter,
 } from "@/lib/reminders/match-reminder-schedule";
 import { deliverMatchReminderToUser } from "@/lib/reminders/reminder-delivery";
-import { getAppOriginFromEnv } from "@/lib/app-origin";
-import { gamePath } from "@/lib/game-path";
+import { ReminderEmailBatch } from "@/lib/reminders/reminder-email-batch";
+import type { ReminderEmailSection } from "@/lib/reminders/reminder-email-section";
 import { logOperation, logOperationError, maskEmail } from "@/lib/logger";
 import { prisma } from "@/lib/db";
 import { isMatchPredictable } from "@/lib/football-api/match-visibility";
 import { sendNightBatchPredictionReminders } from "@/lib/reminders/night-match-reminders";
 import { sendOpeningMatchH24Reminders } from "@/lib/reminders/opening-match-h24-reminder";
-import { formatDateTime } from "@/lib/utils";
 
 /** @deprecated Используйте MATCH_REMINDER_SCHEDULE */
 export const REMINDER_SCHEDULE = MATCH_REMINDER_SCHEDULE;
@@ -69,6 +64,9 @@ type GameWithParticipants = {
       name: string;
       emailVerifiedAt: Date | null;
       telegramChatId: bigint | null;
+      notifyByEmail: boolean;
+      notifyByTelegram: boolean;
+      notifyInApp: boolean;
     };
   }>;
 };
@@ -109,6 +107,9 @@ const reminderMatchInclude = {
                   name: true,
                   emailVerifiedAt: true,
                   telegramChatId: true,
+                  notifyByEmail: true,
+                  notifyByTelegram: true,
+                  notifyInApp: true,
                 },
               },
             },
@@ -119,46 +120,6 @@ const reminderMatchInclude = {
   },
 } as const;
 
-function appOrigin(origin?: string): string {
-  return (origin ?? getAppOriginFromEnv()).replace(/\/$/, "");
-}
-
-function predictionsUrl(inviteCode: string, origin?: string): string {
-  return `${appOrigin(origin)}${gamePath(inviteCode, "predictions")}`;
-}
-
-function missingUrl(inviteCode: string, origin?: string): string {
-  return `${appOrigin(origin)}/admin/missing?game=${encodeURIComponent(inviteCode)}`;
-}
-
-export function getAdminRecipients(game: GameWithParticipants) {
-  const recipients = new Map<string, { email: string; name: string }>();
-
-  for (const participant of game.participants) {
-    if (
-      participant.role === GameParticipantRole.ORGANIZER &&
-      participant.user.emailVerifiedAt
-    ) {
-      recipients.set(participant.userId, {
-        email: participant.user.email,
-        name: participant.displayName,
-      });
-    }
-  }
-
-  if (
-    !recipients.has(game.createdById) &&
-    game.createdBy.emailVerifiedAt
-  ) {
-    recipients.set(game.createdById, {
-      email: game.createdBy.email,
-      name: game.createdBy.name,
-    });
-  }
-
-  return [...recipients.entries()].map(([userId, info]) => ({ userId, ...info }));
-}
-
 function reminderKey(
   gameId: string,
   matchId: string,
@@ -168,66 +129,15 @@ function reminderKey(
   return `${gameId}:${matchId}:${userId}:${kind}`;
 }
 
-function buildPreMatchReminderEmail(params: {
-  userName: string;
-  gameTitle: string;
-  gameInviteCode: string;
-  homeTeam: string;
-  awayTeam: string;
-  startsAt: Date;
-  timeLabel: string;
-}) {
-  const link = predictionsUrl(params.gameInviteCode);
-  const subject = `FriendsBets: прогноз через ${params.timeLabel} — ${params.homeTeam} — ${params.awayTeam}`;
-  const { text, html } = buildPredictionReminderEmail({
-    userName: params.userName,
-    homeTeam: params.homeTeam,
-    awayTeam: params.awayTeam,
-    gameTitle: params.gameTitle,
-    startsAtLabel: formatDateTime(params.startsAt),
-    timeLabel: params.timeLabel,
-    link,
-  });
-
-  return { subject, text, html };
-}
-
-async function sendAdminMissingListEmail(params: {
-  to: string;
-  adminName: string;
-  gameTitle: string;
-  gameInviteCode: string;
-  homeTeam: string;
-  awayTeam: string;
-  startsAt: Date;
-  timeLabel: string;
-  missingNames: string[];
-}) {
-  const link = missingUrl(params.gameInviteCode);
-  const subject = `FriendsBets: кто не поставил (через ${params.timeLabel}) — ${params.homeTeam} — ${params.awayTeam}`;
-  const { text, html } = buildAdminMissingPredictionsEmail({
-    adminName: params.adminName,
-    homeTeam: params.homeTeam,
-    awayTeam: params.awayTeam,
-    gameTitle: params.gameTitle,
-    startsAtLabel: formatDateTime(params.startsAt),
-    timeLabel: params.timeLabel,
-    missingNames: params.missingNames,
-    link,
-  });
-
-  await sendEmail({ to: params.to, subject, text, html });
-}
-
 async function processReminderBatch(params: {
   matches: ReminderMatchRow[];
   kind: PredictionReminderKind;
-  adminKind: PredictionReminderKind;
   label: string;
   matchStarted: boolean;
   result: ReminderRunResult;
+  emailBatch: ReminderEmailBatch;
 }) {
-  const { matches, kind, adminKind, label, matchStarted, result } = params;
+  const { matches, kind, label, matchStarted, result, emailBatch } = params;
   const telegramEnabled = isTelegramConfigured();
   if (matches.length === 0) return;
 
@@ -262,7 +172,7 @@ async function processReminderBatch(params: {
     where: {
       gameId: { in: [...gameIds] },
       matchId: { in: [...matchIds] },
-      kind: { in: [kind, adminKind] },
+      kind,
     },
     select: { gameId: true, matchId: true, userId: true, kind: true },
   });
@@ -335,6 +245,7 @@ async function processReminderBatch(params: {
         let emailSubject: string;
         let emailText: string;
         let emailHtml: string;
+        let emailSection: ReminderEmailSection;
 
         if (matchStarted) {
           title = `Матч начался: ${matchTitle}`;
@@ -365,6 +276,19 @@ async function processReminderBatch(params: {
           emailSubject = `FriendsBets: матч начался — ${matchTitle}`;
           emailText = emailContent.text;
           emailHtml = emailContent.html;
+          emailSection = {
+            type: "match_started",
+            gameTitle: game.title,
+            inviteCode: game.inviteCode,
+            matches: [
+              {
+                homeTeam: match.homeTeam.name,
+                awayTeam: match.awayTeam.name,
+                predictedHome: prediction?.homeScore ?? null,
+                predictedAway: prediction?.awayScore ?? null,
+              },
+            ],
+          };
         } else {
           title = `Прогноз: ${matchTitle}`;
           inAppBody = buildMissingPredictionInAppBody({
@@ -381,32 +305,51 @@ async function processReminderBatch(params: {
             timeLabel: label,
             inviteCode: game.inviteCode,
           });
-          const emailContent = buildPreMatchReminderEmail({
+          const emailContent = buildMissingPredictionEmailContent({
             userName: participant.displayName,
-            gameTitle: game.title,
-            gameInviteCode: game.inviteCode,
             homeTeam: match.homeTeam.name,
             awayTeam: match.awayTeam.name,
+            gameTitle: game.title,
             startsAt: match.startsAt,
+            inviteCode: game.inviteCode,
             timeLabel: label,
           });
-          emailSubject = emailContent.subject;
+          emailSubject = `FriendsBets: прогноз через ${label} — ${matchTitle}`;
           emailText = emailContent.text;
           emailHtml = emailContent.html;
+          emailSection = {
+            type: "prematch_missing",
+            gameTitle: game.title,
+            inviteCode: game.inviteCode,
+            matches: [
+              {
+                homeTeam: match.homeTeam.name,
+                awayTeam: match.awayTeam.name,
+                startsAt: match.startsAt,
+                timeLabel: label,
+              },
+            ],
+          };
         }
 
         try {
           const delivered = await deliverMatchReminderToUser({
             userId: participant.userId,
+            userName: participant.displayName,
             email: participant.user.email,
             emailVerifiedAt: participant.user.emailVerifiedAt,
             telegramChatId: participant.user.telegramChatId,
+            notifyByEmail: participant.user.notifyByEmail,
+            notifyByTelegram: participant.user.notifyByTelegram,
+            notifyInApp: participant.user.notifyInApp,
             title,
             inAppBody,
             inviteCode: game.inviteCode,
             emailSubject,
             emailText,
             emailHtml,
+            emailSection,
+            emailBatch,
             telegramHtml,
             logTag: "reminders:participant",
           });
@@ -431,53 +374,6 @@ async function processReminderBatch(params: {
             gameId: game.id,
             matchId: match.id,
             email: maskEmail(participant.user.email),
-          });
-          result.errors++;
-        }
-      }
-
-      if (missingParticipants.length === 0) continue;
-
-      const missingNames = missingParticipants.map((p) => p.displayName);
-      const adminRecipients = getAdminRecipients(game);
-
-      for (const admin of adminRecipients) {
-        result.checked++;
-        const key = reminderKey(game.id, match.id, admin.userId, adminKind);
-
-        if (alreadySent.has(key)) {
-          result.skipped++;
-          continue;
-        }
-
-        try {
-          await sendAdminMissingListEmail({
-            to: admin.email,
-            adminName: admin.name,
-            gameTitle: game.title,
-            gameInviteCode: game.inviteCode,
-            homeTeam: match.homeTeam.name,
-            awayTeam: match.awayTeam.name,
-            startsAt: match.startsAt,
-            timeLabel: label,
-            missingNames,
-          });
-
-          await prisma.predictionReminder.create({
-            data: {
-              gameId: game.id,
-              matchId: match.id,
-              userId: admin.userId,
-              kind: adminKind,
-            },
-          });
-          alreadySent.add(key);
-          result.sent++;
-        } catch (error) {
-          logOperationError("reminders:admin", error, {
-            gameId: game.id,
-            matchId: match.id,
-            email: maskEmail(admin.email),
           });
           result.errors++;
         }
@@ -511,14 +407,19 @@ export async function sendLiveRemindersForMatch(
   if (!match || !isMatchPredictable(match)) return result;
   if (!isMatchReminderDue(now, match.startsAt, liveSlot)) return result;
 
+  const emailBatch = new ReminderEmailBatch();
   await processReminderBatch({
     matches: [match as ReminderMatchRow],
     kind: liveSlot.kind,
-    adminKind: liveSlot.adminKind,
     label: liveSlot.label,
     matchStarted: true,
     result,
+    emailBatch,
   });
+  const emailResult = await emailBatch.flush();
+  if (emailResult.errors > 0) {
+    result.errors += emailResult.errors;
+  }
 
   return result;
 }
@@ -559,6 +460,8 @@ export async function sendDuePredictionReminders(
     isMatchPredictable,
   ) as ReminderMatchRow[];
 
+  const emailBatch = new ReminderEmailBatch();
+
   for (const slot of MATCH_REMINDER_SCHEDULE) {
     const pool = slot.matchStarted ? predictableLive : predictablePreMatch;
     const matches = pool.filter((match) =>
@@ -568,24 +471,29 @@ export async function sendDuePredictionReminders(
     await processReminderBatch({
       matches,
       kind: slot.kind,
-      adminKind: slot.adminKind,
       label: slot.label,
       matchStarted: slot.matchStarted,
       result,
+      emailBatch,
     });
   }
 
-  const nightResult = await sendNightBatchPredictionReminders(now);
+  const nightResult = await sendNightBatchPredictionReminders(now, emailBatch);
   result.checked += nightResult.checked;
   result.sent += nightResult.sent;
   result.skipped += nightResult.skipped;
   result.errors += nightResult.errors;
 
-  const openingH24Result = await sendOpeningMatchH24Reminders(now);
+  const openingH24Result = await sendOpeningMatchH24Reminders(now, emailBatch);
   result.checked += openingH24Result.checked;
   result.sent += openingH24Result.sent;
   result.skipped += openingH24Result.skipped;
   result.errors += openingH24Result.errors;
+
+  const emailResult = await emailBatch.flush();
+  if (emailResult.errors > 0) {
+    result.errors += emailResult.errors;
+  }
 
   logOperation("reminders:run", {
     durationMs: Date.now() - started,

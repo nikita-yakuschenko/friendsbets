@@ -9,8 +9,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
 import { TelegramLinkSection } from "@/components/profile/telegram-link-section";
+import { NotificationPreferencesSection } from "@/components/profile/notification-preferences-section";
 import { getProfileForUser } from "@/server/actions/profile";
 import { getTelegramLinkStatusForUser } from "@/server/actions/telegram";
+import { isTelegramConfigured } from "@/lib/telegram/config";
 
 export default async function ProfilePage() {
   const session = await getSession();
@@ -38,6 +40,16 @@ export default async function ProfilePage() {
               }}
             />
           </div>
+          <NotificationPreferencesSection
+            preferences={{
+              notifyByEmail: profile.notifyByEmail,
+              notifyByTelegram: profile.notifyByTelegram,
+              notifyInApp: profile.notifyInApp,
+              emailVerified: profile.emailVerifiedAt != null,
+              telegramLinked: telegramStatus.linked,
+              telegramConfigured: isTelegramConfigured(),
+            }}
+          />
           <TelegramLinkSection status={telegramStatus} />
         </div>
       </ContentContainer>

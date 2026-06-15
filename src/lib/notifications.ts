@@ -12,6 +12,7 @@ import type {
   UserNotificationKindValue,
 } from "@/lib/notification-types";
 import { prisma } from "@/lib/db";
+import { shouldNotifyInApp, shouldNotifyByTelegram } from "@/lib/notification-preferences";
 import {
   pushTelegramToUser,
   pushTelegramToUsers,
@@ -138,13 +139,29 @@ export async function notifyOrganizersOfJoinRequest(
   const organizerIds = await getGameOrganizerUserIds(gameId);
   if (organizerIds.length === 0) return;
 
-  await prisma.userNotification.createMany({
-    data: organizerIds.map((userId) => ({
-      userId,
-      kind: UserNotificationKind.JOIN_REQUEST_RECEIVED,
-      joinRequestId,
-    })),
+  const organizers = await prisma.user.findMany({
+    where: { id: { in: organizerIds } },
+    select: {
+      id: true,
+      notifyInApp: true,
+      notifyByTelegram: true,
+      telegramChatId: true,
+    },
   });
+
+  const inAppIds = organizers
+    .filter((organizer) => shouldNotifyInApp(organizer))
+    .map((organizer) => organizer.id);
+
+  if (inAppIds.length > 0) {
+    await prisma.userNotification.createMany({
+      data: inAppIds.map((userId) => ({
+        userId,
+        kind: UserNotificationKind.JOIN_REQUEST_RECEIVED,
+        joinRequestId,
+      })),
+    });
+  }
 
   const details = await prisma.gameJoinRequest.findUnique({
     where: { id: joinRequestId },
@@ -156,7 +173,10 @@ export async function notifyOrganizersOfJoinRequest(
 
   if (details) {
     const text = `${details.user.name} хочет вступить в «${details.game.title}»`;
-    pushTelegramToUsers(organizerIds, text);
+    const telegramIds = organizers
+      .filter((organizer) => shouldNotifyByTelegram(organizer))
+      .map((organizer) => organizer.id);
+    pushTelegramToUsers(telegramIds, text);
   }
 }
 
@@ -169,13 +189,20 @@ export async function notifyJoinRequestApproved(
     include: { game: { select: { title: true } } },
   });
 
-  await prisma.userNotification.create({
-    data: {
-      userId,
-      kind: UserNotificationKind.JOIN_REQUEST_APPROVED,
-      joinRequestId,
-    },
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { notifyInApp: true },
   });
+
+  if (user && shouldNotifyInApp(user)) {
+    await prisma.userNotification.create({
+      data: {
+        userId,
+        kind: UserNotificationKind.JOIN_REQUEST_APPROVED,
+        joinRequestId,
+      },
+    });
+  }
 
   if (row) {
     pushTelegramToUser(userId, `Вас приняли в турнир «${row.game.title}»`);
@@ -191,13 +218,20 @@ export async function notifyJoinRequestRejected(
     include: { game: { select: { title: true } } },
   });
 
-  await prisma.userNotification.create({
-    data: {
-      userId,
-      kind: UserNotificationKind.JOIN_REQUEST_REJECTED,
-      joinRequestId,
-    },
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { notifyInApp: true },
   });
+
+  if (user && shouldNotifyInApp(user)) {
+    await prisma.userNotification.create({
+      data: {
+        userId,
+        kind: UserNotificationKind.JOIN_REQUEST_REJECTED,
+        joinRequestId,
+      },
+    });
+  }
 
   if (row) {
     pushTelegramToUser(

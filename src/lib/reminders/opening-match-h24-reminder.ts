@@ -18,6 +18,7 @@ import {
 import { preMatchReminderEligibleStatusFilter } from "@/lib/reminders/match-reminder-schedule";
 import type { ReminderRunResult } from "@/lib/reminders/prediction-reminders";
 import { deliverMatchReminderToUser } from "@/lib/reminders/reminder-delivery";
+import type { ReminderEmailBatch } from "@/lib/reminders/reminder-email-batch";
 import { findOpeningMatchForTournament } from "@/lib/tournament-opening-reminder";
 
 export {
@@ -41,6 +42,9 @@ type OpeningH24Game = {
       name: string;
       emailVerifiedAt: Date | null;
       telegramChatId: bigint | null;
+      notifyByEmail: boolean;
+      notifyByTelegram: boolean;
+      notifyInApp: boolean;
     };
   }>;
 };
@@ -124,6 +128,9 @@ async function loadOpeningMatchesDueH24(
                 name: true,
                 emailVerifiedAt: true,
                 telegramChatId: true,
+                notifyByEmail: true,
+                notifyByTelegram: true,
+                notifyInApp: true,
               },
             },
           },
@@ -184,6 +191,7 @@ export async function getNearestOpeningH24FireAt(
 /** Стартовое уведомление: 22:35 МСК в канун дня матча открытия. */
 export async function sendOpeningMatchH24Reminders(
   now = new Date(),
+  emailBatch?: ReminderEmailBatch,
 ): Promise<ReminderRunResult> {
   const result: ReminderRunResult = {
     checked: 0,
@@ -253,9 +261,13 @@ export async function sendOpeningMatchH24Reminders(
         try {
           const delivered = await deliverMatchReminderToUser({
             userId: participant.userId,
+            userName: displayName,
             email: participant.user.email,
             emailVerifiedAt: participant.user.emailVerifiedAt,
             telegramChatId: participant.user.telegramChatId,
+            notifyByEmail: participant.user.notifyByEmail,
+            notifyByTelegram: participant.user.notifyByTelegram,
+            notifyInApp: participant.user.notifyInApp,
             title: OPENING_H24_TITLE,
             inAppBody,
             inviteCode: game.inviteCode,
@@ -265,6 +277,16 @@ export async function sendOpeningMatchH24Reminders(
             ),
             emailText: emailContent.text,
             emailHtml: emailContent.html,
+            emailSection: {
+              type: "opening_h24",
+              gameTitle: game.title,
+              inviteCode: game.inviteCode,
+              homeTeam: match.homeTeam,
+              awayTeam: match.awayTeam,
+              startsAt: match.startsAt,
+              hasPrediction,
+            },
+            emailBatch,
             telegramHtml,
             logTag: "reminders:opening-h24",
           });
