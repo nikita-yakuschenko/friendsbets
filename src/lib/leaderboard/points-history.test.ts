@@ -118,6 +118,61 @@ describe("buildPointsHistoryEntries", () => {
     expect(entries[0]?.points).toBe(1);
   });
 
+  it("сортирует по времени матча, а не по calculatedAt пересчёта", () => {
+    const entries = buildPointsHistoryEntries({
+      predictions: [
+        {
+          id: "p-old",
+          homeScore: 1,
+          awayScore: 0,
+          scores: [
+            {
+              id: "s-old",
+              points: 3,
+              reason: "Точный счёт",
+              calculatedAt: new Date("2026-06-20T12:00:00Z"),
+            },
+          ],
+          match: {
+            stage: "Группа A",
+            startsAt: new Date("2026-06-10T18:00:00Z"),
+            championatFinishedAt: new Date("2026-06-10T20:00:00Z"),
+            homeScore: 1,
+            awayScore: 0,
+            homeTeam: { name: "A", countryCode: null },
+            awayTeam: { name: "B", countryCode: null },
+          },
+        },
+        {
+          id: "p-new",
+          homeScore: 2,
+          awayScore: 1,
+          scores: [
+            {
+              id: "s-new",
+              points: 3,
+              reason: "Точный счёт",
+              calculatedAt: new Date("2026-06-11T00:00:00Z"),
+            },
+          ],
+          match: {
+            stage: "Группа B",
+            startsAt: new Date("2026-06-15T18:00:00Z"),
+            championatFinishedAt: null,
+            homeScore: 2,
+            awayScore: 1,
+            homeTeam: { name: "C", countryCode: null },
+            awayTeam: { name: "D", countryCode: null },
+          },
+        },
+      ],
+      championPick: null,
+      championAwardedAt: null,
+    });
+
+    expect(entries.map((e) => e.id)).toEqual(["s-new", "s-old"]);
+  });
+
   it("пропускает нулевые начисления", () => {
     const entries = buildPointsHistoryEntries({
       predictions: [

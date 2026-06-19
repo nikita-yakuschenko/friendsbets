@@ -17,7 +17,6 @@ import {
   type PredictionsFilterId,
 } from "@/lib/predictions-match-filter";
 import {
-  buildPredictionStageGroups,
   partitionAllPredictionItems,
   partitionUpcomingPredictionItems,
   sortFinishedPredictionItems,
@@ -53,13 +52,15 @@ function ChronologicalPredictionsSection({
   gameId,
   liveHrefFor,
   sectionSuffix,
+  sortItems = sortUpcomingPredictionsBySchedule,
 }: {
   items: PredictionMatchItem[];
   gameId: string;
   liveHrefFor: (matchId: string) => string;
   sectionSuffix?: string;
+  sortItems?: (items: PredictionMatchItem[]) => PredictionMatchItem[];
 }) {
-  const sorted = sortUpcomingPredictionsBySchedule(items);
+  const sorted = sortItems(items);
   if (sorted.length === 0) return null;
 
   return (
@@ -154,21 +155,18 @@ export default async function PredictionsPage({
     postponedOnlyItems = sortPostponedPredictionItems(filteredItems);
   }
 
-  const finishedStageGroups =
-    activeFilter === "all" || activeFilter === "finished"
-      ? buildPredictionStageGroups(finishedOnlyItems, "finished")
-      : [];
-
   const showUpcomingSection =
     activeFilter === "upcoming" || activeFilter === "all";
   const showPostponedSection =
     activeFilter === "postponed" || activeFilter === "all";
+  const showFinishedSection =
+    activeFilter === "all" || activeFilter === "finished";
 
   const hasListContent =
     inProgressItems.length > 0 ||
     (showUpcomingSection && upcomingOnlyItems.length > 0) ||
     (showPostponedSection && postponedOnlyItems.length > 0) ||
-    finishedStageGroups.length > 0;
+    (showFinishedSection && finishedOnlyItems.length > 0);
 
   return (
     <ContentContainer>
@@ -247,35 +245,14 @@ export default async function PredictionsPage({
               sectionSuffix="перенесённые"
             />
           ) : null}
-          {finishedStageGroups.map((group) => (
-            <section key={`finished-${group.id}`} className="min-w-0 space-y-4">
-              <h2 className="text-sm font-medium uppercase tracking-wide text-brand-muted">
-                {group.stage}
-              </h2>
-              <div className="min-w-0 space-y-4">
-                {group.items.map((item) => (
-                  <MatchPredictionCard
-                    key={item.match.id}
-                    gameId={data.game.id}
-                    match={item.match}
-                    canPredict={item.canPredict}
-                    prediction={item.prediction}
-                    locked={item.locked}
-                    postponed={item.postponed}
-                    inProgress={item.inProgress}
-                    staleAwaitingResult={item.staleAwaitingResult}
-                    liveHref={
-                    item.inProgress
-                      ? liveHrefFor(item.match.id)
-                      : undefined
-                  }
-                    points={item.points}
-                    scoreReason={item.scoreReason}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+          {showFinishedSection && finishedOnlyItems.length > 0 ? (
+            <ChronologicalPredictionsSection
+              items={finishedOnlyItems}
+              gameId={data.game.id}
+              liveHrefFor={liveHrefFor}
+              sortItems={sortFinishedPredictionItems}
+            />
+          ) : null}
         </div>
       )}
     </ContentContainer>

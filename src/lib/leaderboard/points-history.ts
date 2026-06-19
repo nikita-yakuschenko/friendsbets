@@ -44,6 +44,7 @@ type PredictionWithScore = {
   match: {
     stage: string | null;
     startsAt: Date;
+    championatFinishedAt?: Date | null;
     homeScore: number | null;
     awayScore: number | null;
     homeTeam: { name: string; countryCode: string | null };
@@ -62,6 +63,14 @@ type FinishedKnockoutMatch = {
   championatFinishedAt: Date | null;
   startsAt: Date;
 };
+
+/** Момент матча для истории очков — не calculatedAt (ломается при пересчёте). */
+export function matchPointsEventAt(match: {
+  championatFinishedAt?: Date | null;
+  startsAt: Date;
+}): Date {
+  return match.championatFinishedAt ?? match.startsAt;
+}
 
 export function buildPointsHistoryEntries(params: {
   predictions: PredictionWithScore[];
@@ -85,7 +94,7 @@ export function buildPointsHistoryEntries(params: {
         kind: "match",
         points: score.points,
         reason: score.reason,
-        awardedAt: score.calculatedAt,
+        awardedAt: matchPointsEventAt(prediction.match),
         stage: prediction.match.stage,
         startsAt: prediction.match.startsAt,
         homeTeam: prediction.match.homeTeam,

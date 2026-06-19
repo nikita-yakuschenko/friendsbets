@@ -143,6 +143,45 @@ describe("predictions list sorting", () => {
     ]);
   });
 
+  it("группирует завершённые по хронологии (свежее выше), а не целиком по туру", () => {
+    const groups = buildPredictionStageGroups(
+      [
+        item({
+          id: "mex-kor",
+          stage: "Группа A - Тур 2",
+          status: MatchStatus.FINISHED,
+          startsAt: new Date("2026-06-19T01:00:00Z"),
+        }),
+        item({
+          id: "cze-rsa",
+          stage: "Группа F - Тур 2",
+          status: MatchStatus.FINISHED,
+          startsAt: new Date("2026-06-18T16:00:00Z"),
+        }),
+        item({
+          id: "can-qat",
+          stage: "Группа B - Тур 2",
+          status: MatchStatus.FINISHED,
+          startsAt: new Date("2026-06-18T22:00:00Z"),
+        }),
+        item({
+          id: "sui-bih",
+          stage: "Группа B - Тур 2",
+          status: MatchStatus.FINISHED,
+          startsAt: new Date("2026-06-18T19:00:00Z"),
+        }),
+      ],
+      "finished",
+    );
+
+    expect(groups.flatMap((g) => g.items.map((i) => i.match.id))).toEqual([
+      "mex-kor",
+      "can-qat",
+      "sui-bih",
+      "cze-rsa",
+    ]);
+  });
+
   it("определяет завершённый через stale", () => {
     expect(
       isFinishedPredictionItem(

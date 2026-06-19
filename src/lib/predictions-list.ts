@@ -152,8 +152,11 @@ export function sortPredictionItemsForFilter(
 
 function buildChronologicalStageGroups(
   items: PredictionMatchItem[],
+  mode: PredictionStageGroupSortMode = "upcoming",
 ): { id: string; stage: string; items: PredictionMatchItem[] }[] {
-  const sorted = [...items].sort(byKickoffAsc);
+  const sorted = [...items].sort(
+    mode === "finished" ? byFinishedDesc : byKickoffAsc,
+  );
   const groups: { id: string; stage: string; items: PredictionMatchItem[] }[] =
     [];
 
@@ -181,39 +184,5 @@ export function buildPredictionStageGroups(
   items: PredictionMatchItem[],
   mode: PredictionStageGroupSortMode = "upcoming",
 ) {
-  if (mode === "upcoming") {
-    return buildChronologicalStageGroups(items);
-  }
-
-  const byStage = new Map<string, PredictionMatchItem[]>();
-  for (const item of items) {
-    const stage = item.match.stage?.trim() || "Матч";
-    const bucket = byStage.get(stage);
-    if (bucket) bucket.push(item);
-    else byStage.set(stage, [item]);
-  }
-
-  const itemCmp =
-    mode === "finished" ? byFinishedDesc : byKickoffAsc;
-  const groupSortKey = (groupItems: PredictionMatchItem[]) =>
-    mode === "finished"
-      ? Math.max(...groupItems.map(predictionMatchFinishedSortAt))
-      : Math.min(
-          ...groupItems.map((i) => new Date(i.match.startsAt).getTime()),
-        );
-
-  return [...byStage.entries()]
-    .map(([stage, groupItems]) => {
-      const sorted = [...groupItems].sort(itemCmp);
-      return {
-        id: sorted[0]!.match.id,
-        stage,
-        items: sorted,
-        sortAt: groupSortKey(sorted),
-      };
-    })
-    .sort((a, b) =>
-      mode === "finished" ? b.sortAt - a.sortAt : a.sortAt - b.sortAt,
-    )
-    .map(({ id, stage, items: groupItems }) => ({ id, stage, items: groupItems }));
+  return buildChronologicalStageGroups(items, mode);
 }
