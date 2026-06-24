@@ -48,10 +48,10 @@ export default async function LiveMatchPage({
       : [item];
   const initialEventsByMatchId = new Map(
     await Promise.all(
-      liveItems.map(async (liveItem) => [
-        liveItem.match.id,
-        await loadChampionatMatchEventsFromDb(liveItem.match.id),
-      ]),
+      liveItems.map(async (liveItem) => {
+        const events = await loadChampionatMatchEventsFromDb(liveItem.match.id);
+        return [liveItem.match.id, events] as const;
+      }),
     ),
   );
   const showBackToList = allLive.length > 1;
