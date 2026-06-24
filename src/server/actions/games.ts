@@ -3,7 +3,6 @@
 import { MatchStatus } from "@/generated/prisma/client";
 import { requireAuth } from "@/lib/auth";
 import {
-  assertGameParticipant,
   canManageGame,
   isGameOrganizer,
   isGameParticipant,
@@ -13,7 +12,7 @@ import {
 import { isSuperadmin } from "@/lib/roles";
 import { prisma } from "@/lib/db";
 import {
-  findNextNotStartedMatch,
+  findNextNotStartedMatches,
   isMatchPredictable,
 } from "@/lib/football-api/match-visibility";
 import { syncChampionBetPoints } from "@/lib/champion-bet";
@@ -164,10 +163,25 @@ export async function getGameOverview(routeParam: string, userId: string) {
         match.startsAt.getTime() > now.getTime(),
     )
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
-  const nextMatch = findNextNotStartedMatch(predictableMatches, now) ?? null;
+  const nextMatches = findNextNotStartedMatches(predictableMatches, now);
+  const nextMatch = nextMatches[0] ?? null;
   const nextMatchPrediction = nextMatch
     ? (myPredictions.find((prediction) => prediction.matchId === nextMatch.id) ?? null)
     : null;
+  const nextMatchItems = nextMatches.map((match) => {
+    const prediction =
+      myPredictions.find((row) => row.matchId === match.id) ?? null;
+    return {
+      match,
+      hasPrediction: Boolean(prediction),
+      prediction: prediction
+        ? {
+            homeScore: prediction.homeScore,
+            awayScore: prediction.awayScore,
+          }
+        : null,
+    };
+  });
 
   const missingPredictionsCount = upcomingMatches.filter(
     (match) => !myPredictions.some((prediction) => prediction.matchId === match.id),
@@ -181,6 +195,7 @@ export async function getGameOverview(routeParam: string, userId: string) {
     leader,
     isLeader: leader?.userId === userId,
     nextMatch,
+    nextMatches: nextMatchItems,
     nextMatchHasPrediction: Boolean(nextMatchPrediction),
     nextMatchPrediction: nextMatchPrediction
       ? {

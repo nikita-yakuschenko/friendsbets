@@ -1,6 +1,5 @@
 import { notFound, redirect } from "next/navigation";
 import { GameOversightBanner } from "@/components/game/game-oversight-banner";
-import { LiveMatchCard } from "@/components/game/live-match-card";
 import { LiveMatchPickerList } from "@/components/game/live-match-picker-list";
 import { NextMatchEmpty, NextMatchPreview } from "@/components/game/next-match-preview";
 import { PlatformOversightBackButton } from "@/components/game/platform-oversight-back-button";
@@ -59,6 +58,7 @@ export default async function LivePage({
   const {
     game,
     nextMatch,
+    nextMatches,
     nextMatchHasPrediction,
     nextMatchPrediction,
   } = overview;
@@ -71,7 +71,21 @@ export default async function LivePage({
         <LiveMatchPickerList inviteCode={game.inviteCode} items={items} />
       ) : (
         <div className="mb-4">
-          {nextMatch ? (
+          {nextMatches.length > 0 ? (
+            <div className="space-y-4">
+              {nextMatches.map((item, index) => (
+                <NextMatchPreview
+                  key={item.match.id}
+                  match={item.match}
+                  hasPrediction={item.hasPrediction}
+                  prediction={item.prediction}
+                  predictionsHref={gamePath(game.inviteCode, "predictions")}
+                  showCountdown
+                  heading={index === 0 ? "Ближайшие матчи" : null}
+                />
+              ))}
+            </div>
+          ) : nextMatch ? (
             <NextMatchPreview
               match={nextMatch}
               hasPrediction={nextMatchHasPrediction}

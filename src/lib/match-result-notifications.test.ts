@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MatchStatus,
-  PredictionReminderKind,
   UserNotificationKind,
 } from "@/generated/prisma/client";
 

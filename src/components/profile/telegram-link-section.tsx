@@ -46,7 +46,9 @@ export function TelegramLinkSection({
   const badgeText = telegramStatusBadgeText(status);
 
   useEffect(() => {
-    if (linked) setPendingDeepLink(null);
+    if (!linked) return;
+    const id = window.setTimeout(() => setPendingDeepLink(null), 0);
+    return () => window.clearTimeout(id);
   }, [linked]);
 
   function handleLink() {

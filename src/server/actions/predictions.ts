@@ -24,7 +24,49 @@ import {
   pickCanonicalPredictionScore,
   sumPredictionScorePoints,
 } from "@/lib/scoring/prediction-score-record";
+import { persistMatchPredictionScores } from "@/lib/scoring/recalculate-match-scores";
 import type { ActionResult } from "@/server/actions/auth";
+
+async function repairMissingPredictionScores(params: {
+  gameId: string;
+  matches: Array<{
+    id: string;
+    status: MatchStatus | string;
+    homeScore: number | null;
+    awayScore: number | null;
+  }>;
+  predictions: Array<{
+    matchId: string;
+    scores: unknown[];
+  }>;
+}): Promise<boolean> {
+  const finishedMatchIds = new Set(
+    params.matches
+      .filter(
+        (match) =>
+          match.status === MatchStatus.FINISHED &&
+          match.homeScore !== null &&
+          match.awayScore !== null,
+      )
+      .map((match) => match.id),
+  );
+
+  const matchIdsToRepair = new Set(
+    params.predictions
+      .filter(
+        (prediction) =>
+          finishedMatchIds.has(prediction.matchId) &&
+          prediction.scores.length === 0,
+      )
+      .map((prediction) => prediction.matchId),
+  );
+
+  for (const matchId of matchIdsToRepair) {
+    await persistMatchPredictionScores(params.gameId, matchId);
+  }
+
+  return matchIdsToRepair.size > 0;
+}
 
 export async function savePredictionAction(
   _prev: ActionResult | undefined,
@@ -146,10 +188,22 @@ export async function getPredictionsPageData(routeParam: string, userId: string)
     orderBy: { startsAt: "asc" },
   });
 
-  const predictions = await prisma.prediction.findMany({
+  let predictions = await prisma.prediction.findMany({
     where: { gameId, userId },
     include: { scores: true },
   });
+
+  const repaired = await repairMissingPredictionScores({
+    gameId,
+    matches,
+    predictions,
+  });
+  if (repaired) {
+    predictions = await prisma.prediction.findMany({
+      where: { gameId, userId },
+      include: { scores: true },
+    });
+  }
 
   const predictionMap = new Map(predictions.map((p) => [p.matchId, p]));
 
@@ -236,7 +290,7 @@ export async function getMatchPredictionsSummary(
   const resultPending =
     match.status !== MatchStatus.FINISHED || !hasOfficialScore;
 
-  const [participants, predictions] = await Promise.all([
+  const [participants, initialPredictions] = await Promise.all([
     prisma.gameParticipant.findMany({
       where: { gameId },
       select: { userId: true, displayName: true },
@@ -246,6 +300,21 @@ export async function getMatchPredictionsSummary(
       include: { scores: true },
     }),
   ]);
+  let predictions = initialPredictions;
+
+  if (
+    !resultPending &&
+    (await repairMissingPredictionScores({
+      gameId,
+      matches: [{ id: matchId, ...match }],
+      predictions,
+    }))
+  ) {
+    predictions = await prisma.prediction.findMany({
+      where: { gameId, matchId },
+      include: { scores: true },
+    });
+  }
 
   const predictionByUserId = new Map(
     predictions.map((prediction) => [prediction.userId, prediction]),

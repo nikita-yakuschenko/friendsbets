@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MatchStatus, PredictionReminderKind } from "@/generated/prisma/client";
-
 const sendEmailMock = vi.fn().mockResolvedValue(undefined);
 const sendTelegramMock = vi.fn().mockResolvedValue(undefined);
 const createNotificationMock = vi.fn().mockResolvedValue(undefined);

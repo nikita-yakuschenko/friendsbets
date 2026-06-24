@@ -6,7 +6,6 @@ import { getAppOriginFromEnv } from "@/lib/app-origin";
 import { requireAuth } from "@/lib/auth";
 import {
   canManageGame,
-  isGameOrganizer,
   revalidateGamePaths,
   resolveGameIdFromRoute,
 } from "@/lib/game-access";
@@ -21,7 +20,6 @@ import {
   listAdminPlatformMatches,
   listTemplateTournamentIdsForRecalc,
   recalculateAllScoresForTournament,
-  recalculateMatchScoresForTournament,
 } from "@/lib/template-match-admin";
 import { parseChampionatTournamentUrl } from "@/lib/championat-url";
 import { getChampionatSyncConfig } from "@/lib/football-api/client";

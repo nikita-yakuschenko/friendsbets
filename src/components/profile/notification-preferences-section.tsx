@@ -78,9 +78,12 @@ export function NotificationPreferencesSection({
   }, [state, router]);
 
   useEffect(() => {
-    setNotifyByEmail(preferences.notifyByEmail);
-    setNotifyByTelegram(preferences.notifyByTelegram);
-    setNotifyInApp(preferences.notifyInApp);
+    const id = window.setTimeout(() => {
+      setNotifyByEmail(preferences.notifyByEmail);
+      setNotifyByTelegram(preferences.notifyByTelegram);
+      setNotifyInApp(preferences.notifyInApp);
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [
     preferences.notifyByEmail,
     preferences.notifyByTelegram,

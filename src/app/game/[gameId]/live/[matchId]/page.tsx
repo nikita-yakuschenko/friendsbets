@@ -10,7 +10,7 @@ import { isPlatformViewQuery } from "@/lib/game-platform-view";
 import { requireGameViewByRoute } from "@/lib/game-access";
 import { loadChampionatMatchEventsFromDb } from "@/lib/football-api/championat/match-event-store";
 import { resolveFinishedLiveMatchRedirect } from "@/lib/finished-live-match-redirect";
-import { getLiveMatch, getLiveMatches } from "@/server/actions/games";
+import { getLiveMatches } from "@/server/actions/games";
 
 export const revalidate = 30;
 
@@ -30,7 +30,8 @@ export default async function LiveMatchPage({
   if (!view) return notFound();
 
   const oversight = view.access.isPlatformOversight;
-  const item = await getLiveMatch(gameId, matchId);
+  const allLive = await getLiveMatches(gameId);
+  const item = allLive.find((liveItem) => liveItem.match.id === matchId) ?? null;
   if (!item) {
     const finishedUrl = await resolveFinishedLiveMatchRedirect(
       gameId,
@@ -41,8 +42,18 @@ export default async function LiveMatchPage({
     return notFound();
   }
 
-  const initialEvents = await loadChampionatMatchEventsFromDb(matchId);
-  const allLive = await getLiveMatches(gameId);
+  const liveItems =
+    allLive.length > 1
+      ? [item, ...allLive.filter((liveItem) => liveItem.match.id !== item.match.id)]
+      : [item];
+  const initialEventsByMatchId = new Map(
+    await Promise.all(
+      liveItems.map(async (liveItem) => [
+        liveItem.match.id,
+        await loadChampionatMatchEventsFromDb(liveItem.match.id),
+      ]),
+    ),
+  );
   const showBackToList = allLive.length > 1;
 
   if (oversight) {
@@ -60,15 +71,20 @@ export default async function LiveMatchPage({
           }
         />
         <GameOversightBanner />
-        <LiveMatchCard
-          matchId={item.match.id}
-          initialEvents={initialEvents}
-          match={item.match}
-          friendPredictions={item.friendPredictions}
-          stats={item.stats}
-          statsComment={item.statsComment}
-          hideFriendScores
-        />
+        <div className="space-y-4">
+          {liveItems.map((liveItem) => (
+            <LiveMatchCard
+              key={liveItem.match.id}
+              matchId={liveItem.match.id}
+              initialEvents={initialEventsByMatchId.get(liveItem.match.id)}
+              match={liveItem.match}
+              friendPredictions={liveItem.friendPredictions}
+              stats={liveItem.stats}
+              statsComment={liveItem.statsComment}
+              hideFriendScores
+            />
+          ))}
+        </div>
       </ContentContainer>
     );
   }
@@ -83,15 +99,20 @@ export default async function LiveMatchPage({
           ) : undefined
         }
       />
-      <LiveMatchCard
-        matchId={item.match.id}
-        initialEvents={initialEvents}
-        match={item.match}
-        myPrediction={item.myPrediction}
-        friendPredictions={item.friendPredictions}
-        stats={item.stats}
-        statsComment={item.statsComment}
-      />
+      <div className="space-y-4">
+        {liveItems.map((liveItem) => (
+          <LiveMatchCard
+            key={liveItem.match.id}
+            matchId={liveItem.match.id}
+            initialEvents={initialEventsByMatchId.get(liveItem.match.id)}
+            match={liveItem.match}
+            myPrediction={liveItem.myPrediction}
+            friendPredictions={liveItem.friendPredictions}
+            stats={liveItem.stats}
+            statsComment={liveItem.statsComment}
+          />
+        ))}
+      </div>
     </ContentContainer>
   );
 }

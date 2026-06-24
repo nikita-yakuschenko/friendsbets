@@ -85,6 +85,7 @@ export default async function GamePage({
     leader,
     isLeader,
     nextMatch,
+    nextMatches,
     nextMatchHasPrediction,
     nextMatchPrediction,
     missingPredictionsCount,
@@ -108,40 +109,41 @@ export default async function GamePage({
 
       <div className="mb-4">
         {liveNow.length > 0 ? (
-          <div className="space-y-2">
-            <Link
-              href={
-                liveNow.length > 1
-                  ? gamePath(game.inviteCode, "live")
-                  : gamePath(game.inviteCode, `live/${liveNow[0]!.match.id}`)
-              }
-              className="block rounded-2xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime"
-            >
-              <LiveMatchHomePreview
-                matchId={liveNow[0]!.match.id}
-                match={liveNow[0]!.match}
-                hasPrediction={Boolean(liveNow[0]!.myPrediction)}
-                prediction={
-                  liveNow[0]!.myPrediction
-                    ? {
-                        homeScore: liveNow[0]!.myPrediction.homeScore,
-                        awayScore: liveNow[0]!.myPrediction.awayScore,
-                      }
-                    : null
-                }
+          <div className="space-y-4">
+            {liveNow.map(({ match, myPrediction }) => (
+              <Link
+                key={match.id}
+                href={gamePath(game.inviteCode, `live/${match.id}`)}
+                className="block rounded-2xl transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime"
+              >
+                <LiveMatchHomePreview
+                  matchId={match.id}
+                  match={match}
+                  hasPrediction={Boolean(myPrediction)}
+                  prediction={
+                    myPrediction
+                      ? {
+                          homeScore: myPrediction.homeScore,
+                          awayScore: myPrediction.awayScore,
+                        }
+                      : null
+                  }
+                />
+              </Link>
+            ))}
+          </div>
+        ) : nextMatches.length > 0 ? (
+          <div className="space-y-4">
+            {nextMatches.map((item, index) => (
+              <NextMatchPreview
+                key={item.match.id}
+                match={item.match}
+                hasPrediction={item.hasPrediction}
+                prediction={item.prediction}
                 predictionsHref={gamePath(game.inviteCode, "predictions")}
+                heading={index === 0 ? "Ближайшие матчи" : null}
               />
-            </Link>
-            {liveNow.length > 1 ? (
-              <p className="text-center text-sm text-brand-muted">
-                <Link
-                  href={gamePath(game.inviteCode, "live")}
-                  className="font-medium text-brand-lime hover:underline"
-                >
-                  Все идущие матчи ({liveNow.length})
-                </Link>
-              </p>
-            ) : null}
+            ))}
           </div>
         ) : nextMatch ? (
           <NextMatchPreview

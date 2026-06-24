@@ -1,6 +1,9 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { MatchStatus } from "@/generated/prisma/client";
-import { findNextNotStartedMatch } from "@/lib/football-api/match-visibility";
+import {
+  findNextNotStartedMatch,
+  findNextNotStartedMatches,
+} from "@/lib/football-api/match-visibility";
 
 function match(
   id: string,
@@ -63,5 +66,18 @@ describe("findNextNotStartedMatch", () => {
     );
 
     expect(next?.id).toBe("future");
+  });
+
+  it("возвращает все ближайшие матчи с одинаковым временем старта", () => {
+    const kickoff = new Date("2026-06-13T20:00:00Z");
+    const later = new Date("2026-06-13T23:00:00Z");
+    const now = new Date("2026-06-13T18:00:00Z");
+
+    const next = findNextNotStartedMatches(
+      [match("m1", kickoff), match("m2", kickoff), match("m3", later)],
+      now,
+    );
+
+    expect(next.map((item) => item.id)).toEqual(["m1", "m2"]);
   });
 });

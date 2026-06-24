@@ -31,12 +31,8 @@ import {
   ensureChampionatTournament,
 } from "@/lib/tournament-setup";
 import {
-  parseChampionatTournamentUrl,
   type ParsedChampionatTournamentUrl,
 } from "@/lib/championat-url";
-import {
-  getTournamentTemplateRecord,
-} from "@/lib/tournament-templates";
 import type { ActionResult } from "@/server/actions/auth";
 
 export async function getCreateGameFormData() {

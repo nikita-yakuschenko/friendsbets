@@ -38,7 +38,9 @@ export function AuthEntry({
 
   useEffect(() => {
     const next = initialInviteCode ?? searchParams.get("invite") ?? "";
-    if (next) setInviteCode(next);
+    if (!next) return;
+    const id = window.setTimeout(() => setInviteCode(next), 0);
+    return () => window.clearTimeout(id);
   }, [initialInviteCode, searchParams]);
 
   const [loginState, loginFormAction, loginPending] = useActionState<

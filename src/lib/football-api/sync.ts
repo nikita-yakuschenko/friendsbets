@@ -450,6 +450,21 @@ async function enrichMatchesFromChampionatPages(
         data,
       });
 
+      if (
+        nextStatus === MatchStatus.FINISHED &&
+        finalScores.homeScore !== null &&
+        finalScores.awayScore !== null
+      ) {
+        try {
+          await recalculateMatchScoresForTournament(tournamentId, match.id);
+        } catch (err) {
+          console.warn(
+            `[championat-sync] page recalc scores failed match=${match.id}`,
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }
+
       await sleep(VENUE_FETCH_DELAY_MS);
       return {
         venues:

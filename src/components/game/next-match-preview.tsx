@@ -18,6 +18,7 @@ type NextMatchPreviewProps = {
   prediction?: { homeScore: number; awayScore: number } | null;
   predictionsHref?: string;
   showCountdown?: boolean;
+  heading?: string | null;
 };
 
 function TeamFlag({
@@ -105,14 +106,17 @@ export function NextMatchPreview({
   prediction,
   predictionsHref,
   showCountdown = false,
+  heading = "Ближайший матч",
 }: NextMatchPreviewProps) {
   const venue = formatMatchVenue(match.venueName, match.venueCity);
 
   return (
     <section>
-      <h2 className="mb-3 text-sm font-normal tracking-wide text-brand-muted">
-        Ближайший матч
-      </h2>
+      {heading ? (
+        <h2 className="mb-3 text-sm font-normal tracking-wide text-brand-muted">
+          {heading}
+        </h2>
+      ) : null}
 
       <Card className="relative overflow-hidden p-0">
         <CardContent className="relative flex flex-col gap-3 px-4 py-3">

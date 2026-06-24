@@ -10,14 +10,6 @@ import {
 
 export { ACTIVE_GAME_COOKIE, ACTIVE_GAME_COOKIE_MAX_AGE };
 
-function normalizeGameRouteParam(routeParam: string): string {
-  try {
-    return decodeURIComponent(routeParam).trim();
-  } catch {
-    return routeParam.trim();
-  }
-}
-
 export async function getActiveGameInviteFromCookie(): Promise<string | null> {
   const cookieStore = await cookies();
   const raw = cookieStore.get(ACTIVE_GAME_COOKIE)?.value?.trim();

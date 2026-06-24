@@ -35,13 +35,14 @@ export function isMatchPredictable(match: MatchLike): boolean {
   );
 }
 
-/** Ближайший по расписанию матч, который ещё не начался для участников. */
-export function findNextNotStartedMatch<T extends ScheduleMatchCandidate>(
+/** Ближайшие по расписанию матчи с одинаковым стартом, которые ещё не начались для участников. */
+export function findNextNotStartedMatches<T extends ScheduleMatchCandidate>(
   matches: Iterable<T>,
   now: Date = new Date(),
-): T | null {
+): T[] {
   const nowMs = now.getTime();
-  let best: T | null = null;
+  let bestStartsAt: number | null = null;
+  const result: T[] = [];
 
   for (const match of matches) {
     if (
@@ -55,10 +56,25 @@ export function findNextNotStartedMatch<T extends ScheduleMatchCandidate>(
     if (isMatchInProgress(match, now)) continue;
     if (getEffectiveKickoffAt(match.startsAt).getTime() <= nowMs) continue;
 
-    if (!best || match.startsAt.getTime() < best.startsAt.getTime()) {
-      best = match;
+    const startsAt = match.startsAt.getTime();
+    if (bestStartsAt === null || startsAt < bestStartsAt) {
+      bestStartsAt = startsAt;
+      result.length = 0;
+      result.push(match);
+      continue;
+    }
+    if (startsAt === bestStartsAt) {
+      result.push(match);
     }
   }
 
-  return best;
+  return result;
+}
+
+/** Ближайший по расписанию матч, который ещё не начался для участников. */
+export function findNextNotStartedMatch<T extends ScheduleMatchCandidate>(
+  matches: Iterable<T>,
+  now: Date = new Date(),
+): T | null {
+  return findNextNotStartedMatches(matches, now)[0] ?? null;
 }

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MatchStatus } from "@/generated/prisma/client";
 import { parseChampionatCalendarHtml } from "@/lib/football-api/championat/parser";
 import type { ExternalMatch } from "@/lib/football-api/types";
@@ -174,6 +174,10 @@ vi.mock("@/lib/template-match-admin", () => ({
   recalculateMatchScoresForTournament: vi.fn(),
 }));
 
+vi.mock("@/lib/match-result-notifications", () => ({
+  handleMatchFinished: vi.fn(),
+}));
+
 vi.mock("@/lib/football-api/championat/resolve-source", () => ({
   resolveChampionatSourceForTournament: vi.fn(),
 }));
@@ -195,6 +199,10 @@ describe("syncChampionatTournament", () => {
       awayTeam: { ...m.awayTeam },
     }));
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("создаёт команды и матчи при первом синке", async () => {
@@ -235,6 +243,8 @@ describe("syncChampionatTournament", () => {
       m.externalId.endsWith("1310928"),
     );
     expect(upcoming).toBeDefined();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(upcoming!.startsAt.getTime() + 3 * 60 * 60 * 1000));
     calendarMatchesRef.current = calendarMatchesRef.current.map((m) =>
       m.externalId === upcoming!.externalId
         ? {
@@ -322,5 +332,59 @@ describe("syncChampionatTournament", () => {
     });
 
     expect(fetchChampionatMatchDetails).toHaveBeenCalled();
+  });
+
+  it("пересчитывает очки, когда обогащение страницы завершает матч", async () => {
+    const { fetchChampionatMatchDetails } = await import(
+      "@/lib/football-api/championat/match-details"
+    );
+    const { recalculateMatchScoresForTournament } = await import(
+      "@/lib/template-match-admin"
+    );
+    const { syncChampionatTournament } = await import("@/lib/football-api/sync");
+
+    const startsAt = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    store.matches.set("m-page-finished", {
+      id: "m-page-finished",
+      tournamentId: TOURNAMENT_ID,
+      externalId: "championat:match:101",
+      stage: "Группа K · Тур 2",
+      homeTeamId: "home-team",
+      awayTeamId: "away-team",
+      startsAt,
+      status: MatchStatus.LIVE,
+      homeScore: 1,
+      awayScore: 0,
+      winnerTeamId: null,
+      championatTrackActive: true,
+      championatFinishedAt: null,
+    });
+    vi.mocked(store.prisma.match.findMany).mockResolvedValue([
+      {
+        id: "m-page-finished",
+        externalId: "championat:match:101",
+        status: MatchStatus.LIVE,
+        startsAt,
+        homeScore: 1,
+        awayScore: 0,
+        championatFinishedAt: null,
+      },
+    ] as never);
+    vi.mocked(fetchChampionatMatchDetails).mockResolvedValue({
+      status: MatchStatus.FINISHED,
+      homeScore: 1,
+      awayScore: 0,
+    } as never);
+
+    await syncChampionatTournament(TOURNAMENT_ID, source, {
+      mode: "full",
+      enrichVenues: true,
+    });
+
+    expect(recalculateMatchScoresForTournament).toHaveBeenCalledWith(
+      TOURNAMENT_ID,
+      "m-page-finished",
+    );
+    vi.useRealTimers();
   });
 });

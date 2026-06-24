@@ -11,7 +11,6 @@ import { PageHeader } from "@/components/layout/page-header";
 import { canManageGame, resolveGameIdFromRoute } from "@/lib/game-access";
 import { getSession } from "@/lib/auth";
 import { countUnreadNotifications } from "@/lib/notifications";
-import { gamePath } from "@/lib/game-path";
 import { isSuperadmin } from "@/lib/roles";
 
 export default async function GameMorePage({
