@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LiveMatchEventsList } from "@/components/game/live-match-events-list";
 import {
   LiveMatchPredictionsPanel,
@@ -16,6 +16,13 @@ const TABS: { id: LiveMatchTabId; label: string }[] = [
   { id: "predictions", label: "Прогнозы" },
   { id: "protocol", label: "Лайв" },
 ];
+
+/** Запоминаем выбранный таб между перезагрузками страницы. */
+const TAB_STORAGE_KEY = "friendsbets:live-match-tab";
+
+function isLiveMatchTabId(value: string | null): value is LiveMatchTabId {
+  return value === "predictions" || value === "protocol";
+}
 
 export function LiveMatchCardTabs({
   predictions,
@@ -40,6 +47,22 @@ export function LiveMatchCardTabs({
 }) {
   const [tab, setTab] = useState<LiveMatchTabId>("protocol");
 
+  useEffect(() => {
+    const stored = window.localStorage.getItem(TAB_STORAGE_KEY);
+    if (!isLiveMatchTabId(stored)) return;
+    const id = window.setTimeout(() => setTab(stored), 0);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  const selectTab = (next: LiveMatchTabId) => {
+    setTab(next);
+    try {
+      window.localStorage.setItem(TAB_STORAGE_KEY, next);
+    } catch {
+      /* localStorage может быть недоступен (приватный режим) — просто не сохраняем */
+    }
+  };
+
   return (
     <div className="mt-4 border-t border-brand-neutral/60 pt-4">
       <nav
@@ -52,7 +75,7 @@ export function LiveMatchCardTabs({
             <button
               key={item.id}
               type="button"
-              onClick={() => setTab(item.id)}
+              onClick={() => selectTab(item.id)}
               className={cn(
                 "flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors sm:text-sm",
                 active

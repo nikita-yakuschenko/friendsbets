@@ -42,18 +42,8 @@ export default async function LiveMatchPage({
     return notFound();
   }
 
-  const liveItems =
-    allLive.length > 1
-      ? [item, ...allLive.filter((liveItem) => liveItem.match.id !== item.match.id)]
-      : [item];
-  const initialEventsByMatchId = new Map(
-    await Promise.all(
-      liveItems.map(async (liveItem) => {
-        const events = await loadChampionatMatchEventsFromDb(liveItem.match.id);
-        return [liveItem.match.id, events] as const;
-      }),
-    ),
-  );
+  const initialEvents = await loadChampionatMatchEventsFromDb(matchId);
+  // Несколько матчей сразу видно на /live — здесь даём вернуться к их списку.
   const showBackToList = allLive.length > 1;
 
   if (oversight) {
@@ -71,20 +61,15 @@ export default async function LiveMatchPage({
           }
         />
         <GameOversightBanner />
-        <div className="space-y-4">
-          {liveItems.map((liveItem) => (
-            <LiveMatchCard
-              key={liveItem.match.id}
-              matchId={liveItem.match.id}
-              initialEvents={initialEventsByMatchId.get(liveItem.match.id)}
-              match={liveItem.match}
-              friendPredictions={liveItem.friendPredictions}
-              stats={liveItem.stats}
-              statsComment={liveItem.statsComment}
-              hideFriendScores
-            />
-          ))}
-        </div>
+        <LiveMatchCard
+          matchId={item.match.id}
+          initialEvents={initialEvents}
+          match={item.match}
+          friendPredictions={item.friendPredictions}
+          stats={item.stats}
+          statsComment={item.statsComment}
+          hideFriendScores
+        />
       </ContentContainer>
     );
   }
@@ -99,20 +84,15 @@ export default async function LiveMatchPage({
           ) : undefined
         }
       />
-      <div className="space-y-4">
-        {liveItems.map((liveItem) => (
-          <LiveMatchCard
-            key={liveItem.match.id}
-            matchId={liveItem.match.id}
-            initialEvents={initialEventsByMatchId.get(liveItem.match.id)}
-            match={liveItem.match}
-            myPrediction={liveItem.myPrediction}
-            friendPredictions={liveItem.friendPredictions}
-            stats={liveItem.stats}
-            statsComment={liveItem.statsComment}
-          />
-        ))}
-      </div>
+      <LiveMatchCard
+        matchId={item.match.id}
+        initialEvents={initialEvents}
+        match={item.match}
+        myPrediction={item.myPrediction}
+        friendPredictions={item.friendPredictions}
+        stats={item.stats}
+        statsComment={item.statsComment}
+      />
     </ContentContainer>
   );
 }
