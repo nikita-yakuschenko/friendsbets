@@ -157,29 +157,45 @@ async function upsertExternalMatch(
     status = MatchStatus.SCHEDULED;
   }
 
+  // Уже завершённый матч не откатываем назад из-за запаздывающего календаря:
+  // иначе он снова «завершается» и шлёт повторные уведомления.
+  const keepFinished =
+    existing?.status === MatchStatus.FINISHED && status !== MatchStatus.FINISHED;
+  if (keepFinished) {
+    status = MatchStatus.FINISHED;
+  }
+
+  const homeScore = keepFinished
+    ? (normalizedScores.homeScore ?? existing!.homeScore)
+    : normalizedScores.homeScore;
+  const awayScore = keepFinished
+    ? (normalizedScores.awayScore ?? existing!.awayScore)
+    : normalizedScores.awayScore;
+
   const data = {
     stage: match.stage,
     homeTeamId,
     awayTeamId,
     startsAt: match.startsAt,
     status,
-    homeScore: normalizedScores.homeScore,
-    awayScore: normalizedScores.awayScore,
+    homeScore,
+    awayScore,
     winnerTeamId:
       status === MatchStatus.FINISHED &&
-      normalizedScores.homeScore !== null &&
-      normalizedScores.awayScore !== null
-        ? deriveWinnerTeamId(
-            normalizedScores.homeScore,
-            normalizedScores.awayScore,
-            homeTeamId,
-            awayTeamId,
-          )
-        : null,
-    championatTrackActive: tracking.championatTrackActive ?? true,
+      homeScore !== null &&
+      awayScore !== null
+        ? deriveWinnerTeamId(homeScore, awayScore, homeTeamId, awayTeamId)
+        : keepFinished
+          ? (existing!.winnerTeamId ?? null)
+          : null,
+    championatTrackActive: keepFinished
+      ? (existing!.championatTrackActive ?? true)
+      : (tracking.championatTrackActive ?? true),
     championatFinishedAt:
       status === MatchStatus.FINISHED
-        ? (tracking.championatFinishedAt ?? now)
+        ? keepFinished
+          ? (existing!.championatFinishedAt ?? now)
+          : (tracking.championatFinishedAt ?? now)
         : null,
   };
 

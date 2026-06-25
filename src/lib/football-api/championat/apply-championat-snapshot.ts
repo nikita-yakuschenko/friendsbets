@@ -117,7 +117,12 @@ export async function applyChampionatSnapshotToMatch(
     statusFromPhase = MatchStatus.FINISHED;
   }
 
-  if (statusFromPhase && statusFromPhase !== match.status) {
+  if (
+    statusFromPhase &&
+    statusFromPhase !== match.status &&
+    // Завершённый матч не понижаем обратно в LIVE/SCHEDULED из-за разовых данных.
+    match.status !== MatchStatus.FINISHED
+  ) {
     updateData.status = statusFromPhase;
   } else if (
     kickoffReached &&

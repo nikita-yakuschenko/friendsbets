@@ -248,17 +248,23 @@ export async function notifyMatchResultParticipants(
         userName: displayName,
       });
 
-      try {
-        const user = participant.user;
-        const prefs = {
-          notifyByEmail: user.notifyByEmail,
-          notifyByTelegram: user.notifyByTelegram,
-          notifyInApp: user.notifyInApp,
-          emailVerifiedAt: user.emailVerifiedAt,
-          telegramChatId: user.telegramChatId,
-        };
+      // Слот уже занят (claim создан) — это значит «уже обработали».
+      // Каналы шлём независимо и НИКОГДА не снимаем claim из-за ошибки канала,
+      // иначе следующий цикл синка повторно разошлёт уведомление (спам дублей).
+      const user = participant.user;
+      const prefs = {
+        notifyByEmail: user.notifyByEmail,
+        notifyByTelegram: user.notifyByTelegram,
+        notifyInApp: user.notifyInApp,
+        emailVerifiedAt: user.emailVerifiedAt,
+        telegramChatId: user.telegramChatId,
+      };
 
-        if (shouldNotifyInApp(prefs)) {
+      alreadySent.add(key);
+      let delivered = false;
+
+      if (shouldNotifyInApp(prefs)) {
+        try {
           await createUserNotification({
             userId: participant.userId,
             kind: UserNotificationKind.MATCH_RESULT,
@@ -266,68 +272,56 @@ export async function notifyMatchResultParticipants(
             body: inAppBody,
             actionInviteCode: game.inviteCode,
           });
+          delivered = true;
+        } catch (error) {
+          logOperationError("match-result:notify:in-app", error, {
+            gameId: game.id,
+            matchId,
+            userId: participant.userId,
+          });
         }
+      }
 
-        if (shouldNotifyByTelegram(prefs) && isTelegramConfigured()) {
+      if (shouldNotifyByTelegram(prefs) && isTelegramConfigured()) {
+        try {
           await sendTelegramMessage(
             user.telegramChatId!,
             appendTelegramChannelFooter(telegramHtml),
             { parseMode: "HTML" },
           );
+          delivered = true;
+        } catch (error) {
+          logOperationError("match-result:notify:telegram", error, {
+            gameId: game.id,
+            matchId,
+            userId: participant.userId,
+          });
         }
+      }
 
-        if (shouldNotifyByEmail(prefs)) {
+      if (shouldNotifyByEmail(prefs)) {
+        try {
           await sendEmail({
             to: user.email,
             subject: `FriendsBets: ${title}`,
             text: emailContent.text,
             html: emailContent.html,
           });
-        }
-
-        if (
-          !shouldNotifyInApp(prefs) &&
-          !shouldNotifyByTelegram(prefs) &&
-          !shouldNotifyByEmail(prefs)
-        ) {
-          result.skipped++;
-          await prisma.predictionReminder.delete({
-            where: {
-              gameId_matchId_userId_kind: {
-                gameId: game.id,
-                matchId,
-                userId: participant.userId,
-                kind: NOTIFY_KIND,
-              },
-            },
+          delivered = true;
+        } catch (error) {
+          logOperationError("match-result:notify:email", error, {
+            gameId: game.id,
+            matchId,
+            userId: participant.userId,
+            email: maskEmail(participant.user.email),
           });
-          continue;
         }
+      }
 
-        alreadySent.add(key);
+      if (delivered) {
         result.sent++;
-      } catch (error) {
-        try {
-          await prisma.predictionReminder.delete({
-            where: {
-              gameId_matchId_userId_kind: {
-                gameId: game.id,
-                matchId,
-                userId: participant.userId,
-                kind: NOTIFY_KIND,
-              },
-            },
-          });
-        } catch {
-          /* слот уже снят или занят другим воркером */
-        }
-        logOperationError("match-result:notify", error, {
-          gameId: game.id,
-          matchId,
-          userId: participant.userId,
-          email: maskEmail(participant.user.email),
-        });
-        result.errors++;
+      } else {
+        result.skipped++;
       }
     }
   }

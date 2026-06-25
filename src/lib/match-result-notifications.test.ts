@@ -187,6 +187,16 @@ describe("match result notifications", () => {
     vi.useRealTimers();
   });
 
+  it("не снимает claim при ошибке канала (нет повторной рассылки)", async () => {
+    sendEmailMock.mockRejectedValueOnce(new Error("smtp down"));
+
+    const result = await notifyMatchResultParticipants("tour-1", "match-1");
+
+    // In-app доставлено — засчитываем; claim не удаляем, иначе следующий цикл спамит.
+    expect(result.sent).toBe(1);
+    expect(prisma.predictionReminder.delete).not.toHaveBeenCalled();
+  });
+
   it("резервирует слот до отправки уведомлений", async () => {
     const order: string[] = [];
     vi.mocked(prisma.predictionReminder.create).mockImplementation(async () => {
