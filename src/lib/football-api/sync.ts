@@ -556,18 +556,30 @@ async function syncChampionatCalendarResults(
       tournamentId: dbTournamentId,
       externalId: { startsWith: "championat:" },
     },
-    select: { externalId: true },
+    select: {
+      externalId: true,
+      homeTeam: { select: { externalId: true } },
+      awayTeam: { select: { externalId: true } },
+    },
   });
-  const knownIds = new Set(existing.map((row) => row.externalId));
+  const knownByExternalId = new Map(
+    existing.map((row) => [row.externalId, row]),
+  );
 
   let updated = 0;
   for (const match of externalMatches) {
-    if (!knownIds.has(match.externalId)) continue;
+    const existingMatch = knownByExternalId.get(match.externalId);
+    if (!existingMatch) continue;
 
     const hasResult =
       match.status === MatchStatus.FINISHED ||
       (match.homeScore !== undefined && match.awayScore !== undefined);
-    if (!hasResult) continue;
+    const participantsChanged =
+      match.homeTeam.externalId !== existingMatch.homeTeam.externalId ||
+      match.awayTeam.externalId !== existingMatch.awayTeam.externalId;
+
+    // Quick sync: счёт/статус + замена слотов плей-офф на реальные сборные.
+    if (!hasResult && !participantsChanged) continue;
 
     const home = await upsertExternalTeam(match.homeTeam);
     const away = await upsertExternalTeam(match.awayTeam);

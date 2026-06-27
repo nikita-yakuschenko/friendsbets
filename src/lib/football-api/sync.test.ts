@@ -289,6 +289,91 @@ describe("syncChampionatTournament", () => {
     expect(store.teams.get("team-existing")?.countryCode).toBeTruthy();
   });
 
+  it("quick sync обновляет участников плей-офф без результата матча", async () => {
+    const matchExternalId = "championat:1310268";
+    const placeholderHome = "championat:slot:2A";
+    const placeholderAway = "championat:slot:2B";
+    const realHome = "championat:274832";
+    const realAway = "championat:274766";
+
+    store.teams.set("t-home-slot", {
+      id: "t-home-slot",
+      externalId: placeholderHome,
+      name: "2-е место, группа A",
+      shortName: "2A",
+      countryCode: null,
+    });
+    store.teams.set("t-away-slot", {
+      id: "t-away-slot",
+      externalId: placeholderAway,
+      name: "2-е место, группа B",
+      shortName: "2B",
+      countryCode: null,
+    });
+    store.matches.set("m-playoff", {
+      id: "m-playoff",
+      tournamentId: TOURNAMENT_ID,
+      externalId: matchExternalId,
+      stage: "1/16 финала",
+      homeTeamId: "t-home-slot",
+      awayTeamId: "t-away-slot",
+      startsAt: new Date("2026-06-29T19:00:00.000Z"),
+      status: MatchStatus.SCHEDULED,
+      homeScore: null,
+      awayScore: null,
+      winnerTeamId: null,
+      championatTrackActive: true,
+      championatFinishedAt: null,
+    });
+
+    calendarMatchesRef.current = [
+      {
+        externalId: matchExternalId,
+        homeTeam: {
+          externalId: realHome,
+          name: "ЮАР",
+          shortName: "ЮАР",
+          countryCode: "ZA",
+          isPlaceholder: false,
+        },
+        awayTeam: {
+          externalId: realAway,
+          name: "Канада",
+          shortName: "КAN",
+          countryCode: "CA",
+          isPlaceholder: false,
+        },
+        startsAt: new Date("2026-06-29T19:00:00.000Z"),
+        stage: "1/16 финала",
+        status: MatchStatus.SCHEDULED,
+      },
+    ];
+
+    vi.mocked(store.prisma.match.findMany).mockImplementation(
+      async ({ where }: { where?: { tournamentId?: string } }) => {
+        if (where?.tournamentId !== TOURNAMENT_ID) return [];
+        const row = store.matches.get("m-playoff")!;
+        const home = store.teams.get(row.homeTeamId)!;
+        const away = store.teams.get(row.awayTeamId)!;
+        return [
+          {
+            externalId: row.externalId,
+            homeTeam: { externalId: home.externalId },
+            awayTeam: { externalId: away.externalId },
+          },
+        ] as never;
+      },
+    );
+
+    const { syncChampionatTournamentQuick } = await import("@/lib/football-api/sync");
+    const result = await syncChampionatTournamentQuick(TOURNAMENT_ID, source);
+
+    expect(result.updated).toBeGreaterThanOrEqual(1);
+    const row = store.matches.get("m-playoff")!;
+    expect(store.teams.get(row.homeTeamId)?.externalId).toBe(realHome);
+    expect(store.teams.get(row.awayTeamId)?.externalId).toBe(realAway);
+  });
+
   it("quick sync тянет календарь, но не ходит на страницы матчей без кандидатов", async () => {
     const { fetchChampionatCalendar } = await import(
       "@/lib/football-api/championat/parser"
