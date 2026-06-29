@@ -13,7 +13,9 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MatchPenaltyScoreLine } from "@/components/match/match-penalty-score-line";
 import { TeamLabel } from "@/components/team/team-label";
+import { hasMatchPenaltyScore } from "@/lib/match-penalty-display";
 import { getFlagImageSrcSet, getFlagImageUrl } from "@/lib/teams";
 import { liveScoreForDisplay } from "@/lib/live-match-score";
 import { isKnockoutStage } from "@/lib/match-stage";
@@ -39,6 +41,8 @@ type MatchCardProps = {
     awayTeam: { name: string; shortName: string; countryCode?: string | null };
     homeScore: number | null;
     awayScore: number | null;
+    homePenaltyScore?: number | null;
+    awayPenaltyScore?: number | null;
     stage?: string | null;
   };
   prediction: {
@@ -87,6 +91,7 @@ function ScoreRow({
   fieldErrors,
   onScoreChange,
   liveScores,
+  penaltyScores,
 }: {
   match: MatchCardProps["match"];
   prediction: MatchCardProps["prediction"];
@@ -94,8 +99,12 @@ function ScoreRow({
   fieldErrors?: { home: boolean; away: boolean };
   onScoreChange?: () => void;
   liveScores?: { home: number | null; away: number | null };
+  penaltyScores?: { home: number | null; away: number | null };
 }) {
   const useLive = Boolean(liveScores) && !editing;
+  const penaltyHome = penaltyScores?.home ?? match.homePenaltyScore ?? null;
+  const penaltyAway = penaltyScores?.away ?? match.awayPenaltyScore ?? null;
+  const showPenalties = hasMatchPenaltyScore(penaltyHome, penaltyAway);
 
   const homeValue = useLive
     ? liveScoreForDisplay(liveScores!.home)
@@ -110,7 +119,8 @@ function ScoreRow({
   const emptyScore = useLive ? false : !prediction;
 
   return (
-    <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_auto_auto_minmax(0,1fr)] items-center gap-x-1 gap-y-0.5 py-1">
+    <div className="space-y-0.5">
+      <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_auto_auto_minmax(0,1fr)] items-center gap-x-1 gap-y-0.5 py-1">
       <TeamLabel
         name={match.homeTeam.name}
         countryCode={match.homeTeam.countryCode}
@@ -178,6 +188,13 @@ function ScoreRow({
         className="min-w-0 max-w-full justify-self-start text-xs sm:text-sm"
         flagClassName="h-3 w-4 sm:h-[18px] sm:w-6"
       />
+      </div>
+      {showPenalties ? (
+        <MatchPenaltyScoreLine
+          homePenaltyScore={penaltyHome!}
+          awayPenaltyScore={penaltyAway!}
+        />
+      ) : null}
     </div>
   );
 }
@@ -341,6 +358,12 @@ export function MatchPredictionCard({
   const [fieldErrors, setFieldErrors] = useState({ home: false, away: false });
   const [liveHome, setLiveHome] = useState<number | null>(match.homeScore);
   const [liveAway, setLiveAway] = useState<number | null>(match.awayScore);
+  const [livePenaltyHome, setLivePenaltyHome] = useState<number | null>(
+    match.homePenaltyScore ?? null,
+  );
+  const [livePenaltyAway, setLivePenaltyAway] = useState<number | null>(
+    match.awayPenaltyScore ?? null,
+  );
   const [liveStatus, setLiveStatus] = useState<ChampionatLiveStatus>({
     phase: "live",
     rawText: "",
@@ -369,6 +392,8 @@ export function MatchPredictionCard({
       const data = (await res.json()) as {
         homeScore?: number | null;
         awayScore?: number | null;
+        homePenaltyScore?: number | null;
+        awayPenaltyScore?: number | null;
         livePhase?: ChampionatLivePhase;
         liveStatus?: ChampionatLiveStatus;
         liveStatusSyncedAt?: string | null;
@@ -384,6 +409,10 @@ export function MatchPredictionCard({
       if (data.homeScore != null && data.awayScore != null) {
         setLiveHome(data.homeScore);
         setLiveAway(data.awayScore);
+      }
+      if (data.homePenaltyScore != null && data.awayPenaltyScore != null) {
+        setLivePenaltyHome(data.homePenaltyScore);
+        setLivePenaltyAway(data.awayPenaltyScore);
       }
     } catch {
       /* оставляем последний счёт */
@@ -596,6 +625,11 @@ export function MatchPredictionCard({
               prediction={prediction}
               editing={false}
               liveScores={liveScores}
+              penaltyScores={
+                inProgress
+                  ? { home: livePenaltyHome, away: livePenaltyAway }
+                  : undefined
+              }
             />
             <MatchMeta
               startsAt={match.startsAt}

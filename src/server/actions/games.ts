@@ -16,6 +16,7 @@ import {
   isMatchPredictable,
 } from "@/lib/football-api/match-visibility";
 import { syncChampionBetPoints } from "@/lib/champion-bet";
+import { getChampionBetCountryByUserId } from "@/lib/champion-bet-display";
 import { computeLivePredictionStats } from "@/lib/live-match-stats";
 import { buildPredictionStatsCommentary } from "@/lib/prediction-stats-commentary";
 import {
@@ -116,6 +117,8 @@ export async function getGameOverview(routeParam: string, userId: string) {
     bonusRows.map((row) => [row.userId, row.points]),
   );
 
+  const championBetCountryByUserId = await getChampionBetCountryByUserId(gameId);
+
   const matches = await prisma.match.findMany({
     where: { tournamentId: game.tournamentId },
     include: { homeTeam: true, awayTeam: true },
@@ -139,6 +142,8 @@ export async function getGameOverview(routeParam: string, userId: string) {
       return {
         userId: participant.userId,
         displayName: participant.displayName,
+        championBetCountryCode:
+          championBetCountryByUserId.get(participant.userId) ?? null,
         totalPoints,
         predictionsCount: participant.user.predictions.length,
       };
@@ -256,6 +261,7 @@ export async function getLeaderboardData(routeParam: string) {
   const bonusPointsByUserId = new Map(
     bonusRows.map((row) => [row.userId, row.points]),
   );
+  const championBetCountryByUserId = await getChampionBetCountryByUserId(gameId);
 
   const totalMatches = game.tournament.matches.length;
   const columns = getLeaderboardColumns(game.scoringRule.code);
@@ -291,6 +297,8 @@ export async function getLeaderboardData(routeParam: string) {
         displayName: participant.displayName,
         avatarUrl: participant.user.avatarUrl,
         updatedAt: participant.user.updatedAt,
+        championBetCountryCode:
+          championBetCountryByUserId.get(participant.userId) ?? null,
         totalPoints,
         predictionsCount: predictions.length,
         totalMatches,

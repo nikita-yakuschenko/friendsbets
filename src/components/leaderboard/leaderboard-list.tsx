@@ -1,3 +1,4 @@
+import { ParticipantChampionFlag } from "@/components/leaderboard/participant-champion-flag";
 import { PointsHistoryButton } from "@/components/leaderboard/points-history-button";
 import { UserAvatar } from "@/components/user/user-avatar";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,7 @@ export type LeaderboardRow = {
   displayName: string;
   avatarUrl: string | null;
   updatedAt: Date | string | number;
+  championBetCountryCode?: string | null;
   rank: number;
   totalPoints: number;
   predictionsCount: number;
@@ -113,6 +115,9 @@ export function LeaderboardTable({
                           title={row.displayName}
                         >
                           {row.displayName}
+                          <ParticipantChampionFlag
+                            countryCode={row.championBetCountryCode}
+                          />
                         </span>
                         <LeaderboardRowStats row={row} columns={columns} />
                       </div>

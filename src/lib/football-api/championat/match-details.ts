@@ -1,10 +1,11 @@
 import { MatchStatus } from "@/generated/prisma/client";
 import { CHAMPIONAT_WORLD_CUP_2026 } from "@/lib/football-api/championat/constants";
+import { fetchChampionatHtml } from "@/lib/football-api/championat/fetch-html";
 import { parsePlausibleFootballScore } from "@/lib/football-api/championat/football-score";
 import { parseChampionatMatchStatusFromHtml } from "@/lib/football-api/championat/match-status";
 import { normalizeVenueCityParts } from "@/lib/venue";
 
-import { fetchChampionatHtml } from "@/lib/football-api/championat/fetch-html";
+import { parseChampionatPenaltyScoreFromHtml } from "@/lib/football-api/championat/parse-penalty-score";
 
 export type ChampionatMatchDetails = {
   venueName?: string;
@@ -12,6 +13,8 @@ export type ChampionatMatchDetails = {
   status?: MatchStatus;
   homeScore?: number;
   awayScore?: number;
+  homePenaltyScore?: number;
+  awayPenaltyScore?: number;
 };
 
 function parseScoreCandidate(
@@ -75,6 +78,7 @@ export function parseChampionatMatchPageHtml(
   );
 
   const liveScore = parseLiveScoreFromMatchPage(html);
+  const penaltyScore = parseChampionatPenaltyScoreFromHtml(html);
   let status = parseChampionatMatchStatusFromHtml(html);
   if (!status && liveScore.impliesLive) {
     status = MatchStatus.LIVE;
@@ -84,9 +88,19 @@ export function parseChampionatMatchPageHtml(
     liveScore.homeScore !== undefined && liveScore.awayScore !== undefined
       ? { homeScore: liveScore.homeScore, awayScore: liveScore.awayScore }
       : {};
+  const penaltyFields = penaltyScore
+    ? {
+        homePenaltyScore: penaltyScore.homePenaltyScore,
+        awayPenaltyScore: penaltyScore.awayPenaltyScore,
+      }
+    : {};
 
   if (!stadiumBlock) {
-    return { ...scoreFields, ...(status ? { status } : {}) };
+    return {
+      ...scoreFields,
+      ...penaltyFields,
+      ...(status ? { status } : {}),
+    };
   }
 
   const venueName = normalizeWhitespace(stadiumBlock[1] ?? "");
@@ -101,6 +115,7 @@ export function parseChampionatMatchPageHtml(
     venueCity: venueCity || undefined,
     status,
     ...scoreFields,
+    ...penaltyFields,
   };
 }
 

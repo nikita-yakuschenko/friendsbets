@@ -8,7 +8,7 @@ import { hasScheduledKickoffStarted } from "@/lib/match-kickoff-delay";
 import { prisma } from "@/lib/db";
 import { notifyMatchResultParticipants } from "@/lib/match-result-notifications";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
-import { deriveWinnerTeamId } from "@/lib/utils";
+import { deriveMatchWinnerTeamId } from "@/lib/utils";
 
 type MatchSnapshotTarget = {
   id: string;
@@ -17,6 +17,8 @@ type MatchSnapshotTarget = {
   status: MatchStatus;
   homeScore: number | null;
   awayScore: number | null;
+  homePenaltyScore?: number | null;
+  awayPenaltyScore?: number | null;
   homeTeamId: string;
   awayTeamId: string;
   winnerTeamId?: string | null;
@@ -54,6 +56,8 @@ export async function applyChampionatSnapshotToMatch(
   const updateData: {
     homeScore?: number | null;
     awayScore?: number | null;
+    homePenaltyScore?: number | null;
+    awayPenaltyScore?: number | null;
     status?: MatchStatus;
     winnerTeamId?: string | null;
     championatTrackActive?: boolean;
@@ -157,16 +161,38 @@ export async function applyChampionatSnapshotToMatch(
   const awayScore = normalizedScores.awayScore;
 
   if (
+    kickoffReached &&
+    snapshot.homePenaltyScore !== undefined &&
+    snapshot.awayPenaltyScore !== undefined
+  ) {
+    updateData.homePenaltyScore = snapshot.homePenaltyScore;
+    updateData.awayPenaltyScore = snapshot.awayPenaltyScore;
+  } else if (nextStatus !== MatchStatus.FINISHED) {
+    if (match.homePenaltyScore != null || match.awayPenaltyScore != null) {
+      updateData.homePenaltyScore = null;
+      updateData.awayPenaltyScore = null;
+    }
+  }
+
+  const homePenaltyScore =
+    updateData.homePenaltyScore ?? match.homePenaltyScore ?? null;
+  const awayPenaltyScore =
+    updateData.awayPenaltyScore ?? match.awayPenaltyScore ?? null;
+
+  if (
     nextStatus === MatchStatus.FINISHED &&
     homeScore !== null &&
     awayScore !== null
   ) {
-    updateData.winnerTeamId = deriveWinnerTeamId(
+    updateData.winnerTeamId = deriveMatchWinnerTeamId({
       homeScore,
       awayScore,
-      match.homeTeamId,
-      match.awayTeamId,
-    );
+      homePenaltyScore,
+      awayPenaltyScore,
+      homeTeamId: match.homeTeamId,
+      awayTeamId: match.awayTeamId,
+      winnerTeamId: null,
+    });
   } else if (
     nextStatus !== MatchStatus.FINISHED &&
     match.winnerTeamId != null
@@ -198,7 +224,10 @@ export async function applyChampionatSnapshotToMatch(
   if (
     becameFinished ||
     (nextStatus === MatchStatus.FINISHED &&
-      (updateData.homeScore !== undefined || updateData.awayScore !== undefined))
+      (updateData.homeScore !== undefined ||
+        updateData.awayScore !== undefined ||
+        updateData.homePenaltyScore !== undefined ||
+        updateData.awayPenaltyScore !== undefined))
   ) {
     try {
       await recalculateMatchScoresForTournament(match.tournamentId, match.id);

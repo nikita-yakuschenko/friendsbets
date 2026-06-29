@@ -20,6 +20,8 @@ export type ChampionatMatchLiveSnapshot = {
   events: ChampionatMatchEvent[];
   homeScore?: number;
   awayScore?: number;
+  homePenaltyScore?: number;
+  awayPenaltyScore?: number;
   status?: MatchStatus;
   livePhase: ChampionatLivePhase;
   liveStatus: ChampionatLiveStatus;
@@ -103,6 +105,8 @@ export function parseChampionatMatchLiveSnapshot(
     events,
     homeScore: score?.homeScore,
     awayScore: score?.awayScore,
+    homePenaltyScore: details.homePenaltyScore,
+    awayPenaltyScore: details.awayPenaltyScore,
     status,
     livePhase: liveStatus.phase,
     liveStatus,

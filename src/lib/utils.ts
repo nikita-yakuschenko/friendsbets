@@ -105,6 +105,8 @@ export function deriveMatchWinnerTeamId(
   match: {
     homeScore: number | null;
     awayScore: number | null;
+    homePenaltyScore?: number | null;
+    awayPenaltyScore?: number | null;
     homeTeamId: string;
     awayTeamId: string;
     winnerTeamId: string | null;
@@ -112,10 +114,26 @@ export function deriveMatchWinnerTeamId(
 ): string | null {
   if (match.winnerTeamId) return match.winnerTeamId;
   if (match.homeScore === null || match.awayScore === null) return null;
-  return deriveWinnerTeamId(
+
+  const fromRegular = deriveWinnerTeamId(
     match.homeScore,
     match.awayScore,
     match.homeTeamId,
     match.awayTeamId,
   );
+  if (fromRegular) return fromRegular;
+
+  if (
+    match.homePenaltyScore != null &&
+    match.awayPenaltyScore != null
+  ) {
+    return deriveWinnerTeamId(
+      match.homePenaltyScore,
+      match.awayPenaltyScore,
+      match.homeTeamId,
+      match.awayTeamId,
+    );
+  }
+
+  return null;
 }

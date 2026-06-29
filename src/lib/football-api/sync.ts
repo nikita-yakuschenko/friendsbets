@@ -352,6 +352,8 @@ async function enrichMatchesFromChampionatPages(
         status?: MatchStatus;
         homeScore?: number | null;
         awayScore?: number | null;
+        homePenaltyScore?: number | null;
+        awayPenaltyScore?: number | null;
         championatTrackActive?: boolean;
         championatFinishedAt?: Date;
       } = {};
@@ -446,6 +448,15 @@ async function enrichMatchesFromChampionatPages(
         data.homeScore = finalScores.homeScore;
         data.awayScore = finalScores.awayScore;
       }
+
+      if (
+        details.homePenaltyScore !== undefined &&
+        details.awayPenaltyScore !== undefined
+      ) {
+        data.homePenaltyScore = details.homePenaltyScore;
+        data.awayPenaltyScore = details.awayPenaltyScore;
+      }
+
       Object.assign(
         data,
         championatFinishedTrackingPatch(

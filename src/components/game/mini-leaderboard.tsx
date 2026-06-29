@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ParticipantChampionFlag } from "@/components/leaderboard/participant-champion-flag";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +8,7 @@ type MiniLeaderboardRow = {
   userId: string;
   displayName: string;
   totalPoints: number;
+  championBetCountryCode?: string | null;
 };
 
 export function MiniLeaderboard({
@@ -69,6 +71,9 @@ export function MiniLeaderboard({
                 title={row.displayName}
               >
                 {row.displayName}
+                <ParticipantChampionFlag
+                  countryCode={row.championBetCountryCode}
+                />
               </span>
               <span className="text-right font-semibold tabular-nums text-white">
                 {row.totalPoints}

@@ -12,7 +12,9 @@ import { LiveMatchCardTabs } from "@/components/game/live-match-card-tabs";
 import type { LiveMatchPredictionsPanelProps } from "@/components/game/live-match-predictions-panel";
 import { TeamLabel } from "@/components/team/team-label";
 import type { ChampionatMatchEvent } from "@/lib/football-api/championat/match-protocol-types";
+import { MatchPenaltyScoreLine } from "@/components/match/match-penalty-score-line";
 import { sanitizeStoredScore } from "@/lib/football-api/championat/football-score";
+import { hasMatchPenaltyScore } from "@/lib/match-penalty-display";
 import { formatLiveScoreLine } from "@/lib/live-match-score";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
@@ -60,6 +62,12 @@ export function LiveMatchCard({
   const initialScore = sanitizeStoredScore(match.homeScore, match.awayScore);
   const [homeScore, setHomeScore] = useState<number | null>(initialScore.homeScore);
   const [awayScore, setAwayScore] = useState<number | null>(initialScore.awayScore);
+  const [homePenaltyScore, setHomePenaltyScore] = useState<number | null>(
+    match.homePenaltyScore,
+  );
+  const [awayPenaltyScore, setAwayPenaltyScore] = useState<number | null>(
+    match.awayPenaltyScore,
+  );
   const [events, setEvents] = useState<ChampionatMatchEvent[]>(initialEvents);
   const [livePhase, setLivePhase] = useState<ChampionatLivePhase>(() =>
     match.status === "FINISHED" ? "finished" : "live",
@@ -96,6 +104,8 @@ export function LiveMatchCard({
         events?: ChampionatMatchEvent[];
         homeScore?: number | null;
         awayScore?: number | null;
+        homePenaltyScore?: number | null;
+        awayPenaltyScore?: number | null;
         livePhase?: ChampionatLivePhase;
         liveStatus?: ChampionatLiveStatus;
         liveStatusSyncedAt?: string | null;
@@ -140,6 +150,10 @@ export function LiveMatchCard({
       if (nextHome !== prevHome || nextAway !== prevAway) {
         router.refresh();
       }
+      if (data.homePenaltyScore != null && data.awayPenaltyScore != null) {
+        setHomePenaltyScore(data.homePenaltyScore);
+        setAwayPenaltyScore(data.awayPenaltyScore);
+      }
     } catch {
       setEventsError("Не удалось обновить события.");
     } finally {
@@ -160,8 +174,7 @@ export function LiveMatchCard({
     };
   }, [fetchLive]);
 
-  const hasPenalties =
-    match.homePenaltyScore != null && match.awayPenaltyScore != null;
+  const hasPenalties = hasMatchPenaltyScore(homePenaltyScore, awayPenaltyScore);
   const liveScore = formatLiveScoreLine(homeScore, awayScore);
   const isHalftime = tickingLiveStatus.phase === "halftime";
 
@@ -197,9 +210,10 @@ export function LiveMatchCard({
               {liveScore.away}
             </p>
             {hasPenalties ? (
-              <p className="text-xs text-brand-muted tabular-nums">
-                пен. {match.homePenaltyScore}:{match.awayPenaltyScore}
-              </p>
+              <MatchPenaltyScoreLine
+                homePenaltyScore={homePenaltyScore!}
+                awayPenaltyScore={awayPenaltyScore!}
+              />
             ) : null}
           </div>
 

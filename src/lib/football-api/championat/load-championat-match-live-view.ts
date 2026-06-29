@@ -13,6 +13,8 @@ export type ChampionatMatchLiveView = {
   events: ChampionatMatchEvent[];
   homeScore: number | null;
   awayScore: number | null;
+  homePenaltyScore: number | null;
+  awayPenaltyScore: number | null;
   livePhase: ChampionatLivePhase;
   liveStatus: {
     phase: ChampionatLivePhase;
@@ -28,6 +30,8 @@ type MatchLiveViewSource = {
   startsAt: Date;
   homeScore: number | null;
   awayScore: number | null;
+  homePenaltyScore?: number | null;
+  awayPenaltyScore?: number | null;
   liveMinute: number | null;
   livePhaseCache: string | null;
   liveStatusRaw: string | null;
@@ -87,6 +91,8 @@ export async function loadChampionatMatchLiveView(
     events,
     homeScore: storedScores.homeScore,
     awayScore: storedScores.awayScore,
+    homePenaltyScore: match.homePenaltyScore ?? null,
+    awayPenaltyScore: match.awayPenaltyScore ?? null,
     livePhase,
     liveStatus: {
       phase: livePhase,

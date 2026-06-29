@@ -23,4 +23,18 @@ describe("deriveMatchWinnerTeamId", () => {
       }),
     ).toBe("preset");
   });
+
+  it("определяет победителя по пенальти при ничьей в основное время", () => {
+    expect(
+      deriveMatchWinnerTeamId({
+        homeScore: 1,
+        awayScore: 1,
+        homePenaltyScore: 3,
+        awayPenaltyScore: 4,
+        homeTeamId: "home",
+        awayTeamId: "away",
+        winnerTeamId: null,
+      }),
+    ).toBe("away");
+  });
 });

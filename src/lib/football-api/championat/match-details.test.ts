@@ -35,4 +35,14 @@ describe("parseChampionatMatchPageHtml", () => {
     expect(details.homeScore).toBeUndefined();
     expect(details.awayScore).toBeUndefined();
   });
+
+  it("читает пенальти из match-info__score-extra", () => {
+    const html = `
+      <div class="match-info__score-total">1 : 1</div>
+      <div class="match-info__score-extra">3 : 4</div>
+    `;
+    const details = parseChampionatMatchPageHtml(html);
+    expect(details.homePenaltyScore).toBe(3);
+    expect(details.awayPenaltyScore).toBe(4);
+  });
 });
