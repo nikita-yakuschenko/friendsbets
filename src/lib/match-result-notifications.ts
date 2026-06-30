@@ -174,6 +174,8 @@ export async function notifyMatchResultParticipants(
     awayTeam: match.awayTeam,
     homeScore: match.homeScore,
     awayScore: match.awayScore,
+    homePenaltyScore: match.homePenaltyScore,
+    awayPenaltyScore: match.awayPenaltyScore,
   });
 
   for (const game of games) {
@@ -219,6 +221,8 @@ export async function notifyMatchResultParticipants(
         awayTeam: match.awayTeam,
         homeScore: match.homeScore,
         awayScore: match.awayScore,
+        homePenaltyScore: match.homePenaltyScore,
+        awayPenaltyScore: match.awayPenaltyScore,
         gameTitle: game.title,
         inviteCode: game.inviteCode,
         predictedHome: prediction?.homeScore ?? null,

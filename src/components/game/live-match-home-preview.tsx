@@ -10,6 +10,8 @@ import type {
   ChampionatLiveStatus,
 } from "@/lib/football-api/championat/match-live-status";
 import { formatLiveScoreLine } from "@/lib/live-match-score";
+import { MatchPenaltyScoreLine } from "@/components/match/match-penalty-score-line";
+import { hasMatchPenaltyScore } from "@/lib/match-penalty-display";
 import { formatMatchVenue } from "@/lib/venue";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 import { useTickingLiveStatus } from "@/hooks/use-ticking-live-status";
@@ -26,6 +28,8 @@ type LiveMatchHomePreviewProps = {
     venueCity: string | null;
     homeScore: number | null;
     awayScore: number | null;
+    homePenaltyScore?: number | null;
+    awayPenaltyScore?: number | null;
     homeTeam: { name: string; countryCode: string | null };
     awayTeam: { name: string; countryCode: string | null };
   };
@@ -48,6 +52,12 @@ export function LiveMatchHomePreview({
       : new Date(match.startsAt);
   const [homeScore, setHomeScore] = useState(match.homeScore);
   const [awayScore, setAwayScore] = useState(match.awayScore);
+  const [homePenaltyScore, setHomePenaltyScore] = useState<number | null>(
+    match.homePenaltyScore ?? null,
+  );
+  const [awayPenaltyScore, setAwayPenaltyScore] = useState<number | null>(
+    match.awayPenaltyScore ?? null,
+  );
   const [liveStatus, setLiveStatus] = useState<ChampionatLiveStatus>(() => ({
     phase: match.status === "FINISHED" ? "finished" : "live",
     rawText: "",
@@ -72,6 +82,8 @@ export function LiveMatchHomePreview({
         liveStatusSyncedAt?: string | null;
         homeScore?: number | null;
         awayScore?: number | null;
+        homePenaltyScore?: number | null;
+        awayPenaltyScore?: number | null;
       };
       if (data.liveStatus) {
         setLiveStatus(data.liveStatus);
@@ -84,6 +96,10 @@ export function LiveMatchHomePreview({
       if (data.homeScore != null && data.awayScore != null) {
         setHomeScore(data.homeScore);
         setAwayScore(data.awayScore);
+      }
+      if (data.homePenaltyScore != null && data.awayPenaltyScore != null) {
+        setHomePenaltyScore(data.homePenaltyScore);
+        setAwayPenaltyScore(data.awayPenaltyScore);
       }
     } catch {
       /* тихо — остаётся последнее известное состояние */
@@ -101,6 +117,7 @@ export function LiveMatchHomePreview({
   }, [fetchPhase]);
 
   const liveScore = formatLiveScoreLine(homeScore, awayScore);
+  const hasPenalties = hasMatchPenaltyScore(homePenaltyScore, awayPenaltyScore);
   const isHalftime = tickingLiveStatus.phase === "halftime";
 
   return (
@@ -135,6 +152,14 @@ export function LiveMatchHomePreview({
                   <span className="mx-0.5 text-brand-muted">:</span>
                   {liveScore.away}
                 </p>
+                {hasPenalties ? (
+                  <MatchPenaltyScoreLine
+                    homePenaltyScore={homePenaltyScore!}
+                    awayPenaltyScore={awayPenaltyScore!}
+                    compact
+                    className="mt-0.5"
+                  />
+                ) : null}
               </div>
               <TeamLabel
                 name={match.awayTeam.name}

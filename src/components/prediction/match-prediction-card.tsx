@@ -15,7 +15,10 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MatchPenaltyScoreLine } from "@/components/match/match-penalty-score-line";
 import { TeamLabel } from "@/components/team/team-label";
-import { hasMatchPenaltyScore } from "@/lib/match-penalty-display";
+import {
+  formatPenaltyOutcomeLine,
+  hasMatchPenaltyScore,
+} from "@/lib/match-penalty-display";
 import { getFlagImageSrcSet, getFlagImageUrl } from "@/lib/teams";
 import { liveScoreForDisplay } from "@/lib/live-match-score";
 import { isKnockoutStage } from "@/lib/match-stage";
@@ -193,6 +196,7 @@ function ScoreRow({
         <MatchPenaltyScoreLine
           homePenaltyScore={penaltyHome!}
           awayPenaltyScore={penaltyAway!}
+          compact
         />
       ) : null}
     </div>
@@ -262,6 +266,21 @@ function FinishedPredictionOutcome({
   resultPending: boolean;
 }) {
   const won = points > 0;
+  const hasPenalties = hasMatchPenaltyScore(
+    match.homePenaltyScore,
+    match.awayPenaltyScore,
+  );
+  const penaltyOutcomeLine =
+    hasPenalties &&
+    match.homePenaltyScore != null &&
+    match.awayPenaltyScore != null
+      ? formatPenaltyOutcomeLine(
+          match.homeTeam.name,
+          match.awayTeam.name,
+          match.homePenaltyScore,
+          match.awayPenaltyScore,
+        )
+      : null;
 
   const pillClass = cn(
     "inline-flex w-full max-w-sm flex-col items-center gap-1 rounded-lg border-[0.5px] bg-brand-bg px-5 py-2 text-center text-[11px] leading-snug shadow-[0_4px_16px_rgba(0,0,0,0.3)] sm:max-w-md sm:text-xs",
@@ -306,6 +325,9 @@ function FinishedPredictionOutcome({
       <div className={pillClass}>
         <span className="text-brand-muted">Ваш прогноз</span>
         {predictionScore}
+        {penaltyOutcomeLine ? (
+          <span className="text-white/80">{penaltyOutcomeLine}</span>
+        ) : null}
         <span className="text-brand-muted">
           Очки начислятся после подтверждения результата
         </span>
@@ -320,6 +342,9 @@ function FinishedPredictionOutcome({
       <div className={pillClass}>
         <span className="text-brand-muted">Ваш прогноз</span>
         {predictionScore}
+        {penaltyOutcomeLine ? (
+          <span className="text-white/80">{penaltyOutcomeLine}</span>
+        ) : null}
         <span className="text-brand-muted">
           Прогноз совпал по правилу —{" "}
           <span className="text-white">{ruleLabel}</span>
@@ -335,6 +360,9 @@ function FinishedPredictionOutcome({
     <div className={pillClass}>
       <span className="text-brand-muted">Ваш прогноз</span>
       {predictionScore}
+      {penaltyOutcomeLine ? (
+        <span className="text-white/80">{penaltyOutcomeLine}</span>
+      ) : null}
       <span className="text-white">Ставка не зашла</span>
       <span className="text-brand-muted">Очки не начислены</span>
     </div>
@@ -531,6 +559,16 @@ export function MatchPredictionCard({
       ? { home: match.homeScore, away: match.awayScore }
       : undefined;
 
+  const penaltyScoresForDisplay =
+    inProgress
+      ? { home: livePenaltyHome, away: livePenaltyAway }
+      : hasMatchPenaltyScore(match.homePenaltyScore, match.awayPenaltyScore)
+        ? {
+            home: match.homePenaltyScore!,
+            away: match.awayPenaltyScore!,
+          }
+        : undefined;
+
   const cardInner = (
     <>
       <CardHeader
@@ -625,11 +663,7 @@ export function MatchPredictionCard({
               prediction={prediction}
               editing={false}
               liveScores={liveScores}
-              penaltyScores={
-                inProgress
-                  ? { home: livePenaltyHome, away: livePenaltyAway }
-                  : undefined
-              }
+              penaltyScores={penaltyScoresForDisplay}
             />
             <MatchMeta
               startsAt={match.startsAt}

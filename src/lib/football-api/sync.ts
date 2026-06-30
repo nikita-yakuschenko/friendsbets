@@ -27,7 +27,9 @@ import { MATCH_LIVE_TRACKING_MAX_MS } from "@/lib/match-prediction-state";
 import { logOperation } from "@/lib/logger";
 import { normalizeMatchScoresForDb } from "@/lib/football-api/championat/football-score";
 import { handleMatchFinished } from "@/lib/match-result-notifications";
+import { isKnockoutStage } from "@/lib/match-stage";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
+import { deriveMatchWinnerTeamId } from "@/lib/utils";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import { CHAMPIONAT_WORLD_CUP_2026 } from "@/lib/football-api/championat/constants";
 
@@ -313,23 +315,70 @@ async function enrichMatchesFromChampionatPages(
     ...quickOr,
   ];
 
-  const matches = await prisma.match.findMany({
-    where: {
-      tournamentId,
-      externalId: { startsWith: "championat:" },
-      championatTrackActive: true,
-      OR: options.mode === "quick" ? quickOr : fullOr,
-    },
-    select: {
-      id: true,
-      externalId: true,
-      status: true,
-      startsAt: true,
-      homeScore: true,
-      awayScore: true,
-      championatFinishedAt: true,
-    },
-  });
+  type EnrichMatchRow = {
+    id: string;
+    externalId: string | null;
+    status: MatchStatus;
+    startsAt: Date;
+    homeScore: number | null;
+    awayScore: number | null;
+    homePenaltyScore: number | null;
+    awayPenaltyScore: number | null;
+    stage: string | null;
+    homeTeamId: string;
+    awayTeamId: string;
+    championatFinishedAt: Date | null;
+  };
+
+  const enrichSelect = {
+    id: true,
+    externalId: true,
+    status: true,
+    startsAt: true,
+    homeScore: true,
+    awayScore: true,
+    homePenaltyScore: true,
+    awayPenaltyScore: true,
+    stage: true,
+    homeTeamId: true,
+    awayTeamId: true,
+    championatFinishedAt: true,
+  } as const;
+
+  const [orMatches, penaltyBackfillCandidates] = await Promise.all([
+    prisma.match.findMany({
+      where: {
+        tournamentId,
+        externalId: { startsWith: "championat:" },
+        championatTrackActive: true,
+        OR: options.mode === "quick" ? quickOr : fullOr,
+      },
+      select: enrichSelect,
+    }),
+    prisma.match.findMany({
+      where: {
+        tournamentId,
+        externalId: { startsWith: "championat:" },
+        championatTrackActive: true,
+        status: MatchStatus.FINISHED,
+        homePenaltyScore: null,
+        homeScore: { not: null },
+        awayScore: { not: null },
+      },
+      select: enrichSelect,
+    }),
+  ]);
+
+  const penaltyBackfill = penaltyBackfillCandidates.filter(
+    (match) =>
+      match.homeScore === match.awayScore && isKnockoutStage(match.stage),
+  );
+
+  const matchesById = new Map<string, EnrichMatchRow>();
+  for (const match of [...orMatches, ...penaltyBackfill]) {
+    matchesById.set(match.id, match);
+  }
+  const matches = [...matchesById.values()];
 
   const concurrency = readConcurrencyFromEnv("CHAMPIONAT_SYNC_CONCURRENCY", 2);
   const allowVenueEnrichment = options.mode === "full";
@@ -354,6 +403,7 @@ async function enrichMatchesFromChampionatPages(
         awayScore?: number | null;
         homePenaltyScore?: number | null;
         awayPenaltyScore?: number | null;
+        winnerTeamId?: string | null;
         championatTrackActive?: boolean;
         championatFinishedAt?: Date;
       } = {};
@@ -455,6 +505,15 @@ async function enrichMatchesFromChampionatPages(
       ) {
         data.homePenaltyScore = details.homePenaltyScore;
         data.awayPenaltyScore = details.awayPenaltyScore;
+        data.winnerTeamId = deriveMatchWinnerTeamId({
+          homeScore: finalScores.homeScore ?? match.homeScore,
+          awayScore: finalScores.awayScore ?? match.awayScore,
+          homePenaltyScore: details.homePenaltyScore,
+          awayPenaltyScore: details.awayPenaltyScore,
+          homeTeamId: match.homeTeamId,
+          awayTeamId: match.awayTeamId,
+          winnerTeamId: null,
+        });
       }
 
       Object.assign(

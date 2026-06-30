@@ -213,6 +213,7 @@ export function LiveMatchCard({
               <MatchPenaltyScoreLine
                 homePenaltyScore={homePenaltyScore!}
                 awayPenaltyScore={awayPenaltyScore!}
+                compact
               />
             ) : null}
           </div>

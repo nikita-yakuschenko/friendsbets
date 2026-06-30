@@ -2,6 +2,44 @@ import { describe, expect, it } from "vitest";
 import { buildPointsHistoryEntries } from "@/lib/leaderboard/points-history";
 
 describe("buildPointsHistoryEntries", () => {
+  it("показывает серию пенальти в результате", () => {
+    const entries = buildPointsHistoryEntries({
+      predictions: [
+        {
+          id: "p1",
+          homeScore: 3,
+          awayScore: 1,
+          scores: [
+            {
+              id: "s1",
+              points: 1,
+              reason: "Голы одной команды",
+              calculatedAt: new Date("2026-06-30T12:00:00Z"),
+            },
+          ],
+          match: {
+            stage: "1/16 финала",
+            startsAt: new Date("2026-06-29T20:30:00Z"),
+            homeScore: 1,
+            awayScore: 1,
+            homePenaltyScore: 5,
+            awayPenaltyScore: 4,
+            homeTeam: { name: "Германия", countryCode: "DE" },
+            awayTeam: { name: "Парагвай", countryCode: "PY" },
+          },
+        },
+      ],
+      championPick: null,
+      championAwardedAt: null,
+    });
+
+    expect(entries).toHaveLength(1);
+    if (entries[0]?.kind === "match") {
+      expect(entries[0].actualHomePenaltyScore).toBe(5);
+      expect(entries[0].actualAwayPenaltyScore).toBe(4);
+    }
+  });
+
   it("собирает начисления по матчам и сортирует по дате", () => {
     const entries = buildPointsHistoryEntries({
       predictions: [

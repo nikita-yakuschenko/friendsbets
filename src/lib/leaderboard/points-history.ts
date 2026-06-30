@@ -15,6 +15,8 @@ export type PointsHistoryMatchEntry = {
   predictedAway: number;
   actualHome: number;
   actualAway: number;
+  actualHomePenaltyScore?: number | null;
+  actualAwayPenaltyScore?: number | null;
 };
 
 export type PointsHistoryChampionEntry = {
@@ -47,6 +49,8 @@ type PredictionWithScore = {
     championatFinishedAt?: Date | null;
     homeScore: number | null;
     awayScore: number | null;
+    homePenaltyScore?: number | null;
+    awayPenaltyScore?: number | null;
     homeTeam: { name: string; countryCode: string | null };
     awayTeam: { name: string; countryCode: string | null };
   };
@@ -103,6 +107,8 @@ export function buildPointsHistoryEntries(params: {
         predictedAway: prediction.awayScore,
         actualHome: prediction.match.homeScore,
         actualAway: prediction.match.awayScore,
+        actualHomePenaltyScore: prediction.match.homePenaltyScore ?? null,
+        actualAwayPenaltyScore: prediction.match.awayPenaltyScore ?? null,
       });
   }
 

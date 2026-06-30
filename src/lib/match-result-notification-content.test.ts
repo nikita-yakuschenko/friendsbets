@@ -34,6 +34,20 @@ describe("match result notification content", () => {
     expect(formatPointsLabel(5)).toBe("5 очков");
   });
 
+  it("in-app содержит серию пенальти", () => {
+    const body = buildMatchResultInAppBody({
+      ...base,
+      homeScore: 1,
+      awayScore: 1,
+      homePenaltyScore: 3,
+      awayPenaltyScore: 4,
+      homeTeam: { name: "Германия", countryCode: "DE" },
+      awayTeam: { name: "Парагвай", countryCode: "PY" },
+    });
+    expect(body).toContain("Счёт: 1:1 (пен. 3:4)");
+    expect(body).toContain("Исход по пенальти: Парагвай (3:4)");
+  });
+
   it("in-app содержит результат, очки, место и следующий матч", () => {
     const body = buildMatchResultInAppBody(base);
     expect(body).toContain("В турнире «ЧМ 2026»");

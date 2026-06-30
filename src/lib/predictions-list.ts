@@ -10,6 +10,8 @@ export type PredictionMatchRow = {
   venueCity: string | null;
   homeScore: number | null;
   awayScore: number | null;
+  homePenaltyScore?: number | null;
+  awayPenaltyScore?: number | null;
   championatFinishedAt?: Date | null;
   updatedAt?: Date;
   homeTeam: { name: string; shortName: string; countryCode?: string | null };

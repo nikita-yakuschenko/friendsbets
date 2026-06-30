@@ -4,6 +4,11 @@ import { useState, useTransition } from "react";
 import { IconArrowLeft, IconClock, IconX } from "@tabler/icons-react";
 import { MatchTeamsRow } from "@/components/team/match-teams-row";
 import {
+  formatMatchScoreWithPenalty,
+  formatPenaltyOutcomeLine,
+  hasMatchPenaltyScore,
+} from "@/lib/match-penalty-display";
+import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
@@ -150,6 +155,8 @@ export function FinishedMatchPredictionsButton({
   const [actualScore, setActualScore] = useState<{
     home: number | null;
     away: number | null;
+    homePenalty: number | null;
+    awayPenalty: number | null;
   } | null>(null);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -171,7 +178,12 @@ export function FinishedMatchPredictionsButton({
         }
         setRows(data.rows);
         setResultPending(data.resultPending);
-        setActualScore({ home: data.actualHome, away: data.actualAway });
+        setActualScore({
+          home: data.actualHome,
+          away: data.actualAway,
+          homePenalty: data.actualHomePenaltyScore,
+          awayPenalty: data.actualAwayPenaltyScore,
+        });
         setLoadedFor(matchId);
       } catch {
         setError("Не удалось загрузить прогнозы");
@@ -186,8 +198,24 @@ export function FinishedMatchPredictionsButton({
 
   const scoreLabel =
     actualScore?.home != null && actualScore?.away != null
-      ? ` · ${actualScore.home} : ${actualScore.away}`
+      ? ` · ${formatMatchScoreWithPenalty(
+          actualScore.home,
+          actualScore.away,
+          actualScore.homePenalty,
+          actualScore.awayPenalty,
+        )}`
       : "";
+
+  const penaltyOutcomeLine =
+    actualScore &&
+    hasMatchPenaltyScore(actualScore.homePenalty, actualScore.awayPenalty)
+      ? formatPenaltyOutcomeLine(
+          homeTeam.name,
+          awayTeam.name,
+          actualScore.homePenalty!,
+          actualScore.awayPenalty!,
+        )
+      : null;
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
@@ -243,6 +271,9 @@ export function FinishedMatchPredictionsButton({
                 <span className="block text-brand-muted">
                   Ожидаем официальный результат
                 </span>
+              ) : null}
+              {penaltyOutcomeLine ? (
+                <span className="block text-white/80">{penaltyOutcomeLine}</span>
               ) : null}
             </AlertDialogDescription>
           </div>

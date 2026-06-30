@@ -246,6 +246,8 @@ export type MatchPredictionsSummaryPayload = {
   awayTeamName: string;
   actualHome: number | null;
   actualAway: number | null;
+  actualHomePenaltyScore: number | null;
+  actualAwayPenaltyScore: number | null;
   resultPending: boolean;
   rows: MatchPredictionsSummaryRow[];
 };
@@ -274,6 +276,8 @@ export async function getMatchPredictionsSummary(
       startsAt: true,
       homeScore: true,
       awayScore: true,
+      homePenaltyScore: true,
+      awayPenaltyScore: true,
       homeTeam: { select: { name: true } },
       awayTeam: { select: { name: true } },
     },
@@ -359,6 +363,8 @@ export async function getMatchPredictionsSummary(
     awayTeamName: match.awayTeam.name,
     actualHome: match.homeScore,
     actualAway: match.awayScore,
+    actualHomePenaltyScore: match.homePenaltyScore,
+    actualAwayPenaltyScore: match.awayPenaltyScore,
     resultPending,
     rows,
   };

@@ -11,22 +11,22 @@ export function ParticipantChampionFlag({
   if (!flagUrl) return null;
 
   return (
-    <sup
-      className="ml-1 inline-flex align-super"
+    <span
+      className="relative ml-1 inline-block align-baseline"
       title="Прогноз на чемпиона"
       aria-label="Прогноз на чемпиона"
     >
       <img
         src={flagUrl}
         srcSet={getFlagImageSrcSet(countryCode) ?? undefined}
-        width={14}
-        height={10}
+        width={18}
+        height={12}
         alt=""
         aria-hidden
-        className="inline-block h-2.5 w-3.5 rounded-[2px] object-cover"
+        className="relative -top-1 inline-block h-3 w-[18px] shrink-0 rounded-[2px] object-cover"
         loading="lazy"
         decoding="async"
       />
-    </sup>
+    </span>
   );
 }

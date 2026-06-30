@@ -18,6 +18,11 @@ import type {
   PointsHistoryEntry,
   PointsHistoryMatchEntry,
 } from "@/lib/leaderboard/points-history";
+import {
+  formatMatchScoreWithPenalty,
+  formatPenaltyOutcomeLine,
+  hasMatchPenaltyScore,
+} from "@/lib/match-penalty-display";
 import { cn, formatDateTimeMoscow } from "@/lib/utils";
 import { getParticipantPointsHistory } from "@/server/actions/points-history";
 
@@ -30,6 +35,11 @@ function formatScore(home: number, away: number): string {
 }
 
 function MatchHistoryCard({ entry }: { entry: PointsHistoryMatchEntry }) {
+  const hasPenalties = hasMatchPenaltyScore(
+    entry.actualHomePenaltyScore,
+    entry.actualAwayPenaltyScore,
+  );
+
   return (
     <li className="rounded-xl border border-brand-neutral/80 bg-brand-bg/60 p-3.5 sm:p-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
@@ -60,9 +70,24 @@ function MatchHistoryCard({ entry }: { entry: PointsHistoryMatchEntry }) {
         <p>
           Результат:{" "}
           <span className="font-medium text-white">
-            {formatScore(entry.actualHome, entry.actualAway)}
+            {formatMatchScoreWithPenalty(
+              entry.actualHome,
+              entry.actualAway,
+              entry.actualHomePenaltyScore,
+              entry.actualAwayPenaltyScore,
+            )}
           </span>
         </p>
+        {hasPenalties ? (
+          <p className="text-white/80">
+            {formatPenaltyOutcomeLine(
+              entry.homeTeam.name,
+              entry.awayTeam.name,
+              entry.actualHomePenaltyScore!,
+              entry.actualAwayPenaltyScore!,
+            )}
+          </p>
+        ) : null}
         <p className="text-brand-lime/90">{entry.reason}</p>
       </div>
     </li>
