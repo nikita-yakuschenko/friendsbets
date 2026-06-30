@@ -66,3 +66,19 @@ export function getPenaltyScoringModeNote(
     ? PENALTY_SCORING_MODE_NOTE_SYNTHETIC
     : PENALTY_SCORING_MODE_NOTE_CLASSIC;
 }
+
+/** Счёт для начисления очков (только при альтернативе и ничьей + пенальти). */
+export function resolvePointsScoringScore(
+  match: MatchForPenaltyScoring,
+  penaltyScoringSynthetic: boolean,
+): { homeScore: number; awayScore: number } | null {
+  if (!penaltyScoringSynthetic) return null;
+  return buildSyntheticRegulationScore(match);
+}
+
+export function formatPointsScoringScore(
+  homeScore: number,
+  awayScore: number,
+): string {
+  return `${homeScore} : ${awayScore}`;
+}

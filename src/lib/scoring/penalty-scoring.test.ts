@@ -4,6 +4,7 @@ import { buildScoreInput, calculatePredictionScore } from "@/lib/scoring/index";
 import {
   buildSyntheticRegulationScore,
   isPenaltyDecidedDraw,
+  resolvePointsScoringScore,
 } from "@/lib/scoring/penalty-scoring-mode";
 import { scoreManyPoints } from "@/lib/scoring/rules";
 
@@ -63,5 +64,13 @@ describe("penalty scoring", () => {
         { penaltyScoringSynthetic: true },
       ),
     ).toMatchObject({ points: 6, tier: "exact" });
+  });
+
+  it("resolvePointsScoringScore только при альтернативе", () => {
+    expect(resolvePointsScoringScore(penaltyDrawMatch, false)).toBeNull();
+    expect(resolvePointsScoringScore(penaltyDrawMatch, true)).toEqual({
+      homeScore: 1,
+      awayScore: 2,
+    });
   });
 });

@@ -53,12 +53,14 @@ function ChronologicalPredictionsSection({
   liveHrefFor,
   sectionSuffix,
   sortItems = sortUpcomingPredictionsBySchedule,
+  penaltyScoringSynthetic = false,
 }: {
   items: PredictionMatchItem[];
   gameId: string;
   liveHrefFor: (matchId: string) => string;
   sectionSuffix?: string;
   sortItems?: (items: PredictionMatchItem[]) => PredictionMatchItem[];
+  penaltyScoringSynthetic?: boolean;
 }) {
   const sorted = sortItems(items);
   if (sorted.length === 0) return null;
@@ -92,6 +94,7 @@ function ChronologicalPredictionsSection({
               }
               points={item.points}
               scoreReason={item.scoreReason}
+              penaltyScoringSynthetic={penaltyScoringSynthetic}
             />
           </Fragment>
         );
@@ -227,6 +230,7 @@ export default async function PredictionsPage({
                   }
                   points={item.points}
                   scoreReason={item.scoreReason}
+                  penaltyScoringSynthetic={data.game.penaltyScoringSynthetic}
                 />
               ))}
             </div>
@@ -236,6 +240,7 @@ export default async function PredictionsPage({
               items={upcomingOnlyItems}
               gameId={data.game.id}
               liveHrefFor={liveHrefFor}
+              penaltyScoringSynthetic={data.game.penaltyScoringSynthetic}
             />
           ) : null}
           {showPostponedSection && postponedOnlyItems.length > 0 ? (
@@ -244,6 +249,7 @@ export default async function PredictionsPage({
               gameId={data.game.id}
               liveHrefFor={liveHrefFor}
               sectionSuffix="перенесённые"
+              penaltyScoringSynthetic={data.game.penaltyScoringSynthetic}
             />
           ) : null}
           {showFinishedSection && finishedOnlyItems.length > 0 ? (
@@ -252,6 +258,7 @@ export default async function PredictionsPage({
               gameId={data.game.id}
               liveHrefFor={liveHrefFor}
               sortItems={sortFinishedPredictionItems}
+              penaltyScoringSynthetic={data.game.penaltyScoringSynthetic}
             />
           ) : null}
         </div>

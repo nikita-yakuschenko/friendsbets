@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { IconArrowLeft, IconClock, IconX } from "@tabler/icons-react";
 import { MatchTeamsRow } from "@/components/team/match-teams-row";
+import { MatchPointsScoringScoreLine } from "@/components/match/match-points-scoring-score-line";
 import {
   formatMatchScoreWithPenalty,
   formatPenaltyOutcomeLine,
@@ -158,6 +159,7 @@ export function FinishedMatchPredictionsButton({
     homePenalty: number | null;
     awayPenalty: number | null;
   } | null>(null);
+  const [penaltyScoringSynthetic, setPenaltyScoringSynthetic] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -184,6 +186,7 @@ export function FinishedMatchPredictionsButton({
           homePenalty: data.actualHomePenaltyScore,
           awayPenalty: data.actualAwayPenaltyScore,
         });
+        setPenaltyScoringSynthetic(data.penaltyScoringSynthetic);
         setLoadedFor(matchId);
       } catch {
         setError("Не удалось загрузить прогнозы");
@@ -274,6 +277,18 @@ export function FinishedMatchPredictionsButton({
               ) : null}
               {penaltyOutcomeLine ? (
                 <span className="block text-white/80">{penaltyOutcomeLine}</span>
+              ) : null}
+              {actualScore?.home != null && actualScore.away != null ? (
+                <MatchPointsScoringScoreLine
+                  match={{
+                    homeScore: actualScore.home,
+                    awayScore: actualScore.away,
+                    homePenaltyScore: actualScore.homePenalty,
+                    awayPenaltyScore: actualScore.awayPenalty,
+                  }}
+                  penaltyScoringSynthetic={penaltyScoringSynthetic}
+                  align="start"
+                />
               ) : null}
             </AlertDialogDescription>
           </div>

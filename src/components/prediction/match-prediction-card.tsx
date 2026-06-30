@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MatchPenaltyScoreLine } from "@/components/match/match-penalty-score-line";
+import { MatchPointsScoringScoreLine } from "@/components/match/match-points-scoring-score-line";
 import { TeamLabel } from "@/components/team/team-label";
 import {
   formatPenaltyOutcomeLine,
@@ -60,6 +61,7 @@ type MatchCardProps = {
   liveHref?: string;
   points: number;
   scoreReason?: string | null;
+  penaltyScoringSynthetic?: boolean;
 };
 
 function MatchMeta({
@@ -95,6 +97,8 @@ function ScoreRow({
   onScoreChange,
   liveScores,
   penaltyScores,
+  penaltyScoringSynthetic = false,
+  showPointsScoringScore = false,
 }: {
   match: MatchCardProps["match"];
   prediction: MatchCardProps["prediction"];
@@ -103,6 +107,8 @@ function ScoreRow({
   onScoreChange?: () => void;
   liveScores?: { home: number | null; away: number | null };
   penaltyScores?: { home: number | null; away: number | null };
+  penaltyScoringSynthetic?: boolean;
+  showPointsScoringScore?: boolean;
 }) {
   const useLive = Boolean(liveScores) && !editing;
   const penaltyHome = penaltyScores?.home ?? match.homePenaltyScore ?? null;
@@ -197,6 +203,17 @@ function ScoreRow({
           homePenaltyScore={penaltyHome!}
           awayPenaltyScore={penaltyAway!}
           compact
+        />
+      ) : null}
+      {showPointsScoringScore ? (
+        <MatchPointsScoringScoreLine
+          match={{
+            homeScore: match.homeScore,
+            awayScore: match.awayScore,
+            homePenaltyScore: penaltyHome,
+            awayPenaltyScore: penaltyAway,
+          }}
+          penaltyScoringSynthetic={penaltyScoringSynthetic}
         />
       ) : null}
     </div>
@@ -381,6 +398,7 @@ export function MatchPredictionCard({
   liveHref,
   points,
   scoreReason = null,
+  penaltyScoringSynthetic = false,
 }: MatchCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({ home: false, away: false });
@@ -664,6 +682,8 @@ export function MatchPredictionCard({
               editing={false}
               liveScores={liveScores}
               penaltyScores={penaltyScoresForDisplay}
+              penaltyScoringSynthetic={penaltyScoringSynthetic}
+              showPointsScoringScore={isFinished && !resultPending}
             />
             <MatchMeta
               startsAt={match.startsAt}

@@ -20,6 +20,7 @@ import { isKnockoutStage } from "@/lib/match-stage";
 import { deriveWinnerTeamId } from "@/lib/utils";
 import type { PredictionMatchItem } from "@/lib/predictions-list";
 import { buildPredictionStageGroups } from "@/lib/predictions-list";
+import { buildSyntheticRegulationScore } from "@/lib/scoring/penalty-scoring-mode";
 import {
   pickCanonicalPredictionScore,
   sumPredictionScorePoints,
@@ -248,6 +249,9 @@ export type MatchPredictionsSummaryPayload = {
   actualAway: number | null;
   actualHomePenaltyScore: number | null;
   actualAwayPenaltyScore: number | null;
+  penaltyScoringSynthetic: boolean;
+  scoringHome: number | null;
+  scoringAway: number | null;
   resultPending: boolean;
   rows: MatchPredictionsSummaryRow[];
 };
@@ -264,7 +268,7 @@ export async function getMatchPredictionsSummary(
 
   const game = await prisma.game.findUnique({
     where: { id: gameId },
-    select: { tournamentId: true },
+    select: { tournamentId: true, penaltyScoringSynthetic: true },
   });
   if (!game) return null;
 
@@ -358,6 +362,13 @@ export async function getMatchPredictionsSummary(
     return a.displayName.localeCompare(b.displayName, "ru");
   });
 
+  const synthetic =
+    game.penaltyScoringSynthetic &&
+    match.homeScore != null &&
+    match.awayScore != null
+      ? buildSyntheticRegulationScore(match)
+      : null;
+
   return {
     homeTeamName: match.homeTeam.name,
     awayTeamName: match.awayTeam.name,
@@ -365,6 +376,9 @@ export async function getMatchPredictionsSummary(
     actualAway: match.awayScore,
     actualHomePenaltyScore: match.homePenaltyScore,
     actualAwayPenaltyScore: match.awayPenaltyScore,
+    penaltyScoringSynthetic: game.penaltyScoringSynthetic,
+    scoringHome: synthetic?.homeScore ?? null,
+    scoringAway: synthetic?.awayScore ?? null,
     resultPending,
     rows,
   };
