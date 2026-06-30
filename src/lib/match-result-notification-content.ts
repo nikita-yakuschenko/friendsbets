@@ -22,6 +22,7 @@ import {
   formatPenaltyOutcomeLine,
   hasMatchPenaltyScore,
 } from "@/lib/match-penalty-display";
+import { formatPointsScoringScoreNotice } from "@/lib/scoring/penalty-scoring-mode";
 import { formatDateTimeMoscow, formatRelativeTime } from "@/lib/utils";
 
 export type MatchResultNotificationInput = {
@@ -31,6 +32,9 @@ export type MatchResultNotificationInput = {
   awayScore: number;
   homePenaltyScore?: number | null;
   awayPenaltyScore?: number | null;
+  /** Синтетический счёт для очков (альтернатива + ничья + пенальти). */
+  scoringHome?: number | null;
+  scoringAway?: number | null;
   gameTitle: string;
   inviteCode: string;
   predictedHome: number | null;
@@ -96,6 +100,12 @@ function buildResultLines(params: MatchResultNotificationInput): string[] {
     );
   }
 
+  if (params.scoringHome != null && params.scoringAway != null) {
+    lines.push(
+      formatPointsScoringScoreNotice(params.scoringHome, params.scoringAway),
+    );
+  }
+
   if (params.predictedHome != null && params.predictedAway != null) {
     lines.push(`Ваш прогноз: ${params.predictedHome}:${params.predictedAway}`);
     lines.push(
@@ -150,6 +160,11 @@ export function buildMatchResultTelegramHtml(
       }
     : undefined;
 
+  const pointsScoringSuffix =
+    params.scoringHome != null && params.scoringAway != null
+      ? `. ${formatPointsScoringScoreNotice(params.scoringHome, params.scoringAway)}`
+      : "";
+
   return buildTelegramNotificationHtml({
     gameTitle: params.gameTitle,
     eventLine: "Матч завершён:",
@@ -172,7 +187,7 @@ export function buildMatchResultTelegramHtml(
             params.awayPenaltyScore!,
           )}`
         : ""
-    }`,
+    }${pointsScoringSuffix}`,
     stats: {
       pointsLine: formatPointsAccruedLabel(params.matchPoints),
       rankLine: formatRankLine(params.rank, params.totalPoints),
@@ -196,6 +211,20 @@ export function buildMatchResultEmailContent(
     params.homePenaltyScore,
     params.awayPenaltyScore,
   );
+  const resultLabel =
+    params.scoringHome != null && params.scoringAway != null
+      ? `Итог: ${formatMatchScoreWithPenalty(
+          params.homeScore,
+          params.awayScore,
+          params.homePenaltyScore,
+          params.awayPenaltyScore,
+        )}. ${formatPointsScoringScoreNotice(params.scoringHome, params.scoringAway)}`
+      : `Итог: ${formatMatchScoreWithPenalty(
+          params.homeScore,
+          params.awayScore,
+          params.homePenaltyScore,
+          params.awayPenaltyScore,
+        )}`;
 
   const text = [
     `Привет, ${params.userName}!`,
@@ -219,12 +248,7 @@ export function buildMatchResultEmailContent(
       homeTeam: params.homeTeam.name,
       awayTeam: params.awayTeam.name,
       gameTitle: params.gameTitle,
-      startsAtLabel: `Итог: ${formatMatchScoreWithPenalty(
-        params.homeScore,
-        params.awayScore,
-        params.homePenaltyScore,
-        params.awayPenaltyScore,
-      )}`,
+      startsAtLabel: resultLabel,
       timeLabel:
         params.predictedHome != null && params.predictedAway != null
           ? `Прогноз ${params.predictedHome}:${params.predictedAway} · ${formatPointsLabel(params.matchPoints)}`

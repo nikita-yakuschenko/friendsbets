@@ -16,6 +16,7 @@ import {
   buildMatchResultTitle,
 } from "@/lib/match-result-notification-content";
 import { calculatePredictionScore } from "@/lib/scoring";
+import { resolvePointsScoringScore } from "@/lib/scoring/penalty-scoring-mode";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
 import {
   shouldNotifyByEmail,
@@ -219,6 +220,11 @@ export async function notifyMatchResultParticipants(
             })
           : { points: 0, reason: "Прогноз не сделан", tier: "none" as const };
 
+      const pointsScoring = resolvePointsScoringScore(
+        match,
+        game.penaltyScoringSynthetic,
+      );
+
       const payload = {
         homeTeam: match.homeTeam,
         awayTeam: match.awayTeam,
@@ -226,6 +232,8 @@ export async function notifyMatchResultParticipants(
         awayScore: match.awayScore,
         homePenaltyScore: match.homePenaltyScore,
         awayPenaltyScore: match.awayPenaltyScore,
+        scoringHome: pointsScoring?.homeScore ?? null,
+        scoringAway: pointsScoring?.awayScore ?? null,
         gameTitle: game.title,
         inviteCode: game.inviteCode,
         predictedHome: prediction?.homeScore ?? null,

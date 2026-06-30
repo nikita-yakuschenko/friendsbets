@@ -48,6 +48,38 @@ describe("match result notification content", () => {
     expect(body).toContain("Исход по пенальти: Парагвай (3:4)");
   });
 
+  it("in-app содержит синтетический счёт для очков", () => {
+    const body = buildMatchResultInAppBody({
+      ...base,
+      homeScore: 1,
+      awayScore: 1,
+      homePenaltyScore: 3,
+      awayPenaltyScore: 4,
+      scoringHome: 1,
+      scoringAway: 2,
+      homeTeam: { name: "Германия", countryCode: "DE" },
+      awayTeam: { name: "Парагвай", countryCode: "PY" },
+    });
+    expect(body).toContain("Для очков: 1 : 2");
+  });
+
+  it("telegram содержит синтетический счёт для очков", () => {
+    const html = buildMatchResultTelegramHtml({
+      ...base,
+      homeScore: 1,
+      awayScore: 1,
+      homePenaltyScore: 2,
+      awayPenaltyScore: 3,
+      scoringHome: 1,
+      scoringAway: 2,
+      homeTeam: { name: "Нидерланды", countryCode: "NL" },
+      awayTeam: { name: "Марокко", countryCode: "MA" },
+      nextMatch: null,
+      origin: "https://friendsbets.ru",
+    });
+    expect(html).toContain("Для очков: 1 : 2");
+  });
+
   it("in-app содержит результат, очки, место и следующий матч", () => {
     const body = buildMatchResultInAppBody(base);
     expect(body).toContain("В турнире «ЧМ 2026»");

@@ -82,3 +82,10 @@ export function formatPointsScoringScore(
 ): string {
   return `${homeScore} : ${awayScore}`;
 }
+
+export function formatPointsScoringScoreNotice(
+  homeScore: number,
+  awayScore: number,
+): string {
+  return `Для очков: ${formatPointsScoringScore(homeScore, awayScore)}`;
+}
