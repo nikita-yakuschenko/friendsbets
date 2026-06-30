@@ -23,6 +23,7 @@ export type MyTournamentRow = {
   createdAt: string;
   scoringRuleId: string;
   scoringRuleTitle: string;
+  penaltyScoringSynthetic: boolean;
   accessMode: GameAccessModeValue;
   isOrganizer: boolean;
   /** Организатор может менять очки и доступ до старта турнира */

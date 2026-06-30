@@ -78,6 +78,14 @@ function MatchHistoryCard({ entry }: { entry: PointsHistoryMatchEntry }) {
             )}
           </span>
         </p>
+        {entry.usesSyntheticScore ? (
+          <p>
+            Для очков:{" "}
+            <span className="font-medium text-white">
+              {formatScore(entry.scoringHome, entry.scoringAway)}
+            </span>
+          </p>
+        ) : null}
         {hasPenalties ? (
           <p className="text-white/80">
             {formatPenaltyOutcomeLine(

@@ -9,6 +9,7 @@ import {
 import { type ColumnDef } from "@tanstack/react-table";
 import { InviteCodeCopyCell } from "@/components/admin/games/invite-code-copy-cell";
 import { ChangeAccessModeControl } from "@/components/my-tournaments/change-access-mode-control";
+import { ChangePenaltyScoringControl } from "@/components/my-tournaments/change-penalty-scoring-control";
 import { ChangeScoringRuleControl } from "@/components/my-tournaments/change-scoring-rule-control";
 import { MyTournamentRowActions } from "@/components/my-tournaments/my-tournament-row-actions";
 import { Button } from "@/components/ui/button";
@@ -126,6 +127,21 @@ export function createMyTournamentsColumns(
             canChangeTournamentSettings={game.canChangeTournamentSettings}
             tournamentStarted={game.tournamentStarted}
             scoringRules={scoringRules}
+          />
+        );
+      },
+      enableSorting: false,
+    },
+    {
+      id: "penaltyScoring",
+      header: "Пенальти",
+      cell: ({ row }) => {
+        const game = row.original;
+        return (
+          <ChangePenaltyScoringControl
+            gameId={game.id}
+            penaltyScoringSynthetic={game.penaltyScoringSynthetic}
+            isOrganizer={game.isOrganizer}
           />
         );
       },

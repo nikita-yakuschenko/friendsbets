@@ -1,9 +1,13 @@
+import { getPenaltyScoringModeNote } from "@/lib/scoring/penalty-scoring-mode";
+
 export function PredictionRulesNote({
   championBetEnabled,
   championBetPoints,
+  penaltyScoringSynthetic = false,
 }: {
   championBetEnabled?: boolean;
   championBetPoints?: number | null;
+  penaltyScoringSynthetic?: boolean;
 }) {
   return (
     <div
@@ -11,10 +15,10 @@ export function PredictionRulesNote({
       role="note"
     >
       <p>
-        В матчах плей-офф ничья невозможна — укажите счёт с победителем (при
-        равенстве после основного времени учитывается исход по пенальти на
-        поле).
+        В матчах плей-офф ничья в прогнозе недопустима — укажите счёт с
+        победителем.
       </p>
+      <p className="mt-2">{getPenaltyScoringModeNote(penaltyScoringSynthetic)}</p>
       {championBetEnabled ? (
         <p className="mt-2">
           До начала плей-офф нужно выбрать чемпиона турнира из команд,

@@ -41,6 +41,7 @@ export default async function LeaderboardPage({
       <LeaderboardScoringLegend
         scoringRuleTitle={data.scoringRuleTitle}
         legendItems={legendItems}
+        penaltyScoringSynthetic={data.penaltyScoringSynthetic}
       />
       {data.rows.length === 0 ? (
         <Card>

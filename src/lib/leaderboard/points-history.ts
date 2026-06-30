@@ -1,5 +1,6 @@
-import { isKnockoutStage } from "@/lib/match-stage";
+import { buildSyntheticRegulationScore } from "@/lib/scoring/penalty-scoring-mode";
 import { pickCanonicalPredictionScore } from "@/lib/scoring/prediction-score-record";
+import { isKnockoutStage } from "@/lib/match-stage";
 
 export type PointsHistoryMatchEntry = {
   id: string;
@@ -17,6 +18,10 @@ export type PointsHistoryMatchEntry = {
   actualAway: number;
   actualHomePenaltyScore?: number | null;
   actualAwayPenaltyScore?: number | null;
+  /** Счёт для начисления очков (при альтернативе может отличаться от actual). */
+  scoringHome: number;
+  scoringAway: number;
+  usesSyntheticScore: boolean;
 };
 
 export type PointsHistoryChampionEntry = {
@@ -80,6 +85,7 @@ export function buildPointsHistoryEntries(params: {
   predictions: PredictionWithScore[];
   championPick: BonusPick | null;
   championAwardedAt: Date | null;
+  penaltyScoringSynthetic?: boolean;
 }): PointsHistoryEntry[] {
   const entries: PointsHistoryEntry[] = [];
 
@@ -92,6 +98,10 @@ export function buildPointsHistoryEntries(params: {
       ) {
         continue;
       }
+
+      const synthetic = params.penaltyScoringSynthetic
+        ? buildSyntheticRegulationScore(prediction.match)
+        : null;
 
       entries.push({
         id: score.id,
@@ -109,6 +119,9 @@ export function buildPointsHistoryEntries(params: {
         actualAway: prediction.match.awayScore,
         actualHomePenaltyScore: prediction.match.homePenaltyScore ?? null,
         actualAwayPenaltyScore: prediction.match.awayPenaltyScore ?? null,
+        scoringHome: synthetic?.homeScore ?? prediction.match.homeScore,
+        scoringAway: synthetic?.awayScore ?? prediction.match.awayScore,
+        usesSyntheticScore: synthetic !== null,
       });
   }
 

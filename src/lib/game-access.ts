@@ -164,6 +164,7 @@ export async function getUserGames(userId: string) {
           createdAt: true,
           tournament: { select: { externalId: true } },
           accessMode: true,
+          penaltyScoringSynthetic: true,
           scoringRule: { select: { id: true, title: true } },
           createdBy: { select: { name: true } },
           participants: {

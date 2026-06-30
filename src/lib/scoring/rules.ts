@@ -3,6 +3,8 @@ export type ScoreInput = {
   predictedAway: number;
   actualHome: number;
   actualAway: number;
+  /** Ничья в основное время + пенальти: исход для сравнения (классика). */
+  actualOutcomeOverride?: "home" | "away" | "draw";
 };
 
 export type ScoreTier =
@@ -34,6 +36,7 @@ function predictedOutcome(input: ScoreInput): "home" | "away" | "draw" | null {
 }
 
 function actualOutcome(input: ScoreInput): "home" | "away" | "draw" | null {
+  if (input.actualOutcomeOverride) return input.actualOutcomeOverride;
   if (input.actualHome > input.actualAway) return "home";
   if (input.actualAway > input.actualHome) return "away";
   if (input.actualHome === input.actualAway) return "draw";

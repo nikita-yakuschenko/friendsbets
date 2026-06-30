@@ -7,13 +7,13 @@ describe("buildPointsHistoryEntries", () => {
       predictions: [
         {
           id: "p1",
-          homeScore: 3,
-          awayScore: 1,
+          homeScore: 1,
+          awayScore: 2,
           scores: [
             {
               id: "s1",
-              points: 1,
-              reason: "Голы одной команды",
+              points: 6,
+              reason: "Точный счёт",
               calculatedAt: new Date("2026-06-30T12:00:00Z"),
             },
           ],
@@ -22,7 +22,7 @@ describe("buildPointsHistoryEntries", () => {
             startsAt: new Date("2026-06-29T20:30:00Z"),
             homeScore: 1,
             awayScore: 1,
-            homePenaltyScore: 5,
+            homePenaltyScore: 3,
             awayPenaltyScore: 4,
             homeTeam: { name: "Германия", countryCode: "DE" },
             awayTeam: { name: "Парагвай", countryCode: "PY" },
@@ -31,12 +31,14 @@ describe("buildPointsHistoryEntries", () => {
       ],
       championPick: null,
       championAwardedAt: null,
+      penaltyScoringSynthetic: true,
     });
 
     expect(entries).toHaveLength(1);
     if (entries[0]?.kind === "match") {
-      expect(entries[0].actualHomePenaltyScore).toBe(5);
-      expect(entries[0].actualAwayPenaltyScore).toBe(4);
+      expect(entries[0].usesSyntheticScore).toBe(true);
+      expect(entries[0].scoringHome).toBe(1);
+      expect(entries[0].scoringAway).toBe(2);
     }
   });
 

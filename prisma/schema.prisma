@@ -153,6 +153,8 @@ model Game {
   scoringRuleId String
   championBetEnabled Boolean @default(false)
   championBetPoints  Int?
+  /** Альтернатива: +1 гол победителю пенальти для расчёта очков при ничьей в основное время. */
+  penaltyScoringSynthetic Boolean @default(false)
   createdById   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

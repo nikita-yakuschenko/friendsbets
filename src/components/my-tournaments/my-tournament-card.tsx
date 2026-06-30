@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { InviteCodeCopyCell } from "@/components/admin/games/invite-code-copy-cell";
+import { ChangePenaltyScoringControl } from "@/components/my-tournaments/change-penalty-scoring-control";
 import { ChangeAccessModeControl } from "@/components/my-tournaments/change-access-mode-control";
 import { ChangeScoringRuleControl } from "@/components/my-tournaments/change-scoring-rule-control";
 import { MyTournamentRowActions } from "@/components/my-tournaments/my-tournament-row-actions";
@@ -64,6 +65,13 @@ export function MyTournamentCard({
             canChangeTournamentSettings={tournament.canChangeTournamentSettings}
             tournamentStarted={tournament.tournamentStarted}
             scoringRules={scoringRules}
+          />
+        </RecordDetailRow>
+        <RecordDetailRow label="Пенальти">
+          <ChangePenaltyScoringControl
+            gameId={tournament.id}
+            penaltyScoringSynthetic={tournament.penaltyScoringSynthetic}
+            isOrganizer={tournament.isOrganizer}
           />
         </RecordDetailRow>
         <RecordDetailRow label="Доступ">

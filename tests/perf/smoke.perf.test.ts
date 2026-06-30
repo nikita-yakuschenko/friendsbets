@@ -29,7 +29,9 @@ describe("performance smoke", () => {
         inviteCode: `CODE${i}`,
         createdAt: new Date(),
         tournament: { externalId: null },
-        scoringRule: { title: "Classic" },
+        accessMode: "OPEN",
+        penaltyScoringSynthetic: false,
+        scoringRule: { id: "sr-1", title: "Classic" },
         createdBy: { name: "Creator" },
         participants: [],
         _count: { participants: 2 },
@@ -41,6 +43,9 @@ describe("performance smoke", () => {
       memberships,
       activeInviteCode: "CODE0",
       sourceLabelByExternalId: new Map(),
+      tournamentStartedByGameId: new Map(
+        memberships.map((m) => [m.game.id, false]),
+      ),
     });
     expect(rows).toHaveLength(50);
     expect(performance.now() - start).toBeLessThan(200);

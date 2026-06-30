@@ -11,6 +11,7 @@ const baseMembership = {
     createdAt: new Date("2026-01-01T00:00:00Z"),
     tournament: { externalId: "championat:tournament:1" },
     accessMode: "REQUEST",
+    penaltyScoringSynthetic: false,
     scoringRule: { id: "rule-1", title: "Классика" },
     createdBy: { name: "Оля" },
     participants: [{ displayName: "Оля" }],

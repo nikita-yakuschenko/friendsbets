@@ -3,6 +3,7 @@ import { PointsHistoryButton } from "@/components/leaderboard/points-history-but
 import { UserAvatar } from "@/components/user/user-avatar";
 import { cn } from "@/lib/utils";
 import type { LeaderboardColumn, ScoringRuleLegendItem } from "@/lib/scoring/catalog";
+import { getPenaltyScoringModeNote } from "@/lib/scoring/penalty-scoring-mode";
 import type { ScoreTier } from "@/lib/scoring/rules";
 
 export type LeaderboardRow = {
@@ -161,9 +162,11 @@ export function LeaderboardTable({
 export function LeaderboardScoringLegend({
   scoringRuleTitle,
   legendItems,
+  penaltyScoringSynthetic = false,
 }: {
   scoringRuleTitle: string;
   legendItems: ScoringRuleLegendItem[];
+  penaltyScoringSynthetic?: boolean;
 }) {
   return (
     <div
@@ -188,6 +191,9 @@ export function LeaderboardScoringLegend({
           </span>
         ))}
       </div>
+      <p className="mt-3 border-t border-brand-neutral/60 pt-3 text-xs leading-relaxed text-brand-muted">
+        {getPenaltyScoringModeNote(penaltyScoringSynthetic)}
+      </p>
     </div>
   );
 }

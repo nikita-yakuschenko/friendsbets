@@ -185,6 +185,7 @@ export default async function PredictionsPage({
         <PredictionRulesNote
           championBetEnabled={data.game.championBetEnabled}
           championBetPoints={data.game.championBetPoints}
+          penaltyScoringSynthetic={data.game.penaltyScoringSynthetic}
         />
         {championBet ? (
           <ChampionBetPicker

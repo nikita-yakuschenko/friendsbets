@@ -33,7 +33,7 @@ export async function getParticipantPointsHistory(
 
   const game = await prisma.game.findUnique({
     where: { id: gameId },
-    select: { tournamentId: true },
+    select: { tournamentId: true, penaltyScoringSynthetic: true },
   });
   if (!game) return null;
 
@@ -72,6 +72,7 @@ export async function getParticipantPointsHistory(
     predictions,
     championPick: championPick,
     championAwardedAt: resolveChampionAwardedAt(finishedKnockout),
+    penaltyScoringSynthetic: game.penaltyScoringSynthetic,
   });
 
   const totalPoints = entries.reduce((sum, entry) => sum + entry.points, 0);

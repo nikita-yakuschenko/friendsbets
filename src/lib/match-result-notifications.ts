@@ -98,6 +98,7 @@ export async function notifyMatchResultParticipants(
       title: true,
       inviteCode: true,
       scoringRule: true,
+      penaltyScoringSynthetic: true,
       participants: {
         include: {
           user: {
@@ -213,7 +214,9 @@ export async function notifyMatchResultParticipants(
       );
       const scoreResult =
         prediction != null
-          ? calculatePredictionScore(prediction, match, game.scoringRule)
+          ? calculatePredictionScore(prediction, match, game.scoringRule, {
+              penaltyScoringSynthetic: game.penaltyScoringSynthetic,
+            })
           : { points: 0, reason: "Прогноз не сделан", tier: "none" as const };
 
       const payload = {

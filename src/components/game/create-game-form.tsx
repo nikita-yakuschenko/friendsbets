@@ -61,6 +61,7 @@ export function CreateGameForm({
   const [accessMode, setAccessMode] = useState<GameAccessModeValue>(
     GAME_ACCESS_MODE.REQUEST,
   );
+  const [penaltyScoringSynthetic, setPenaltyScoringSynthetic] = useState(false);
 
   const selectedRule = scoringRules.find((rule) => rule.id === scoringRuleId);
   const selectedTemplate = tournamentTemplates.find((t) => t.id === templateId);
@@ -301,7 +302,32 @@ export function CreateGameForm({
             </option>
           ))}
         </FormSelect>
-        {selectedRule ? <ScoringRuleDescription code={selectedRule.code} /> : null}
+        {selectedRule ? (
+          <ScoringRuleDescription
+            code={selectedRule.code}
+            penaltyScoringSynthetic={penaltyScoringSynthetic}
+          />
+        ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <Label>Пенальти — метод начисления очков</Label>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-brand-neutral/80 bg-brand-bg/40 px-4 py-3">
+          <input
+            type="checkbox"
+            name="penaltyScoringSynthetic"
+            checked={penaltyScoringSynthetic}
+            onChange={(e) => setPenaltyScoringSynthetic(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-brand-neutral accent-brand-lime"
+          />
+          <span className="text-sm leading-relaxed text-brand-muted">
+            <span className="font-medium text-white">Альтернатива</span> — при
+            ничьей в основное время к счёту для очков добавляется один гол
+            победителю серии пенальти. По умолчанию — классика (счёт основного
+            времени, исход по пенальти). Можно изменить в любой момент в списке
+            турниров.
+          </span>
+        </label>
       </div>
 
       <div className="space-y-2">

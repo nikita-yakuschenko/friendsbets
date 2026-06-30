@@ -17,6 +17,20 @@ describe("scoreFootballClassic", () => {
     });
   });
 
+  it("даёт 1 очко за исход с override", () => {
+    expect(
+      scoreFootballClassic({
+        ...actual,
+        predictedHome: 3,
+        predictedAway: 0,
+        actualOutcomeOverride: "home",
+      }),
+    ).toMatchObject({
+      points: 1,
+      tier: "outcome",
+    });
+  });
+
   it("даёт 1 очко за исход", () => {
     expect(scoreFootballClassic({ ...actual, predictedHome: 3, predictedAway: 0 })).toMatchObject({
       points: 1,

@@ -286,6 +286,7 @@ export async function getLeaderboardData(routeParam: string) {
           prediction,
           prediction.match,
           game.scoringRule,
+          { penaltyScoringSynthetic: game.penaltyScoringSynthetic },
         );
         if (result.tier !== "none" && result.tier in tierCounts) {
           tierCounts[result.tier]++;
@@ -311,6 +312,7 @@ export async function getLeaderboardData(routeParam: string) {
   return {
     scoringRuleTitle: game.scoringRule.title,
     scoringRuleCode: game.scoringRule.code,
+    penaltyScoringSynthetic: game.penaltyScoringSynthetic,
     columns,
     rows,
   };

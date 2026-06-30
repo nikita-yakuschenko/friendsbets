@@ -77,6 +77,8 @@ export async function createGameAction(
   const accessMode = parseGameAccessModeInput(
     String(formData.get("accessMode") ?? "REQUEST"),
   );
+  const penaltyScoringSynthetic =
+    formData.get("penaltyScoringSynthetic") === "on";
 
   if (inviteCodeRaw) {
     const formatError = validateInviteCodeFormat(inviteCodeRaw);
@@ -181,6 +183,7 @@ export async function createGameAction(
       accessMode,
       tournamentId,
       scoringRuleId,
+      penaltyScoringSynthetic,
       createdById: session.id,
       participants: {
         create: {

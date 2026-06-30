@@ -1,6 +1,13 @@
 import { getScoringRuleDescription } from "@/lib/scoring/catalog";
+import { getPenaltyScoringModeNote } from "@/lib/scoring/penalty-scoring-mode";
 
-export function ScoringRuleDescription({ code }: { code: string }) {
+export function ScoringRuleDescription({
+  code,
+  penaltyScoringSynthetic = false,
+}: {
+  code: string;
+  penaltyScoringSynthetic?: boolean;
+}) {
   const { summary, items } = getScoringRuleDescription(code);
 
   return (
@@ -30,6 +37,9 @@ export function ScoringRuleDescription({ code }: { code: string }) {
       <p className="mt-3 border-t border-brand-neutral/60 pt-3 text-xs leading-relaxed text-brand-muted">
         За один матч засчитывается только один вариант — с наибольшим числом очков из
         подходящих. В плей-офф ничья в прогнозе недопустима.
+      </p>
+      <p className="mt-3 border-t border-brand-neutral/60 pt-3 text-xs leading-relaxed text-brand-muted">
+        {getPenaltyScoringModeNote(penaltyScoringSynthetic)}
       </p>
     </div>
   );

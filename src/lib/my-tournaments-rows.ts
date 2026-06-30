@@ -19,6 +19,7 @@ export type MembershipForTournamentRow = {
     createdAt: Date;
     tournament: { externalId: string | null };
     accessMode: string;
+    penaltyScoringSynthetic: boolean;
     scoringRule: { id: string; title: string };
     createdBy: { name: string };
     participants: { displayName: string }[];
@@ -65,6 +66,7 @@ export function buildMyTournamentRows(params: {
       createdAt: game.createdAt.toISOString(),
       scoringRuleId: game.scoringRule.id,
       scoringRuleTitle: game.scoringRule.title,
+      penaltyScoringSynthetic: game.penaltyScoringSynthetic,
       accessMode: parseGameAccessModeInput(game.accessMode),
       isOrganizer,
       canChangeTournamentSettings: isOrganizer && !tournamentStarted,
