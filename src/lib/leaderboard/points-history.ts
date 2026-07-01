@@ -1,6 +1,6 @@
 import { buildSyntheticRegulationScore } from "@/lib/scoring/penalty-scoring-mode";
 import { pickCanonicalPredictionScore } from "@/lib/scoring/prediction-score-record";
-import { isKnockoutStage } from "@/lib/match-stage";
+import { isFinalStage } from "@/lib/match-stage";
 
 export type PointsHistoryMatchEntry = {
   id: string;
@@ -145,11 +145,9 @@ export function buildPointsHistoryEntries(params: {
 export function resolveChampionAwardedAt(
   matches: FinishedKnockoutMatch[],
 ): Date | null {
-  const knockout = matches
-    .filter((match) => isKnockoutStage(match.stage))
-    .sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime());
-
-  const finalMatch = knockout[0];
+  const finalMatch = matches
+    .filter((match) => isFinalStage(match.stage))
+    .sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime())[0];
   if (!finalMatch) return null;
 
   return finalMatch.championatFinishedAt ?? finalMatch.startsAt;

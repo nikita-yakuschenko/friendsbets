@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildPointsHistoryEntries } from "@/lib/leaderboard/points-history";
+import {
+  buildPointsHistoryEntries,
+  resolveChampionAwardedAt,
+} from "@/lib/leaderboard/points-history";
 
 describe("buildPointsHistoryEntries", () => {
   it("показывает серию пенальти в результате", () => {
@@ -243,5 +246,34 @@ describe("buildPointsHistoryEntries", () => {
     });
 
     expect(entries).toHaveLength(0);
+  });
+
+  it("дата ставки на чемпиона — только из финала, не из 1/8", () => {
+    const awardedAt = resolveChampionAwardedAt([
+      {
+        stage: "1/8 финала",
+        startsAt: new Date("2026-07-01T01:00:00Z"),
+        championatFinishedAt: new Date("2026-07-01T01:54:00Z"),
+      },
+      {
+        stage: "Финал",
+        startsAt: new Date("2026-07-20T20:00:00Z"),
+        championatFinishedAt: new Date("2026-07-20T22:30:00Z"),
+      },
+    ]);
+
+    expect(awardedAt).toEqual(new Date("2026-07-20T22:30:00Z"));
+  });
+
+  it("без финала дата ставки на чемпиона не определена", () => {
+    expect(
+      resolveChampionAwardedAt([
+        {
+          stage: "1/16 финала",
+          startsAt: new Date("2026-06-30T20:00:00Z"),
+          championatFinishedAt: new Date("2026-06-30T22:00:00Z"),
+        },
+      ]),
+    ).toBeNull();
   });
 });

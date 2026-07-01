@@ -9,3 +9,9 @@ export function isKnockoutStage(stage: string | null | undefined): boolean {
   if (!stage) return false;
   return !isGroupStage(stage);
 }
+
+/** Финальный матч турнира (не 1/8, 1/4 и т.п.). */
+export function isFinalStage(stage: string | null | undefined): boolean {
+  if (!stage) return false;
+  return /^финал$/iu.test(stage.trim()) || /^final$/iu.test(stage.trim());
+}

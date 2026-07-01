@@ -6,6 +6,7 @@ import {
 
 const sendEmailMock = vi.fn().mockResolvedValue(undefined);
 const recalcMock = vi.fn().mockResolvedValue(undefined);
+const championSyncMock = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("@/lib/email", () => ({
   sendEmail: (...args: unknown[]) => sendEmailMock(...args),
@@ -22,6 +23,11 @@ vi.mock("@/lib/telegram/config", () => ({
 
 vi.mock("@/lib/template-match-admin", () => ({
   recalculateMatchScoresForTournament: (...args: unknown[]) => recalcMock(...args),
+}));
+
+vi.mock("@/lib/champion-bet", () => ({
+  syncChampionBetPointsForTournament: (...args: unknown[]) =>
+    championSyncMock(...args),
 }));
 
 vi.mock("@/lib/leaderboard/compute-game-leaderboard", () => ({
@@ -113,6 +119,7 @@ describe("match result notifications", () => {
   it("handleMatchFinished пересчитывает очки и шлёт уведомление", async () => {
     await handleMatchFinished("tour-1", "match-1");
     expect(recalcMock).toHaveBeenCalledWith("tour-1", "match-1");
+    expect(championSyncMock).toHaveBeenCalledWith("tour-1");
     expect(prisma.userNotification.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

@@ -17,6 +17,7 @@ import {
 } from "@/lib/match-result-notification-content";
 import { calculatePredictionScore } from "@/lib/scoring";
 import { resolvePointsScoringScore } from "@/lib/scoring/penalty-scoring-mode";
+import { syncChampionBetPointsForTournament } from "@/lib/champion-bet";
 import { recalculateMatchScoresForTournament } from "@/lib/template-match-admin";
 import {
   shouldNotifyByEmail,
@@ -65,6 +66,7 @@ export async function handleMatchFinished(
   matchId: string,
 ): Promise<void> {
   await recalculateMatchScoresForTournament(tournamentId, matchId);
+  await syncChampionBetPointsForTournament(tournamentId);
   await notifyMatchResultParticipants(tournamentId, matchId);
 }
 

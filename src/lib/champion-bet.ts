@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import {
   isPlaceholderTeamExternalId,
 } from "@/lib/football-api/match-visibility";
-import { isKnockoutStage } from "@/lib/match-stage";
+import { isFinalStage, isKnockoutStage } from "@/lib/match-stage";
 
 export type PlayoffTeam = {
   id: string;
@@ -62,23 +62,11 @@ export async function getPlayoffTeams(
   return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, "ru"));
 }
 
-/** Победитель турнира — команда из финала или последнего завершённого матча плей-офф. */
+/** Победитель турнира — только после завершённого финала. */
 export async function getTournamentChampionTeamId(
   tournamentId: string,
 ): Promise<string | null> {
-  const finalMatch = await prisma.match.findFirst({
-    where: {
-      tournamentId,
-      status: MatchStatus.FINISHED,
-      winnerTeamId: { not: null },
-      stage: { contains: "инал", mode: "insensitive" },
-    },
-    orderBy: { startsAt: "desc" },
-    select: { winnerTeamId: true },
-  });
-  if (finalMatch?.winnerTeamId) return finalMatch.winnerTeamId;
-
-  const knockoutMatches = await prisma.match.findMany({
+  const finishedMatches = await prisma.match.findMany({
     where: {
       tournamentId,
       status: MatchStatus.FINISHED,
@@ -88,10 +76,8 @@ export async function getTournamentChampionTeamId(
     orderBy: { startsAt: "desc" },
   });
 
-  const lastKnockout = knockoutMatches.find((match) =>
-    isKnockoutStage(match.stage),
-  );
-  return lastKnockout?.winnerTeamId ?? null;
+  const finalMatch = finishedMatches.find((match) => isFinalStage(match.stage));
+  return finalMatch?.winnerTeamId ?? null;
 }
 
 export async function syncChampionBetPoints(gameId: string): Promise<void> {
@@ -107,8 +93,6 @@ export async function syncChampionBetPoints(gameId: string): Promise<void> {
   if (!game?.championBetEnabled || game.championBetPoints == null) return;
 
   const championTeamId = await getTournamentChampionTeamId(game.tournamentId);
-  if (!championTeamId) return;
-
   const award = game.championBetPoints;
   const predictions = await prisma.bonusPrediction.findMany({
     where: { gameId },
@@ -116,12 +100,27 @@ export async function syncChampionBetPoints(gameId: string): Promise<void> {
   });
 
   for (const prediction of predictions) {
-    const nextPoints = prediction.teamId === championTeamId ? award : 0;
+    const nextPoints =
+      championTeamId && prediction.teamId === championTeamId ? award : 0;
     if (prediction.points !== nextPoints) {
       await prisma.bonusPrediction.update({
         where: { id: prediction.id },
         data: { points: nextPoints },
       });
     }
+  }
+}
+
+/** Пересчёт ставок на чемпиона во всех играх турнира (после любого матча). */
+export async function syncChampionBetPointsForTournament(
+  tournamentId: string,
+): Promise<void> {
+  const games = await prisma.game.findMany({
+    where: { tournamentId },
+    select: { id: true },
+  });
+
+  for (const game of games) {
+    await syncChampionBetPoints(game.id);
   }
 }
