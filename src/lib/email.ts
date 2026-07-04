@@ -1,14 +1,24 @@
 import nodemailer from "nodemailer";
 import type Transporter from "nodemailer/lib/mailer";
 
+/** transactional — регистрация, сброс пароля; admin — ручная отправка; notification — cron/авторассылка */
+export type EmailKind = "transactional" | "admin" | "notification";
+
 export type SendEmailInput = {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  kind?: EmailKind;
 };
 
 export type EmailDeliveryMode = "smtp" | "mock";
+
+export function isAutoEmailSendingEnabled(): boolean {
+  const value = process.env.EMAIL_AUTO_SEND?.trim().toLowerCase();
+  if (!value) return true;
+  return value !== "false" && value !== "0" && value !== "off";
+}
 
 export function getEmailDeliveryMode(): EmailDeliveryMode {
   return isSmtpConfigured() ? "smtp" : "mock";
@@ -45,12 +55,18 @@ function getTransport(): Transporter | null {
   return transport;
 }
 
-export async function sendEmail(input: SendEmailInput): Promise<void> {
+export async function sendEmail(input: SendEmailInput): Promise<boolean> {
+  const kind = input.kind ?? "notification";
+  if (kind === "notification" && !isAutoEmailSendingEnabled()) {
+    console.info("[email:skipped:auto-disabled]", input.to, input.subject);
+    return false;
+  }
+
   const transporter = getTransport();
 
   if (!transporter) {
     console.info("[email:mock]", input.to, input.subject, input.text);
-    return;
+    return true;
   }
 
   await transporter.sendMail({
@@ -60,4 +76,5 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
     text: input.text,
     html: input.html ?? input.text.replace(/\n/g, "<br>"),
   });
+  return true;
 }

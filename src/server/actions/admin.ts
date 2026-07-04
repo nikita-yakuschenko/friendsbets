@@ -643,6 +643,7 @@ export async function sendTestEmailToUserAction(
       subject,
       text,
       html,
+      kind: "admin",
     });
   } catch (err) {
     console.error("[admin:test-email]", user.email, err);

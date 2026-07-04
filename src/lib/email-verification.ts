@@ -50,6 +50,7 @@ export async function sendEmailVerificationMessage(user: {
     subject: "FriendsBets: подтвердите email",
     text,
     html,
+    kind: "transactional",
   });
 }
 

@@ -198,6 +198,7 @@ export async function sendPlatformNotificationBroadcast(params: {
           subject: trimmedTitle,
           text: trimmedBody,
           html,
+          kind: "admin",
         });
         email++;
       } catch (error) {

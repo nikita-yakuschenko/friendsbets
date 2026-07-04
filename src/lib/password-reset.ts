@@ -41,6 +41,7 @@ export async function sendPasswordResetMessage(user: {
     subject: "FriendsBets: сброс пароля",
     text,
     html,
+    kind: "transactional",
   });
 }
 
